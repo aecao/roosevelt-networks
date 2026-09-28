@@ -10,10 +10,25 @@ async function fetchText(url) {
 export async function loadActors() {
   const text = await fetchText(DATA.actorsFile);
   const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
-  return data.map((row) => ({
-    ...row,
-    [DATA.nodeIdField]: (row[DATA.nodeIdField] || '').trim(),
-  }));
+
+  const seen = new Set();
+  const actors = [];
+  for (const row of data) {
+    const id = (row[DATA.nodeIdField] || '').trim();
+    if (!id) continue;
+    if (seen.has(id)) {
+      console.warn(`Skipping duplicate actor id "${id}" (row appears more than once in actors.csv)`);
+      continue;
+    }
+    seen.add(id);
+    // Google Sheets export can leave stray whitespace on every cell.
+    const trimmed = {};
+    for (const [key, value] of Object.entries(row)) {
+      trimmed[key] = typeof value === 'string' ? value.trim() : value;
+    }
+    actors.push(trimmed);
+  }
+  return actors;
 }
 
 export async function loadEdgeManifest() {

@@ -7,7 +7,7 @@ export const DATA = {
   edgesDir: `${base}data/edges/`,
   // Column in actors.csv used as the graph node id. Must match the row/column
   // headers used in the adjacency matrix CSVs.
-  nodeIdField: 'abbrev',
+  nodeIdField: 'actor',
   nodeLabelField: 'actor',
   // Column used to build the "Actor category" filter + node color.
   nodeCategoryField: 'type',
