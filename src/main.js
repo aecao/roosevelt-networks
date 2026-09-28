@@ -113,6 +113,8 @@ async function main() {
     minCameraRatio: 0.05,
     maxCameraRatio: 10,
     labelRenderedSizeThreshold: 8,
+    labelColor: { color: '#ffffff' },
+    labelFont: '"Helvetica Neue", Helvetica, Arial, sans-serif',
   });
   state.renderer = renderer;
 
