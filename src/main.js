@@ -124,8 +124,11 @@ async function buildGraph() {
     graph.setNodeAttribute(node, 'size', MIN_SIZE + ratio * (MAX_SIZE - MIN_SIZE));
   });
 
-  circular.assign(graph);
-  forceAtlas2.assign(graph, LAYOUT_SETTINGS);
+  const positions = computeFilteredLayout(graph, state.activeEdgeTypes);
+  graph.forEachNode((node) => {
+    graph.setNodeAttribute(node, 'x', positions[node].x);
+    graph.setNodeAttribute(node, 'y', positions[node].y);
+  });
 
   return { graph, categories, scales, manifest };
 }
