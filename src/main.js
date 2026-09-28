@@ -8,7 +8,9 @@ import { DATA, PALETTE } from './config.js';
 import { loadActors, loadEdgeManifest, loadAdjacencyMatrix } from './data.js';
 
 const MIN_SIZE = 4;
-const MAX_SIZE = 22;
+const MAX_SIZE = 8;
+const REFERENCE_CAMERA_RATIO = 0.3;
+const REFERENCE_SIZE_RATIO = Math.sqrt(REFERENCE_CAMERA_RATIO);
 const LAYOUT_SETTINGS = { iterations: 150, settings: { gravity: 1, scalingRatio: 10 } };
 
 const state = {
@@ -193,6 +195,7 @@ async function main() {
   const renderer = new Sigma(graph, container, {
     minCameraRatio: 0.05,
     maxCameraRatio: 10,
+    zoomToSizeRatioFunction: (ratio) => (ratio / REFERENCE_CAMERA_RATIO) * REFERENCE_SIZE_RATIO,
     labelDensity: 0.35,
     labelRenderedSizeThreshold: 10,
     labelColor: { color: '#ffffff' },
