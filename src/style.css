@@ -129,6 +129,19 @@ button:hover {
   color: var(--accent);
 }
 
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.toggle-row input {
+  cursor: pointer;
+}
+
 .details {
   border-top: 1px solid var(--border);
   padding-top: 12px;

@@ -1,9 +1,14 @@
 import Graph from 'graphology';
 import Sigma from 'sigma';
+import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
 import { DATA, PALETTE } from './config.js';
 import { loadActors, loadEdgeManifest, loadAdjacencyMatrix } from './data.js';
+
+const MIN_SIZE = 4;
+const MAX_SIZE = 22;
+const LAYOUT_SETTINGS = { iterations: 150, settings: { gravity: 1, scalingRatio: 10 } };
 
 const state = {
   graph: null,
@@ -11,6 +16,7 @@ const state = {
   activeEdgeTypes: new Set(),
   activeNodeTypes: new Set(),
   categoryColors: new Map(),
+  freezePositions: false,
 };
 
 async function buildGraph() {
@@ -60,10 +66,40 @@ async function buildGraph() {
   state.activeEdgeTypes = new Set(edgeTypes);
   state.activeNodeTypes = new Set(categories);
 
+  // Bigger nodes = more connections (degree across all adjacency types).
+  let maxDegree = 0;
+  graph.forEachNode((node) => {
+    maxDegree = Math.max(maxDegree, graph.degree(node));
+  });
+  graph.forEachNode((node) => {
+    const ratio = maxDegree > 0 ? graph.degree(node) / maxDegree : 0;
+    graph.setNodeAttribute(node, 'size', MIN_SIZE + ratio * (MAX_SIZE - MIN_SIZE));
+  });
+
   circular.assign(graph);
-  forceAtlas2.assign(graph, { iterations: 150, settings: { gravity: 1, scalingRatio: 10 } });
+  forceAtlas2.assign(graph, LAYOUT_SETTINGS);
 
   return { graph, categories, manifest };
+}
+
+// Lays out a copy of the graph containing only the currently active adjacency
+// types, so the layout reflects what's actually selected.
+function computeFilteredLayout(graph, activeEdgeTypes) {
+  const temp = new Graph({ multi: true });
+  graph.forEachNode((node) => temp.addNode(node));
+  graph.forEachEdge((edge, attrs, source, target) => {
+    if (activeEdgeTypes.has(attrs.adjacencyType)) {
+      temp.addEdge(source, target);
+    }
+  });
+  circular.assign(temp);
+  forceAtlas2.assign(temp, LAYOUT_SETTINGS);
+
+  const positions = {};
+  temp.forEachNode((node, attrs) => {
+    positions[node] = { x: attrs.x, y: attrs.y };
+  });
+  return positions;
 }
 
 function buildFilterCheckboxes(container, items, activeSet, colorFor, onChange) {
@@ -122,6 +158,14 @@ async function main() {
     renderer.refresh();
   }
 
+  let cancelAnimation = null;
+  function relayout() {
+    if (state.freezePositions) return;
+    if (cancelAnimation) cancelAnimation();
+    const positions = computeFilteredLayout(graph, state.activeEdgeTypes);
+    cancelAnimation = animateNodes(graph, positions, { duration: 700, easing: 'quadraticInOut' });
+  }
+
   renderer.setSetting('nodeReducer', (node, data) => {
     const hidden = !state.activeNodeTypes.has(data.category);
     return hidden ? { ...data, hidden: true } : data;
@@ -141,8 +185,15 @@ async function main() {
     manifest.map((m) => ({ value: m.type, label: m.label })),
     state.activeEdgeTypes,
     () => '#4a4f5c',
-    refresh,
+    () => {
+      refresh();
+      relayout();
+    },
   );
+
+  document.getElementById('freeze-positions').addEventListener('change', (e) => {
+    state.freezePositions = e.target.checked;
+  });
 
   // Node category filters
   buildFilterCheckboxes(
@@ -202,9 +253,12 @@ async function main() {
     });
     state.activeEdgeTypes = new Set(manifest.map((m) => m.type));
     state.activeNodeTypes = new Set(categories);
+    document.getElementById('freeze-positions').checked = false;
+    state.freezePositions = false;
     document.getElementById('node-details').classList.add('hidden');
     renderer.getCamera().animatedReset({ duration: 300 });
     refresh();
+    relayout();
   });
 }
 
