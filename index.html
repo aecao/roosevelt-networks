@@ -9,55 +9,66 @@
 <body>
   <div id="app">
     <aside id="sidebar">
-      <h1>Roosevelt Networks</h1>
-      <p class="subtitle">Actor network model</p>
-
-      <div class="panel">
-        <input id="search" type="search" placeholder="Search actor…" autocomplete="off" />
-        <div id="search-results" class="search-results"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Adjacency type</h2>
-        <div id="edge-type-filters" class="filter-list"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Actor category</h2>
-        <div id="node-type-filters" class="filter-list"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Topic</h2>
-        <div id="topic-filters" class="filter-list"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Scale</h2>
-        <div id="scale-filters" class="filter-list"></div>
-      </div>
-
-      <div class="panel">
-        <h2>Time</h2>
-        <label class="toggle-row">
-          <input id="year-filter-toggle" type="checkbox" />
-          <span>Filter by active year</span>
-        </label>
-        <div id="year-controls" class="year-controls" hidden>
-          <label for="year-slider">Year <output id="year-value">2026</output></label>
-          <input id="year-slider" type="range" min="1920" max="2026" step="1" value="2026" />
+      <header class="sidebar-header">
+        <div class="sidebar-heading">
+          <h1>Roosevelt Networks</h1>
+          <p class="subtitle">Actor network model</p>
         </div>
-      </div>
+        <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Hide filters" aria-expanded="true" aria-controls="sidebar-content">−</button>
+      </header>
 
-      <div class="panel">
-        <button id="reset-view">Reset view</button>
-        <label class="toggle-row">
-          <input id="freeze-positions" type="checkbox" />
-          <span>Freeze actor position</span>
-        </label>
-      </div>
+      <div id="sidebar-content">
+        <div class="panel">
+          <input id="search" type="search" placeholder="Search actor…" autocomplete="off" />
+          <div id="search-results" class="search-results"></div>
+        </div>
 
-      <div id="node-details" class="panel details hidden"></div>
+        <div class="panel">
+          <h2>Adjacency type</h2>
+          <div id="edge-type-filters" class="filter-list"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Actor category</h2>
+          <div id="node-type-filters" class="filter-list"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Topic</h2>
+          <div id="topic-filters" class="filter-list"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Scale</h2>
+          <div id="scale-filters" class="filter-list"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Time</h2>
+          <label class="toggle-row">
+            <input id="year-filter-toggle" type="checkbox" />
+            <span>Filter by active year</span>
+          </label>
+          <div id="year-controls" class="year-controls" hidden>
+            <label for="year-slider">Year <output id="year-value">2026</output></label>
+            <input id="year-slider" type="range" min="1920" max="2026" step="1" value="2026" />
+          </div>
+          <label class="toggle-row">
+            <input id="position-filter-toggle" type="checkbox" />
+            <span>Position–Incumbent</span>
+          </label>
+        </div>
+
+        <div class="panel">
+          <button id="reset-view">Reset view</button>
+          <label class="toggle-row">
+            <input id="freeze-positions" type="checkbox" />
+            <span>Freeze actor position</span>
+          </label>
+        </div>
+
+        <div id="node-details" class="panel details hidden"></div>
+      </div>
     </aside>
     <main id="graph-container"></main>
   </div>

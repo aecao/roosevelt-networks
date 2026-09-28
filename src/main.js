@@ -11,6 +11,7 @@ const MIN_SIZE = 4;
 const MAX_SIZE = 8;
 const REFERENCE_CAMERA_RATIO = 0.3;
 const REFERENCE_SIZE_RATIO = Math.sqrt(REFERENCE_CAMERA_RATIO);
+const POSITION_EDGE_TYPE = 'pos';
 const LAYOUT_SETTINGS = { iterations: 150, settings: { gravity: 1, scalingRatio: 10 } };
 
 const state = {
@@ -108,7 +109,7 @@ async function buildGraph() {
     });
   }
 
-  state.activeEdgeTypes = new Set(edgeTypes);
+  state.activeEdgeTypes = new Set(edgeTypes.filter((type) => type !== POSITION_EDGE_TYPE));
   state.activeNodeTypes = new Set(categories);
   state.activeTopics = new Set(topics);
   state.activeScales = new Set(scales);
@@ -260,7 +261,9 @@ async function main() {
   // Edge type filters
   buildFilterCheckboxes(
     document.getElementById('edge-type-filters'),
-    manifest.map((m) => ({ value: m.type, label: m.label })),
+    manifest
+      .filter((m) => m.type !== POSITION_EDGE_TYPE)
+      .map((m) => ({ value: m.type, label: m.label })),
     state.activeEdgeTypes,
     (value) => state.edgeTypeColors.get(value),
     () => {
@@ -314,6 +317,23 @@ async function main() {
     refresh();
   });
 
+  const positionToggle = document.getElementById('position-filter-toggle');
+  positionToggle.addEventListener('change', () => {
+    if (positionToggle.checked) state.activeEdgeTypes.add(POSITION_EDGE_TYPE);
+    else state.activeEdgeTypes.delete(POSITION_EDGE_TYPE);
+    refresh();
+    relayout();
+  });
+
+  const sidebar = document.getElementById('sidebar');
+  const sidebarToggle = document.getElementById('sidebar-toggle');
+  sidebarToggle.addEventListener('click', () => {
+    const collapsed = sidebar.classList.toggle('collapsed');
+    sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
+    sidebarToggle.setAttribute('aria-label', collapsed ? 'Show filters' : 'Hide filters');
+    sidebarToggle.textContent = collapsed ? '+' : '−';
+  });
+
   // Search
   const searchInput = document.getElementById('search');
   const searchResults = document.getElementById('search-results');
@@ -362,7 +382,9 @@ async function main() {
       cb.checked = true;
     });
     state.activeEdgeTypes.clear();
-    manifest.forEach((m) => state.activeEdgeTypes.add(m.type));
+    manifest.forEach((m) => {
+      if (m.type !== POSITION_EDGE_TYPE) state.activeEdgeTypes.add(m.type);
+    });
     state.activeNodeTypes.clear();
     categories.forEach((category) => state.activeNodeTypes.add(category));
     state.activeTopics.clear();
@@ -375,6 +397,7 @@ async function main() {
     yearSlider.value = '2026';
     state.selectedYear = 2026;
     yearValue.textContent = '2026';
+    positionToggle.checked = false;
     document.getElementById('freeze-positions').checked = false;
     state.freezePositions = false;
     document.getElementById('node-details').classList.add('hidden');
