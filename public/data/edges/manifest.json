@@ -1,6 +1,7 @@
 [
   { "file": "matrix_adm.csv", "type": "adm", "label": "Administrator–Administrated" },
   { "file": "matrix_col.csv", "type": "col", "label": "Collaboration" },
+  { "file": "matrix_cre.csv", "type": "cre", "label": "Creator–Creation" },
   { "file": "matrix_fin.csv", "type": "fin", "label": "Financial" },
   { "file": "matrix_own.csv", "type": "own", "label": "Owner–Tenant" },
   { "file": "matrix_par.csv", "type": "par", "label": "Parent–Child" },

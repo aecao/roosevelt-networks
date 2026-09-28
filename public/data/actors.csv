@@ -5,7 +5,7 @@ Federal Government,Fed,"COMMUNITY, HOUSING, TRANSIT, ECOLOGY, INFRASTRUCTURE, GO
 New York State Government,NYS,"COMMUNITY, HOUSING, TRANSIT, ECOLOGY, INFRASTRUCTURE, GOVERNANCE, ECONOMIC",PUBLIC,2 - MACRO,,
 New York City Government,NYC,"COMMUNITY, HOUSING, TRANSIT, ECOLOGY, INFRASTRUCTURE, GOVERNANCE, ECONOMIC",PUBLIC,2 - MACRO,,
 B.J. Jones,,"GOVERNANCE, ECONOMIC",PUBLIC,0 - MICRO,,
-NYC City Council,,"GOVERNANCE, HOUSING, ECONOMIC",PUBLIC,2 - MACRO,,
+NYC City Council,,"GOVERNANCE, HOUSING, ECONOMIC",PUBLIC,1 - MESO,,
 RIOC Board of Directors,,"GOVERNANCE, ECONOMIC",PUBLIC,1 - MESO,,
 RIOC President & CEO,,GOVERNANCE,PUBLIC,0 - MICRO,,
 NYS Division of Budget Director,,"ECONOMIC, GOVERNANCE",PUBLIC,0 - MICRO,,
@@ -36,8 +36,8 @@ Graduate Hotel,,"ECONOMIC, COMMUNITY",PRIVATE,1 - MESO,,
 Verizon Executive Education Center,,"ECONOMIC, INFRASTRUCTURE, COMMUNITY",PRIVATE,1 - MESO,,
 Tata Innovation Center,,"ECONOMIC, INFRASTRUCTURE",PRIVATE,1 - MESO,,
 The House,,"HOUSING, ECOLOGY, INFRASTRUCTURE",PRIVATE,1 - MESO,,
-Sportspark,,"COMMUNITY, INFRASTRUCTURE",PUBLIC,1 - MESO,,
-Roosevelt Island Racquet Club,,"ECONOMIC, INFRASTRUCTURE, COMMUNITY",PRIVATE,1 - MESO,,
+Sportspark,,"COMMUNITY, INFRASTRUCTURE",COMMUNITY,1 - MESO,,
+Roosevelt Island Racquet Club,,"ECONOMIC, INFRASTRUCTURE, COMMUNITY",COMMUNITY,1 - MESO,,
 Roosevelt Island Tramway,,"TRANSIT, INFRASTRUCTURE, ECONOMIC",PUBLIC,1 - MESO,,
 Roosevelt Island Steam Plant,,"INFRASTRUCTURE, ECOLOGY",PUBLIC,1 - MESO,,
 Riverwalk Crossing,,"HOUSING, ECONOMIC",PRIVATE,1 - MESO,,
@@ -69,23 +69,105 @@ C&C Apartment Management,,"HOUSING, ECONOMIC",PRIVATE,1 - MESO,,
 Starrett Housing Corporation,,"HOUSING, ECONOMIC",PRIVATE,1 - MESO,,
 Cohen Brothers Associates,,"HOUSING, ECONOMIC, INFRASTRUCTURE",PRIVATE,1 - MESO,,
 New York Public Library ,NYPL,"COMMUNITY, INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
-Roosevelt Island Public Safety Department,PSD,COMMUNITY,PUBLIC,1 - MESO,,
-Housing and Development Administration,HDA,,PUBLIC,1 - MESO,,
-"NYC Parks, Recreation, and Cultural Affairs Administration",PRCA,,PUBLIC,1 - MESO,,
-NYC Environmental Protection Administration,EPA,,PUBLIC,1 - MESO,,
-NYC Human Resources Administration,HRA,,PUBLIC,1 - MESO,,
-NYC Health Services Administration,HSA,,PUBLIC,1 - MESO,,
-NYC Transportation Administration,,,PUBLIC,1 - MESO,,
-NYC Municipal Service Administration,MSA,,PUBLIC,1 - MESO,,
-NYC Finance Administration,,,PUBLIC,1 - MESO,,
-NYC Economic Development Administration,EDA,,PUBLIC,1 - MESO,,
-NYC Department of Housing Preservation and Development,HPD,,PUBLIC,1 - MESO,,
-NYC Parks,,,PUBLIC,1 - MESO,,
-NYC Department of Cultural Affairs,NYC DCA,,PUBLIC,1 - MESO,,
-NYC Sanitation Department,DSNY,,PUBLIC,1 - MESO,,
-NYC Department of Health and Mental Hygiene,DOHMH,,PUBLIC,1 - MESO,,
-NYC Department of General Services,NYC DGS,,PUBLIC,1 - MESO,,
-NYC Department of Finance,NYC DOF,,PUBLIC,1 - MESO,,
-NYC Department of Environmental Protection,NYC DEP,,PUBLIC,1 - MESO,,
-Empire State Development,ESD,,,1 - MESO,,
-Job Development Authority,JDA,,,,,
+Roosevelt Island Public Safety Department,PSD,"COMMUNITY, GOVERNANCE",PUBLIC,1 - MESO,,
+Housing and Development Administration,HDA,"HOUSING, GOVERNANCE, ECONOMIC",PUBLIC,1 - MESO,,
+"NYC Parks, Recreation, and Cultural Affairs Administration",PRCA,"COMMUNITY, ECOLOGY, GOVERNANCE, INFRASTRUCTURE",PUBLIC,1 - MESO,,
+NYC Environmental Protection Administration,EPA,"ECOLOGY, INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Human Resources Administration,HRA,"COMMUNITY, ECONOMIC, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Health Services Administration,HSA,"COMMUNITY, INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Transportation Administration,,"TRANSIT, INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Municipal Service Administration,MSA,"INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Finance Administration,,"ECONOMIC, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Economic Development Administration,EDA,"ECONOMIC, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Department of Housing Preservation and Development,HPD,"HOUSING, GOVERNANCE, ECONOMIC",PUBLIC,1 - MESO,,
+NYC Parks,,"COMMUNITY, ECOLOGY, INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Department of Cultural Affairs,NYC DCA,"COMMUNITY, ECONOMIC, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Sanitation Department,DSNY,"INFRASTRUCTURE, ECOLOGY, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Department of Health and Mental Hygiene,DOHMH,"COMMUNITY, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Department of General Services,NYC DGS,"INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
+NYC Department of Finance,NYC DOF,"ECONOMIC, GOVERNANCE, HOUSING",PUBLIC,1 - MESO,,
+NYC Department of Environmental Protection,NYC DEP,"ECOLOGY, INFRASTRUCTURE, GOVERNANCE",PUBLIC,1 - MESO,,
+Empire State Development,ESD,"ECONOMIC, GOVERNANCE, INFRASTRUCTURE",PUBLIC,1 - MESO,,
+Job Development Authority,JDA,"ECONOMIC, GOVERNANCE",PUBLIC,1 - MESO,,
+Leitner-Poma of America,,"INFRASTRUCTURE, TRANSIT",PRIVATE,1 - MESO,,
+"Skidmore, Owings & Merrill",SOM,,PRIVATE,1 - MESO,,
+Morphosis,,,PRIVATE,,,
+Weiss/Manfredi,,,PRIVATE,,,
+Handel Architects,,,PRIVATE,,,
+Snohetta,,,PRIVATE,,,
+Cornell AAP,,,,,,
+Department of Housing and Urban Development,HUD,,,,,
+Urban Renewal Administration,URA,,,,,
+Public Housing Administration,PHA,,,,,
+Federal Housing Administration,FHA,,,,,
+Fannie Mae (Federal National Mortgage Association),FNMA,,,,,
+National Housing Agency,NHA,,,,,
+Federal Public Housing Authority,FPHA,,,,,
+Federal Works Agency,,,,,,
+New Deal,,,,2 - MACRO,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+,,,,,,
+President of the United States,,,PUBLIC,1 - MESO,,
+Woodrow Wilson,,GOVERNANCE,PUBLIC,0 - MICRO,1913,1921
+Warren G. Harding,,GOVERNANCE,PUBLIC,0 - MICRO,1921,1923
+Calvin Coolidge,,GOVERNANCE,PUBLIC,0 - MICRO,1923,1929
+Herbert Hoover,,GOVERNANCE,PUBLIC,0 - MICRO,1929,1933
+Franklin D. Roosevelt,,GOVERNANCE,PUBLIC,0 - MICRO,1933,1945
+Harry S. Truman,,GOVERNANCE,PUBLIC,0 - MICRO,1945,1953
+Dwight D. Eisenhower,,GOVERNANCE,PUBLIC,0 - MICRO,1953,1961
+John F. Kennedy,,GOVERNANCE,PUBLIC,0 - MICRO,1961,1963
+Lyndon B. Johnson,,GOVERNANCE,PUBLIC,0 - MICRO,1963,1969
+Richard Nixon,,GOVERNANCE,PUBLIC,0 - MICRO,1969,1974
+Gerald Ford,,GOVERNANCE,PUBLIC,0 - MICRO,1974,1977
+Jimmy Carter,,GOVERNANCE,PUBLIC,0 - MICRO,1977,1981
+Ronald Reagan,,GOVERNANCE,PUBLIC,0 - MICRO,1981,1989
+George H. W. Bush,,GOVERNANCE,PUBLIC,0 - MICRO,1989,1993
+Bill Clinton,,GOVERNANCE,PUBLIC,0 - MICRO,1993,2001
+George W. Bush,,GOVERNANCE,PUBLIC,0 - MICRO,2001,2009
+Barack Obama,,GOVERNANCE,PUBLIC,0 - MICRO,2009,2017
+Donald Trump,,GOVERNANCE,PUBLIC,0 - MICRO,2017,2021
+Joe Biden,,GOVERNANCE,PUBLIC,0 - MICRO,2021,2025
+Donald Trump 00,,,PUBLIC,0 - MICRO,,
+Governer of New York,,,PUBLIC,1 - MESO,,
+Kathy Hochul,,,PUBLIC,0 - MICRO,2021,2026
+Andrew Cuomo,,,PUBLIC,0 - MICRO,2011,2021
+David Paterson,,,PUBLIC,0 - MICRO,2008,2011
+Eliot Spitzer,,,PUBLIC,0 - MICRO,2007,2008
+George Pataki,,,PUBLIC,0 - MICRO,1995,2007
+Mario Cuomo,,,PUBLIC,0 - MICRO,1983,1995
+Hugh Carey,,,PUBLIC,0 - MICRO,1975,1983
+Malcolm Wilson,,,PUBLIC,0 - MICRO,1973,1975
+Nelson Rockefeller,,,PUBLIC,0 - MICRO,1959,1973
+W. Averell Harriman,,,PUBLIC,0 - MICRO,1955,1959
+Thomas E. Dewey,,,PUBLIC,0 - MICRO,1943,1955
+Charles Poletti,,,PUBLIC,0 - MICRO,1942,1943
+Herbert H. Lehman,,,PUBLIC,0 - MICRO,1933,1942
+Franklin D. Roosevelt 00,,,PUBLIC,0 - MICRO,1929,1933
+Alfred E. Smith,,,PUBLIC,0 - MICRO,1923,1928
+Nathan L. Miller,,,PUBLIC,0 - MICRO,1921,1922
+Alfred E. Smith 00,,,PUBLIC,0 - MICRO,1919,1920
+Mayor of New York City,,,PUBLIC,1 - MESO,,
+Zohran Mamdani,,,PUBLIC,0 - MICRO,2026,2026
+Eric Adams,,,PUBLIC,0 - MICRO,2022,2026
+Bill de Blasio,,,PUBLIC,0 - MICRO,2014,2021
+Michael Bloomberg,,,PUBLIC,0 - MICRO,2002,2013
+Rudy Giuliani,,,PUBLIC,0 - MICRO,1994,2001
+David Dinkins,,,PUBLIC,0 - MICRO,1990,1993
+Ed Koch,,,PUBLIC,0 - MICRO,1978,1989
+Abraham Beame,,,PUBLIC,0 - MICRO,1974,1977
+John Lindsay,,,PUBLIC,0 - MICRO,1966,1973
+Robert F. Wagner Jr.,,,PUBLIC,0 - MICRO,1954,1965
+Vincent R. Impellitteri,,,PUBLIC,0 - MICRO,1950,1953
+William O'Dwyer,,,PUBLIC,0 - MICRO,1946,1950
+Fiorello La Guardia,,,PUBLIC,0 - MICRO,1934,1945
+John P. O'Brien,,,PUBLIC,0 - MICRO,1933,1933
+Joseph V. McKee,,,PUBLIC,0 - MICRO,1932,1932
+James J. Walker,,,PUBLIC,0 - MICRO,1926,1932
+John Francis Hylan,,,PUBLIC,0 - MICRO,1918,1925
+New York State Residents,,,PUBLIC,2 - MACRO,,
+NYC Residents,,,PUBLIC,2 - MACRO,,

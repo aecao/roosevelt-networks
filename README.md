@@ -21,6 +21,8 @@ One row per actor:
 
 Blank cells are fine — the loader trims whitespace on every field and skips rows with no `actor` value. If the same actor name appears twice, only the first row is kept (a warning is logged to the browser console).
 
+The optional year filter uses an inclusive `year_start`/`year_end` range from 1920 through 2026. A missing start or end is treated as open-ended; actors with neither year set remain visible for every selected year.
+
 ### Edges — `public/data/edges/*.csv` + `manifest.json`
 
 Each relationship is one **square adjacency matrix** CSV: the first row and first column both list actor names (matching `actor` in actors.csv exactly), and a non-empty/non-zero cell `[row, col]` means an edge from `row` to `col`. Numeric values >1 are used as edge weight.
@@ -39,6 +41,7 @@ Current relationships:
 |---|---|
 | `matrix_adm.csv` | Administrator–Administrated |
 | `matrix_col.csv` | Collaboration |
+| `matrix_cre.csv` | Creator–Creation |
 | `matrix_fin.csv` | Financial |
 | `matrix_own.csv` | Owner–Tenant |
 | `matrix_par.csv` | Parent–Child |

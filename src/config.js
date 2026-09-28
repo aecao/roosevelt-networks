@@ -11,6 +11,7 @@ export const DATA = {
   nodeLabelField: 'actor',
   // Column used to build the "Actor category" filter + node color.
   nodeCategoryField: 'type',
+  nodeTopicField: 'topic',
   // Column used to build the "Scale" filter, e.g. "0 - MICRO", "1 - MESO".
   nodeScaleField: 'scale',
   // Adjacency types that are symmetric (rendered as plain undirected lines).

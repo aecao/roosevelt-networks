@@ -1,6 +1,6 @@
 import Graph from 'graphology';
 import Sigma from 'sigma';
-import { EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
+import { drawDiscNodeHover, drawDiscNodeLabel, EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
@@ -16,10 +16,15 @@ const state = {
   renderer: null,
   activeEdgeTypes: new Set(),
   activeNodeTypes: new Set(),
+  activeTopics: new Set(),
+  allTopics: new Set(),
   activeScales: new Set(),
   categoryColors: new Map(),
+  topicColors: new Map(),
   edgeTypeColors: new Map(),
   freezePositions: false,
+  yearFilterEnabled: false,
+  selectedYear: 2026,
 };
 
 // Turns "1 - MESO" into "MESO"; falls back to the raw value or "Unknown".
@@ -30,12 +35,22 @@ function parseScale(raw) {
   return parts[parts.length - 1].trim().toUpperCase() || 'Unknown';
 }
 
+function parseYear(raw) {
+  const year = Number.parseInt((raw || '').trim(), 10);
+  return Number.isInteger(year) ? year : null;
+}
+
 async function buildGraph() {
   const graph = new Graph({ multi: true });
 
   const actors = await loadActors();
   const categories = [...new Set(actors.map((a) => a[DATA.nodeCategoryField] || 'Unknown'))].sort();
   categories.forEach((cat, i) => state.categoryColors.set(cat, PALETTE[i % PALETTE.length]));
+  const topics = [...new Set(actors.flatMap((actor) =>
+    (actor[DATA.nodeTopicField] || '').split(',').map((topic) => topic.trim().toUpperCase()).filter(Boolean),
+  ))].sort();
+  topics.forEach((topic, i) => state.topicColors.set(topic, PALETTE[i % PALETTE.length]));
+  state.allTopics = new Set(topics);
 
   const scaleOrder = { MICRO: 0, MESO: 1, MACRO: 2 };
   const scales = [...new Set(actors.map((a) => parseScale(a[DATA.nodeScaleField])))]
@@ -45,12 +60,19 @@ async function buildGraph() {
     const id = actor[DATA.nodeIdField];
     if (!id) return;
     const category = actor[DATA.nodeCategoryField] || 'Unknown';
+    const actorTopics = (actor[DATA.nodeTopicField] || '')
+      .split(',')
+      .map((topic) => topic.trim().toUpperCase())
+      .filter(Boolean);
     graph.addNode(id, {
       label: actor[DATA.nodeLabelField] || id,
       size: 6,
       color: state.categoryColors.get(category),
       category,
+      topics: actorTopics,
       scale: parseScale(actor[DATA.nodeScaleField]),
+      yearStart: parseYear(actor.year_start),
+      yearEnd: parseYear(actor.year_end),
       attributes: actor,
       x: Math.random(),
       y: Math.random(),
@@ -86,6 +108,7 @@ async function buildGraph() {
 
   state.activeEdgeTypes = new Set(edgeTypes);
   state.activeNodeTypes = new Set(categories);
+  state.activeTopics = new Set(topics);
   state.activeScales = new Set(scales);
 
   // Bigger nodes = more connections (degree across all adjacency types).
@@ -170,9 +193,23 @@ async function main() {
   const renderer = new Sigma(graph, container, {
     minCameraRatio: 0.05,
     maxCameraRatio: 10,
-    labelRenderedSizeThreshold: 8,
+    labelDensity: 0.35,
+    labelRenderedSizeThreshold: 10,
     labelColor: { color: '#ffffff' },
     labelFont: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    labelSize: 10,
+    defaultDrawNodeLabel: (context, data, settings) => {
+      const size = Math.max(9, Math.min(15, 8 + data.size * 0.3));
+      drawDiscNodeLabel(context, data, { ...settings, labelSize: size });
+    },
+    defaultDrawNodeHover: (context, data, settings) => {
+      const size = Math.max(10, Math.min(16, 9 + data.size * 0.3));
+      drawDiscNodeHover(context, data, {
+        ...settings,
+        labelSize: size,
+        labelColor: { color: '#171717' },
+      });
+    },
     defaultEdgeType: 'line',
     edgeProgramClasses: { line: EdgeLineProgram, arrow: EdgeArrowProgram },
   });
@@ -192,7 +229,17 @@ async function main() {
 
   function isNodeVisible(node) {
     const attrs = graph.getNodeAttributes(node);
-    return state.activeNodeTypes.has(attrs.category) && state.activeScales.has(attrs.scale);
+    const hasSelectedTopic = state.activeTopics.size === state.allTopics.size
+      || attrs.topics.some((topic) => state.activeTopics.has(topic));
+    const hasYearData = attrs.yearStart !== null || attrs.yearEnd !== null;
+    const activeInSelectedYear = !state.yearFilterEnabled
+      || !hasYearData
+      || ((attrs.yearStart === null || attrs.yearStart <= state.selectedYear)
+        && (attrs.yearEnd === null || attrs.yearEnd >= state.selectedYear));
+    return state.activeNodeTypes.has(attrs.category)
+      && hasSelectedTopic
+      && state.activeScales.has(attrs.scale)
+      && activeInSelectedYear;
   }
 
   renderer.setSetting('nodeReducer', (node, data) => {
@@ -232,6 +279,14 @@ async function main() {
     refresh,
   );
 
+  buildFilterCheckboxes(
+    document.getElementById('topic-filters'),
+    [...state.allTopics].map((topic) => ({ value: topic, label: topic })),
+    state.activeTopics,
+    (value) => state.topicColors.get(value),
+    refresh,
+  );
+
   // Scale filters
   buildFilterCheckboxes(
     document.getElementById('scale-filters'),
@@ -240,6 +295,21 @@ async function main() {
     () => '#9a9a9a',
     refresh,
   );
+
+  const yearToggle = document.getElementById('year-filter-toggle');
+  const yearControls = document.getElementById('year-controls');
+  const yearSlider = document.getElementById('year-slider');
+  const yearValue = document.getElementById('year-value');
+  yearToggle.addEventListener('change', () => {
+    state.yearFilterEnabled = yearToggle.checked;
+    yearControls.hidden = !state.yearFilterEnabled;
+    refresh();
+  });
+  yearSlider.addEventListener('input', () => {
+    state.selectedYear = Number(yearSlider.value);
+    yearValue.textContent = String(state.selectedYear);
+    refresh();
+  });
 
   // Search
   const searchInput = document.getElementById('search');
@@ -285,12 +355,23 @@ async function main() {
   document.getElementById('zoom-fit').addEventListener('click', () => renderer.getCamera().animatedReset({ duration: 300 }));
 
   document.getElementById('reset-view').addEventListener('click', () => {
-    document.querySelectorAll('#edge-type-filters input, #node-type-filters input, #scale-filters input').forEach((cb) => {
+    document.querySelectorAll('#edge-type-filters input, #node-type-filters input, #topic-filters input, #scale-filters input').forEach((cb) => {
       cb.checked = true;
     });
-    state.activeEdgeTypes = new Set(manifest.map((m) => m.type));
-    state.activeNodeTypes = new Set(categories);
-    state.activeScales = new Set(scales);
+    state.activeEdgeTypes.clear();
+    manifest.forEach((m) => state.activeEdgeTypes.add(m.type));
+    state.activeNodeTypes.clear();
+    categories.forEach((category) => state.activeNodeTypes.add(category));
+    state.activeTopics.clear();
+    state.allTopics.forEach((topic) => state.activeTopics.add(topic));
+    state.activeScales.clear();
+    scales.forEach((scale) => state.activeScales.add(scale));
+    yearToggle.checked = false;
+    state.yearFilterEnabled = false;
+    yearControls.hidden = true;
+    yearSlider.value = '2026';
+    state.selectedYear = 2026;
+    yearValue.textContent = '2026';
     document.getElementById('freeze-positions').checked = false;
     state.freezePositions = false;
     document.getElementById('node-details').classList.add('hidden');
