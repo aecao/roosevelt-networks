@@ -1,5 +1,6 @@
 import Graph from 'graphology';
 import Sigma from 'sigma';
+import { EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
@@ -15,9 +16,19 @@ const state = {
   renderer: null,
   activeEdgeTypes: new Set(),
   activeNodeTypes: new Set(),
+  activeScales: new Set(),
   categoryColors: new Map(),
+  edgeTypeColors: new Map(),
   freezePositions: false,
 };
+
+// Turns "1 - MESO" into "MESO"; falls back to the raw value or "Unknown".
+function parseScale(raw) {
+  const value = (raw || '').trim();
+  if (!value) return 'Unknown';
+  const parts = value.split('-');
+  return parts[parts.length - 1].trim().toUpperCase() || 'Unknown';
+}
 
 async function buildGraph() {
   const graph = new Graph({ multi: true });
@@ -25,6 +36,10 @@ async function buildGraph() {
   const actors = await loadActors();
   const categories = [...new Set(actors.map((a) => a[DATA.nodeCategoryField] || 'Unknown'))].sort();
   categories.forEach((cat, i) => state.categoryColors.set(cat, PALETTE[i % PALETTE.length]));
+
+  const scaleOrder = { MICRO: 0, MESO: 1, MACRO: 2 };
+  const scales = [...new Set(actors.map((a) => parseScale(a[DATA.nodeScaleField])))]
+    .sort((a, b) => (scaleOrder[a] ?? 99) - (scaleOrder[b] ?? 99));
 
   actors.forEach((actor) => {
     const id = actor[DATA.nodeIdField];
@@ -35,6 +50,7 @@ async function buildGraph() {
       size: 6,
       color: state.categoryColors.get(category),
       category,
+      scale: parseScale(actor[DATA.nodeScaleField]),
       attributes: actor,
       x: Math.random(),
       y: Math.random(),
@@ -43,28 +59,34 @@ async function buildGraph() {
 
   const manifest = await loadEdgeManifest();
   const edgeTypes = [];
+  manifest.forEach((entry, i) => state.edgeTypeColors.set(entry.type, PALETTE[i % PALETTE.length]));
 
   for (const entry of manifest) {
     const edges = await loadAdjacencyMatrix(entry.file);
     edgeTypes.push(entry.type);
+    const directed = !DATA.undirectedEdgeTypes.includes(entry.type);
+    const color = state.edgeTypeColors.get(entry.type);
     edges.forEach(({ source, target, weight }) => {
       if (!graph.hasNode(source) || !graph.hasNode(target)) {
         console.warn(`Skipping edge ${source} -> ${target}: unknown actor id (check "${DATA.nodeIdField}" matches matrix headers)`);
         return;
       }
-      graph.addEdge(source, target, {
-        type: 'line',
+      const attrs = {
+        type: directed ? 'arrow' : 'line',
         adjacencyType: entry.type,
         label: entry.label,
         weight,
         size: 1,
-        color: '#4a4f5c',
-      });
+        color,
+      };
+      if (directed) graph.addDirectedEdge(source, target, attrs);
+      else graph.addUndirectedEdge(source, target, attrs);
     });
   }
 
   state.activeEdgeTypes = new Set(edgeTypes);
   state.activeNodeTypes = new Set(categories);
+  state.activeScales = new Set(scales);
 
   // Bigger nodes = more connections (degree across all adjacency types).
   let maxDegree = 0;
@@ -79,7 +101,7 @@ async function buildGraph() {
   circular.assign(graph);
   forceAtlas2.assign(graph, LAYOUT_SETTINGS);
 
-  return { graph, categories, manifest };
+  return { graph, categories, scales, manifest };
 }
 
 // Lays out a copy of the graph containing only the currently active adjacency
@@ -141,7 +163,7 @@ function showNodeDetails(graph, nodeId) {
 }
 
 async function main() {
-  const { graph, categories, manifest } = await buildGraph();
+  const { graph, categories, scales, manifest } = await buildGraph();
   state.graph = graph;
 
   const container = document.getElementById('graph-container');
@@ -151,6 +173,8 @@ async function main() {
     labelRenderedSizeThreshold: 8,
     labelColor: { color: '#ffffff' },
     labelFont: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    defaultEdgeType: 'line',
+    edgeProgramClasses: { line: EdgeLineProgram, arrow: EdgeArrowProgram },
   });
   state.renderer = renderer;
 
@@ -166,15 +190,19 @@ async function main() {
     cancelAnimation = animateNodes(graph, positions, { duration: 700, easing: 'quadraticInOut' });
   }
 
+  function isNodeVisible(node) {
+    const attrs = graph.getNodeAttributes(node);
+    return state.activeNodeTypes.has(attrs.category) && state.activeScales.has(attrs.scale);
+  }
+
   renderer.setSetting('nodeReducer', (node, data) => {
-    const hidden = !state.activeNodeTypes.has(data.category);
+    const hidden = !isNodeVisible(node);
     return hidden ? { ...data, hidden: true } : data;
   });
 
   renderer.setSetting('edgeReducer', (edge, data) => {
     const [source, target] = graph.extremities(edge);
-    const nodesVisible = state.activeNodeTypes.has(graph.getNodeAttribute(source, 'category'))
-      && state.activeNodeTypes.has(graph.getNodeAttribute(target, 'category'));
+    const nodesVisible = isNodeVisible(source) && isNodeVisible(target);
     const hidden = !state.activeEdgeTypes.has(data.adjacencyType) || !nodesVisible;
     return hidden ? { ...data, hidden: true } : data;
   });
@@ -184,7 +212,7 @@ async function main() {
     document.getElementById('edge-type-filters'),
     manifest.map((m) => ({ value: m.type, label: m.label })),
     state.activeEdgeTypes,
-    () => '#4a4f5c',
+    (value) => state.edgeTypeColors.get(value),
     () => {
       refresh();
       relayout();
@@ -201,6 +229,15 @@ async function main() {
     categories.map((c) => ({ value: c, label: c })),
     state.activeNodeTypes,
     (value) => state.categoryColors.get(value),
+    refresh,
+  );
+
+  // Scale filters
+  buildFilterCheckboxes(
+    document.getElementById('scale-filters'),
+    scales.map((s) => ({ value: s, label: s })),
+    state.activeScales,
+    () => '#9a9a9a',
     refresh,
   );
 
@@ -248,11 +285,12 @@ async function main() {
   document.getElementById('zoom-fit').addEventListener('click', () => renderer.getCamera().animatedReset({ duration: 300 }));
 
   document.getElementById('reset-view').addEventListener('click', () => {
-    document.querySelectorAll('#edge-type-filters input, #node-type-filters input').forEach((cb) => {
+    document.querySelectorAll('#edge-type-filters input, #node-type-filters input, #scale-filters input').forEach((cb) => {
       cb.checked = true;
     });
     state.activeEdgeTypes = new Set(manifest.map((m) => m.type));
     state.activeNodeTypes = new Set(categories);
+    state.activeScales = new Set(scales);
     document.getElementById('freeze-positions').checked = false;
     state.freezePositions = false;
     document.getElementById('node-details').classList.add('hidden');
