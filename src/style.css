@@ -1,0 +1,175 @@
+:root {
+  color-scheme: dark;
+  --bg: #0f1115;
+  --panel-bg: #171a21;
+  --border: #2a2e38;
+  --text: #e8eaed;
+  --muted: #9aa0ab;
+  --accent: #4f9dff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+#app {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+#sidebar {
+  width: 300px;
+  flex-shrink: 0;
+  background: var(--panel-bg);
+  border-right: 1px solid var(--border);
+  padding: 16px;
+  overflow-y: auto;
+}
+
+#sidebar h1 {
+  font-size: 1.2rem;
+  margin: 0 0 2px;
+}
+
+.subtitle {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.panel {
+  margin-bottom: 20px;
+}
+
+.panel h2 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 0 0 8px;
+}
+
+#search {
+  width: 100%;
+  padding: 8px 10px;
+  background: #0f1115;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.search-results {
+  margin-top: 6px;
+  max-height: 160px;
+  overflow-y: auto;
+}
+
+.search-results div {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.search-results div:hover {
+  background: rgba(79, 157, 255, 0.15);
+}
+
+.filter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.filter-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.filter-list .swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+button {
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.details {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.details.hidden {
+  display: none;
+}
+
+.details h3 {
+  margin: 0 0 6px;
+  font-size: 1rem;
+}
+
+.details dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+.details dd {
+  margin: 0;
+}
+
+#graph-container {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.zoom-controls {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 10;
+}
+
+.zoom-controls button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--panel-bg);
+}

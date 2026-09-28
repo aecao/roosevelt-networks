@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roosevelt Networks</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <aside id="sidebar">
+      <h1>Roosevelt Networks</h1>
+      <p class="subtitle">Actor network model</p>
+
+      <div class="panel">
+        <input id="search" type="search" placeholder="Search actor…" autocomplete="off" />
+        <div id="search-results" class="search-results"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Adjacency type</h2>
+        <div id="edge-type-filters" class="filter-list"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Actor category</h2>
+        <div id="node-type-filters" class="filter-list"></div>
+      </div>
+
+      <div class="panel">
+        <button id="reset-view">Reset view</button>
+      </div>
+
+      <div id="node-details" class="panel details hidden"></div>
+    </aside>
+    <main id="graph-container"></main>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
