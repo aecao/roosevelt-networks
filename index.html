@@ -8,11 +8,19 @@
 </head>
 <body>
   <div id="app">
-    <aside id="sidebar">
+    <header id="app-header">
+      <div class="app-brand">Roosevelt Networks</div>
+      <nav class="mode-tabs" aria-label="Network mode">
+        <button class="mode-tab" type="button" data-mode="relationships" aria-pressed="true">Relationships</button>
+        <button class="mode-tab" type="button" data-mode="timeline" aria-pressed="false">Timeline</button>
+        <button class="mode-tab" type="button" data-mode="map" aria-pressed="false">Map</button>
+      </nav>
+    </header>
+    <div id="workspace" data-mode="relationships">
+      <aside id="sidebar">
       <header class="sidebar-header">
         <div class="sidebar-heading">
-          <h1>Roosevelt Networks</h1>
-          <p class="subtitle">Actor network model</p>
+          <h1>Filters</h1>
         </div>
         <button id="sidebar-toggle" class="sidebar-toggle" type="button" aria-label="Hide filters" aria-expanded="true" aria-controls="sidebar-content">−</button>
       </header>
@@ -74,8 +82,10 @@
 
         <div id="node-details" class="panel details hidden"></div>
       </div>
-    </aside>
-    <main id="graph-container"></main>
+      </aside>
+      <main id="graph-container"></main>
+      <div id="mode-placeholder" hidden aria-hidden="true"></div>
+    </div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

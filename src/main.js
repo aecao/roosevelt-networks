@@ -196,6 +196,30 @@ function showNodeDetails(graph, nodeId) {
 }
 
 async function main() {
+  const workspace = document.getElementById('workspace');
+  const sidebar = document.getElementById('sidebar');
+  const graphContainer = document.getElementById('graph-container');
+  const modePlaceholder = document.getElementById('mode-placeholder');
+  const modeTabs = [...document.querySelectorAll('.mode-tab')];
+
+  function setMode(mode) {
+    const isRelationships = mode === 'relationships';
+    workspace.dataset.mode = mode;
+    modePlaceholder.hidden = isRelationships;
+    modePlaceholder.setAttribute('aria-hidden', String(isRelationships));
+    modePlaceholder.setAttribute('aria-label', `${mode[0].toUpperCase()}${mode.slice(1)} view`);
+    sidebar.inert = !isRelationships;
+    graphContainer.inert = !isRelationships;
+    modeTabs.forEach((tab) => {
+      tab.setAttribute('aria-pressed', String(tab.dataset.mode === mode));
+    });
+  }
+
+  modeTabs.forEach((tab) => {
+    tab.addEventListener('click', () => setMode(tab.dataset.mode));
+  });
+  setMode(workspace.dataset.mode);
+
   const refreshButton = document.getElementById('refresh-sheets');
   const refreshStatus = document.getElementById('refresh-status');
   const fromGoogleSheets = new URLSearchParams(window.location.search).get('source') === 'sheets';
@@ -359,7 +383,6 @@ async function main() {
     relayout();
   });
 
-  const sidebar = document.getElementById('sidebar');
   const sidebarToggle = document.getElementById('sidebar-toggle');
   sidebarToggle.addEventListener('click', () => {
     const collapsed = sidebar.classList.toggle('collapsed');

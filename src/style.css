@@ -21,9 +21,66 @@ html, body {
 }
 
 #app {
-  display: flex;
+  display: grid;
+  grid-template-rows: 48px minmax(0, 1fr);
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
+}
+
+#app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  padding: 0 14px;
+  background: var(--panel-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-brand {
+  flex: 0 0 auto;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mode-tabs {
+  display: flex;
+  align-items: stretch;
+  align-self: stretch;
+  gap: 2px;
+}
+
+.mode-tab {
+  width: auto;
+  min-width: 64px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.mode-tab:hover {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.mode-tab[aria-pressed="true"] {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+#workspace {
+  display: flex;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 #sidebar {
@@ -31,8 +88,7 @@ html, body {
   flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  height: 100%;
   background: var(--panel-bg);
   border-right: 1px solid var(--border);
   padding: 16px;
@@ -258,6 +314,22 @@ button:hover {
   min-width: 0;
 }
 
+#mode-placeholder {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  background: var(--bg);
+}
+
+#mode-placeholder[hidden] {
+  display: none;
+}
+
+#workspace[data-mode="timeline"] #sidebar,
+#workspace[data-mode="map"] #sidebar {
+  visibility: hidden;
+}
+
 .zoom-controls {
   position: absolute;
   top: 16px;
@@ -277,12 +349,35 @@ button:hover {
 
 @media (max-width: 700px) and (orientation: portrait) {
   #app {
-    position: relative;
-    display: block;
+    display: grid;
+    grid-template-rows: 48px minmax(0, 1fr);
     width: 100vw;
     height: 100vh;
     height: 100dvh;
     overflow: hidden;
+  }
+
+  #app-header {
+    gap: 6px;
+    padding: 0 8px;
+  }
+
+  .app-brand {
+    font-size: 0.82rem;
+  }
+
+  .mode-tabs {
+    gap: 0;
+  }
+
+  .mode-tab {
+    min-width: 0;
+    padding: 0 8px;
+    font-size: 0.78rem;
+  }
+
+  #workspace {
+    position: relative;
   }
 
   #graph-container {
@@ -332,5 +427,16 @@ button:hover {
 
   .search-results {
     max-height: 100px;
+  }
+}
+
+@media (max-width: 360px) and (orientation: portrait) {
+  .app-brand {
+    font-size: 0.75rem;
+  }
+
+  .mode-tab {
+    padding: 0 5px;
+    font-size: 0.72rem;
   }
 }
