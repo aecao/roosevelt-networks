@@ -26,8 +26,14 @@ const state = {
   topicColors: new Map(),
   edgeTypeColors: new Map(),
   freezePositions: false,
+  zoomToSelected: true,
   yearFilterEnabled: false,
   selectedYear: 2026,
+  detailsManuallyCollapsed: false,
+  selectedEdgeIds: new Set(),
+  hoveredEdgeIds: new Set(),
+  currentSelection: null,
+  pinnedSelections: [],
 };
 
 // Turns "1 - MESO" into "MESO"; falls back to the raw value or "Unknown".
@@ -141,14 +147,17 @@ async function buildGraph(fromGoogleSheets = false) {
 
 // Lays out a copy of the graph containing only the currently active adjacency
 // types, so the layout reflects what's actually selected.
-function computeFilteredLayout(graph, activeEdgeTypes) {
+function computeFilteredLayout(graph, activeEdgeTypes, includeNode = () => true) {
   const temp = new Graph({ multi: true });
-  graph.forEachNode((node) => temp.addNode(node));
+  graph.forEachNode((node) => {
+    if (includeNode(node)) temp.addNode(node);
+  });
   graph.forEachEdge((edge, attrs, source, target) => {
-    if (activeEdgeTypes.has(attrs.adjacencyType)) {
+    if (activeEdgeTypes.has(attrs.adjacencyType) && temp.hasNode(source) && temp.hasNode(target)) {
       temp.addEdge(source, target);
     }
   });
+  if (temp.order === 0) return {};
   circular.assign(temp);
   forceAtlas2.assign(temp, LAYOUT_SETTINGS);
 
@@ -186,36 +195,243 @@ function buildFilterCheckboxes(container, items, activeSet, colorFor, onChange) 
   });
 }
 
-function showNodeDetails(graph, nodeId) {
-  const panel = document.getElementById('node-details');
-  document.getElementById('details-sidebar').classList.add('has-selection');
-  const attrs = graph.getNodeAttribute(nodeId, 'attributes') || {};
-  const fullName = attrs[DATA.nodeLabelField] || graph.getNodeAttribute(nodeId, 'label');
-  const rows = Object.entries(attrs)
-    .filter(([, v]) => v)
-    .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`)
-    .join('');
-  panel.innerHTML = `<h3>${fullName}</h3><dl>${rows}</dl>`;
+function syncDetailsSidebar() {
+  const detailsSidebar = document.getElementById('details-sidebar');
+  const hasContent = Boolean(state.currentSelection) || state.pinnedSelections.length > 0;
+  detailsSidebar.classList.toggle('has-selection', hasContent);
+  if (state.detailsManuallyCollapsed
+    && !window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
+    detailsSidebar.classList.add('has-unread');
+  }
 }
 
-function showEdgeDetails(graph, edge) {
-  const panel = document.getElementById('node-details');
-  document.getElementById('details-sidebar').classList.add('has-selection');
+function createNodeSelection(graph, nodeId) {
+  const attrs = graph.getNodeAttribute(nodeId, 'attributes') || {};
+  const fullName = attrs[DATA.nodeLabelField] || graph.getNodeAttribute(nodeId, 'label');
+  return {
+    key: `node:${nodeId}`,
+    kind: 'node',
+    title: fullName,
+    nodeIds: [nodeId],
+    nodeIds: [nodeId],
+    fields: Object.entries(attrs).filter(([, value]) => value),
+  };
+}
+
+function createEdgeSelection(graph, edge) {
   const [source, target] = graph.extremities(edge);
   const getFullName = (node) => {
     const attrs = graph.getNodeAttribute(node, 'attributes') || {};
     return attrs[DATA.nodeLabelField] || graph.getNodeAttribute(node, 'label') || node;
   };
+  const actorNames = [getFullName(source), getFullName(target)];
   const adjacencyTypes = new Set();
+  const selectedEdgeIds = new Set();
 
   graph.forEachEdge((candidate, attrs, edgeSource, edgeTarget) => {
     const samePair = (edgeSource === source && edgeTarget === target)
       || (edgeSource === target && edgeTarget === source);
-    if (samePair) adjacencyTypes.add(attrs.label || attrs.adjacencyType);
+    if (samePair) {
+      selectedEdgeIds.add(candidate);
+      adjacencyTypes.add(attrs.label || attrs.adjacencyType);
+    }
   });
 
-  const types = [...adjacencyTypes].map((type) => `<li>${type}</li>`).join('');
-  panel.innerHTML = `<h3>Connection</h3><dl><dt>Connected actors</dt><dd>${getFullName(source)}</dd><dd>${getFullName(target)}</dd><dt>Adjacency types</dt><dd><ul class="detail-list">${types}</ul></dd></dl>`;
+  return {
+    key: `edge:${JSON.stringify([source, target].sort())}`,
+    kind: 'edge',
+    title: actorNames.join(' ↔ '),
+    nodeIds: [source, target],
+    nodeIds: [source, target],
+    actorNames,
+    adjacencyTypes: [...adjacencyTypes],
+    edgeIds: [...selectedEdgeIds],
+  };
+}
+
+function renderSelectionDetails(selection, container) {
+  container.replaceChildren();
+  const details = document.createElement('dl');
+  if (selection.kind === 'node') {
+    selection.fields.forEach(([name, value]) => {
+      const term = document.createElement('dt');
+      term.textContent = name;
+      const description = document.createElement('dd');
+      description.textContent = value;
+      details.append(term, description);
+    });
+  } else {
+    const actorsTerm = document.createElement('dt');
+    actorsTerm.textContent = 'Connected actors';
+    details.appendChild(actorsTerm);
+    selection.actorNames.forEach((name) => {
+      const actor = document.createElement('dd');
+      actor.textContent = name;
+      details.appendChild(actor);
+    });
+
+    const typesTerm = document.createElement('dt');
+    typesTerm.textContent = 'Adjacency types';
+    const typesDescription = document.createElement('dd');
+    const types = document.createElement('ul');
+    types.className = 'detail-list';
+    selection.adjacencyTypes.forEach((type) => {
+      const item = document.createElement('li');
+      item.textContent = type;
+      types.appendChild(item);
+    });
+    typesDescription.appendChild(types);
+    details.append(typesTerm, typesDescription);
+  }
+  container.appendChild(details);
+}
+
+function renderCurrentSelection() {
+  const section = document.getElementById('active-selection');
+  const title = document.getElementById('current-selection-title');
+  const pinButton = document.getElementById('pin-selection');
+  section.hidden = !state.currentSelection;
+  if (state.currentSelection) {
+    title.textContent = state.currentSelection.title;
+    const alreadyPinned = state.pinnedSelections.some(({ key }) => key === state.currentSelection.key);
+    pinButton.disabled = false;
+    pinButton.textContent = alreadyPinned ? 'Unpin' : 'Pin';
+    pinButton.setAttribute('aria-pressed', String(alreadyPinned));
+    renderSelectionDetails(state.currentSelection, document.getElementById('node-details'));
+  }
+  syncDetailsSidebar();
+}
+
+function syncSearchPinButtons() {
+  document.querySelectorAll('.search-result-pin').forEach((button) => {
+    const selectionKey = `node:${button.dataset.nodeId}`;
+    const isPinned = state.pinnedSelections.some(({ key }) => key === selectionKey);
+    button.textContent = isPinned ? 'Unpin' : 'Pin';
+    button.setAttribute('aria-pressed', String(isPinned));
+    button.setAttribute('aria-label', `${isPinned ? 'Unpin' : 'Pin'} ${button.dataset.actorName}`);
+  });
+}
+
+function togglePinnedSelection(selection) {
+  const existingIndex = state.pinnedSelections.findIndex(({ key }) => key === selection.key);
+  if (existingIndex >= 0) {
+    state.pinnedSelections.splice(existingIndex, 1);
+  } else {
+    state.pinnedSelections.push({ ...selection, collapsed: true });
+  }
+  renderPinnedSelections();
+  renderCurrentSelection();
+  syncSearchPinButtons();
+}
+
+function movePinnedSelection(sourceKey, targetKey, insertBefore) {
+  if (sourceKey === targetKey) return;
+  const sourceIndex = state.pinnedSelections.findIndex(({ key }) => key === sourceKey);
+  if (sourceIndex < 0) return;
+  const [selection] = state.pinnedSelections.splice(sourceIndex, 1);
+  const targetIndex = state.pinnedSelections.findIndex(({ key }) => key === targetKey);
+  if (targetIndex < 0) {
+    state.pinnedSelections.push(selection);
+  } else {
+    state.pinnedSelections.splice(targetIndex + (insertBefore ? 0 : 1), 0, selection);
+  }
+  renderPinnedSelections();
+}
+
+function renderPinnedSelections() {
+  const section = document.getElementById('pinned-section');
+  const list = document.getElementById('pinned-list');
+  document.getElementById('pinned-count').textContent = String(state.pinnedSelections.length);
+  section.hidden = state.pinnedSelections.length === 0;
+  list.replaceChildren();
+
+  state.pinnedSelections.forEach((selection) => {
+    const item = document.createElement('li');
+    item.className = 'pinned-item';
+    item.dataset.key = selection.key;
+
+    const header = document.createElement('div');
+    header.className = 'pinned-item-header';
+
+    const grip = document.createElement('span');
+    grip.className = 'pinned-grip';
+    grip.textContent = '⋮⋮';
+    grip.draggable = true;
+    grip.title = 'Drag to reorder';
+    grip.setAttribute('aria-label', `Reorder ${selection.title}`);
+    grip.addEventListener('dragstart', (event) => {
+      event.dataTransfer.setData('text/plain', selection.key);
+      event.dataTransfer.effectAllowed = 'move';
+      item.classList.add('dragging');
+    });
+    grip.addEventListener('dragend', () => item.classList.remove('dragging'));
+
+    const disclosure = document.createElement('button');
+    disclosure.className = 'pinned-disclosure';
+    disclosure.type = 'button';
+    disclosure.textContent = selection.collapsed ? '▸' : '▾';
+    disclosure.title = selection.collapsed ? 'Expand selection' : 'Collapse selection';
+    disclosure.setAttribute('aria-label', disclosure.title);
+    disclosure.setAttribute('aria-expanded', String(!selection.collapsed));
+    disclosure.addEventListener('click', () => {
+      selection.collapsed = !selection.collapsed;
+      renderPinnedSelections();
+    });
+
+    const title = document.createElement('span');
+    title.className = 'pinned-title';
+    title.textContent = selection.title;
+
+    const unpin = document.createElement('button');
+    unpin.className = 'unpin-selection';
+    unpin.type = 'button';
+    unpin.textContent = '×';
+    unpin.title = 'Unpin selection';
+    unpin.setAttribute('aria-label', `Unpin ${selection.title}`);
+    unpin.addEventListener('click', () => {
+      state.pinnedSelections = state.pinnedSelections.filter(({ key }) => key !== selection.key);
+      renderPinnedSelections();
+      renderCurrentSelection();
+      syncSearchPinButtons();
+    });
+
+    header.append(grip, disclosure, title, unpin);
+    item.appendChild(header);
+    item.addEventListener('dragover', (event) => {
+      event.preventDefault();
+      item.classList.add('drag-over');
+    });
+    item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+    item.addEventListener('drop', (event) => {
+      event.preventDefault();
+      item.classList.remove('drag-over');
+      const rect = item.getBoundingClientRect();
+      movePinnedSelection(event.dataTransfer.getData('text/plain'), selection.key, event.clientY < rect.top + rect.height / 2);
+    });
+
+    const content = document.createElement('div');
+    content.className = 'pinned-content details';
+    content.hidden = selection.collapsed;
+    if (!selection.collapsed) renderSelectionDetails(selection, content);
+    item.appendChild(content);
+    list.appendChild(item);
+  });
+
+  syncDetailsSidebar();
+}
+
+function showNodeDetails(graph, nodeId) {
+  state.selectedEdgeIds.clear();
+  state.renderer?.refresh();
+  state.currentSelection = createNodeSelection(graph, nodeId);
+  renderCurrentSelection();
+}
+
+function showEdgeDetails(graph, edge) {
+  state.currentSelection = createEdgeSelection(graph, edge);
+  state.selectedEdgeIds = new Set(state.currentSelection.edgeIds);
+  state.renderer?.refresh();
+  renderCurrentSelection();
 }
 
 async function main() {
@@ -227,6 +443,10 @@ async function main() {
   const modePlaceholder = document.getElementById('mode-placeholder');
   const modeTabs = [...document.querySelectorAll('.mode-tab')];
   const panelTabs = [...document.querySelectorAll('.panel-tab')];
+  const pinSelectionButton = document.getElementById('pin-selection');
+  const selectionContextMenu = document.getElementById('selection-context-menu');
+  const contextPinToggle = document.getElementById('context-pin-toggle');
+  let contextSelection = null;
 
   function setPanel(panel) {
     panelDock.dataset.panel = panel;
@@ -237,6 +457,10 @@ async function main() {
 
   panelTabs.forEach((tab) => {
     tab.addEventListener('click', () => setPanel(tab.dataset.panel));
+  });
+
+  pinSelectionButton.addEventListener('click', () => {
+    if (state.currentSelection) togglePinnedSelection(state.currentSelection);
   });
 
   function setMode(mode) {
@@ -256,6 +480,52 @@ async function main() {
     tab.addEventListener('click', () => setMode(tab.dataset.mode));
   });
   setMode(workspace.dataset.mode);
+
+  function showPinContextMenu(selection, mouseCoords) {
+    contextSelection = selection;
+    const isPinned = state.pinnedSelections.some(({ key }) => key === selection.key);
+    contextPinToggle.textContent = isPinned ? 'Unpin selection' : 'Pin selection';
+    const mouseEvent = mouseCoords.original;
+    mouseEvent.preventDefault();
+    selectionContextMenu.hidden = false;
+    const menuBounds = selectionContextMenu.getBoundingClientRect();
+    selectionContextMenu.style.left = `${Math.max(8, Math.min(mouseEvent.clientX, window.innerWidth - menuBounds.width - 8))}px`;
+    selectionContextMenu.style.top = `${Math.max(8, Math.min(mouseEvent.clientY, window.innerHeight - menuBounds.height - 8))}px`;
+  }
+
+  function updateHoveredEdgePair(edge) {
+    const [source, target] = graph.extremities(edge);
+    const hoveredEdges = new Set();
+    graph.forEachEdge((candidate, attrs, edgeSource, edgeTarget) => {
+      const samePair = (edgeSource === source && edgeTarget === target)
+        || (edgeSource === target && edgeTarget === source);
+      if (samePair) hoveredEdges.add(candidate);
+    });
+    state.hoveredEdgeIds = hoveredEdges;
+    refresh();
+  }
+
+  function clearHoveredEdges() {
+    if (state.hoveredEdgeIds.size === 0) return;
+    state.hoveredEdgeIds.clear();
+    refresh();
+  }
+
+  contextPinToggle.addEventListener('click', () => {
+    if (!contextSelection) return;
+    togglePinnedSelection(contextSelection);
+    selectionContextMenu.hidden = true;
+    if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
+      setPanel('details');
+    }
+  });
+  selectionContextMenu.addEventListener('pointerdown', (event) => event.stopPropagation());
+  document.addEventListener('pointerdown', (event) => {
+    if (!selectionContextMenu.contains(event.target)) selectionContextMenu.hidden = true;
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') selectionContextMenu.hidden = true;
+  });
 
   const refreshButton = document.getElementById('refresh-sheets');
   const refreshStatus = document.getElementById('refresh-status');
@@ -291,6 +561,8 @@ async function main() {
   const renderer = new Sigma(graph, container, {
     minCameraRatio: 0.05,
     maxCameraRatio: 10,
+    doubleClickZoomingRatio: 1,
+    doubleClickZoomingRatio: 1,
     zoomToSizeRatioFunction: (ratio) => (ratio / REFERENCE_CAMERA_RATIO) * REFERENCE_SIZE_RATIO,
     labelDensity: 0.35,
     labelRenderedSizeThreshold: 10,
@@ -333,7 +605,7 @@ async function main() {
   function relayout() {
     if (state.freezePositions) return;
     if (cancelAnimation) cancelAnimation();
-    const positions = computeFilteredLayout(graph, state.activeEdgeTypes);
+    const positions = computeFilteredLayout(graph, state.activeEdgeTypes, isNodeVisible);
     cancelAnimation = animateNodes(graph, positions, { duration: 700, easing: 'quadraticInOut' });
   }
 
@@ -352,6 +624,76 @@ async function main() {
       && activeInSelectedYear;
   }
 
+  function zoomToCurrentAndPinned() {
+    if (!state.zoomToSelected) return;
+    const selectedNodeIds = new Set([
+      ...(state.currentSelection?.nodeIds || []),
+      ...state.pinnedSelections.flatMap((selection) => selection.nodeIds || []),
+    ].filter((node) => graph.hasNode(node) && isNodeVisible(node)));
+    if (!selectedNodeIds.size) return;
+
+    const framingNodeIds = new Set(selectedNodeIds);
+    graph.forEachEdge((edge, attrs, source, target) => {
+      if (!state.activeEdgeTypes.has(attrs.adjacencyType)
+        || !isNodeVisible(source)
+        || !isNodeVisible(target)) return;
+      if (selectedNodeIds.has(source)) framingNodeIds.add(target);
+      if (selectedNodeIds.has(target)) framingNodeIds.add(source);
+    });
+
+    renderer.resize(true);
+    const getPoints = (nodeIds) => nodeIds.map((node) => {
+      const displayData = renderer.getNodeDisplayData(node);
+      const graphPoint = { x: displayData.x, y: displayData.y };
+      return {
+        graph: graphPoint,
+        viewport: renderer.framedGraphToViewport(graphPoint),
+      };
+    });
+    const selectionPoints = getPoints([...selectedNodeIds]);
+    const framingPoints = getPoints([...framingNodeIds]);
+    const selectionBounds = selectionPoints.reduce((result, point) => ({
+      minGraphX: Math.min(result.minGraphX, point.graph.x),
+      minGraphY: Math.min(result.minGraphY, point.graph.y),
+      maxGraphX: Math.max(result.maxGraphX, point.graph.x),
+      maxGraphY: Math.max(result.maxGraphY, point.graph.y),
+    }), {
+      minGraphX: Infinity,
+      minGraphY: Infinity,
+      maxGraphX: -Infinity,
+      maxGraphY: -Infinity,
+    });
+    const frameBounds = framingPoints.reduce((result, point) => ({
+      minX: Math.min(result.minX, point.viewport.x),
+      minY: Math.min(result.minY, point.viewport.y),
+      maxX: Math.max(result.maxX, point.viewport.x),
+      maxY: Math.max(result.maxY, point.viewport.y),
+    }), {
+      minX: Infinity,
+      minY: Infinity,
+      maxX: -Infinity,
+      maxY: -Infinity,
+    });
+    const center = {
+      x: (selectionBounds.minGraphX + selectionBounds.maxGraphX) / 2,
+      y: (selectionBounds.minGraphY + selectionBounds.maxGraphY) / 2,
+    };
+    const camera = renderer.getCamera();
+    let ratio = camera.getBoundedRatio(REFERENCE_CAMERA_RATIO);
+    const spanX = frameBounds.maxX - frameBounds.minX;
+    const spanY = frameBounds.maxY - frameBounds.minY;
+    if (framingNodeIds.size > 1 && (spanX > 1 || spanY > 1)) {
+      const dimensions = renderer.getDimensions();
+      const fitFactor = Math.min(
+        dimensions.width * 0.78 / Math.max(spanX, 1),
+        dimensions.height * 0.78 / Math.max(spanY, 1),
+      );
+      ratio = camera.getBoundedRatio(camera.getState().ratio / fitFactor);
+    }
+
+    camera.animate({ x: center.x, y: center.y, ratio }, { duration: 500, easing: 'quadraticInOut' });
+  }
+
   renderer.setSetting('nodeReducer', (node, data) => {
     const hidden = !isNodeVisible(node);
     return hidden ? { ...data, hidden: true } : data;
@@ -361,7 +703,13 @@ async function main() {
     const [source, target] = graph.extremities(edge);
     const nodesVisible = isNodeVisible(source) && isNodeVisible(target);
     const hidden = !state.activeEdgeTypes.has(data.adjacencyType) || !nodesVisible;
-    return hidden ? { ...data, hidden: true } : data;
+    if (hidden) return { ...data, hidden: true };
+    if (state.selectedEdgeIds.has(edge)) {
+      return { ...data, color: '#ffffff', size: Math.max(data.size || 1, 3) };
+    }
+    return state.hoveredEdgeIds.has(edge)
+      ? { ...data, color: '#ffd166', size: Math.max(data.size || 1, 2.5) }
+      : data;
   });
 
   // Edge type filters
@@ -382,13 +730,22 @@ async function main() {
     state.freezePositions = e.target.checked;
   });
 
+  const zoomToSelectedToggle = document.getElementById('zoom-to-selected');
+  zoomToSelectedToggle.addEventListener('change', () => {
+    state.zoomToSelected = zoomToSelectedToggle.checked;
+    if (state.zoomToSelected) zoomToCurrentAndPinned();
+  });
+
   // Node category filters
   buildFilterCheckboxes(
     document.getElementById('node-type-filters'),
     categories.map((c) => ({ value: c, label: c })),
     state.activeNodeTypes,
     (value) => state.categoryColors.get(value),
-    refresh,
+    () => {
+      refresh();
+      relayout();
+    },
   );
 
   buildFilterCheckboxes(
@@ -396,7 +753,10 @@ async function main() {
     [...state.allTopics].map((topic) => ({ value: topic, label: topic })),
     state.activeTopics,
     (value) => state.topicColors.get(value),
-    refresh,
+    () => {
+      refresh();
+      relayout();
+    },
   );
 
   // Scale filters
@@ -405,7 +765,10 @@ async function main() {
     scales.map((s) => ({ value: s, label: s })),
     state.activeScales,
     () => '#9a9a9a',
-    refresh,
+    () => {
+      refresh();
+      relayout();
+    },
   );
 
   const yearToggle = document.getElementById('year-filter-toggle');
@@ -440,11 +803,61 @@ async function main() {
     sidebarToggle.textContent = collapsed ? '+' : '−';
   });
 
+  const detailsToggle = document.getElementById('details-toggle');
+  detailsToggle.addEventListener('click', () => {
+    const collapsed = detailsSidebar.classList.toggle('collapsed');
+    state.detailsManuallyCollapsed = collapsed;
+    if (!collapsed) detailsSidebar.classList.remove('has-unread');
+    detailsToggle.setAttribute('aria-expanded', String(!collapsed));
+    detailsToggle.setAttribute('aria-label', collapsed ? 'Show details' : 'Minimize details');
+    detailsToggle.textContent = collapsed ? '+' : '−';
+  });
+
+  const detailsResizeHandle = document.getElementById('details-resize-handle');
+  detailsResizeHandle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0
+      || window.innerWidth <= 700
+      || window.matchMedia('(pointer: coarse)').matches
+      || detailsSidebar.classList.contains('collapsed')) return;
+
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = detailsSidebar.getBoundingClientRect().width;
+    const minimumWidth = 300;
+    const originalUserSelect = document.body.style.userSelect;
+    const originalCursor = document.body.style.cursor;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'col-resize';
+    detailsSidebar.classList.add('resizing');
+    detailsResizeHandle.setPointerCapture(event.pointerId);
+
+    const stopResizing = () => {
+      document.removeEventListener('pointermove', resize);
+      document.removeEventListener('pointerup', stopResizing);
+      document.removeEventListener('pointercancel', stopResizing);
+      document.body.style.userSelect = originalUserSelect;
+      document.body.style.cursor = originalCursor;
+      detailsSidebar.classList.remove('resizing');
+    };
+
+    const resize = (moveEvent) => {
+      const maximumWidth = window.innerWidth / 2;
+      const width = Math.max(minimumWidth, Math.min(maximumWidth, startWidth + startX - moveEvent.clientX));
+      detailsSidebar.style.setProperty('--details-sidebar-width', `${width}px`);
+      renderer.resize(true);
+    };
+
+    document.addEventListener('pointermove', resize);
+    document.addEventListener('pointerup', stopResizing);
+    document.addEventListener('pointercancel', stopResizing);
+  });
+
   // Search
   const searchInput = document.getElementById('search');
   const searchResults = document.getElementById('search-results');
   function openNodeDetails(nodeId) {
     showNodeDetails(graph, nodeId);
+    zoomToCurrentAndPinned();
     if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
       setPanel('details');
     }
@@ -452,6 +865,7 @@ async function main() {
 
   function openEdgeDetails(edge) {
     showEdgeDetails(graph, edge);
+    zoomToCurrentAndPinned();
     if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
       setPanel('details');
     }
@@ -470,25 +884,43 @@ async function main() {
       })
       .slice(0, 10);
     matches.forEach((n) => {
-      const div = document.createElement('div');
       const attrs = graph.getNodeAttribute(n, 'attributes') || {};
-      div.textContent = attrs[DATA.nodeLabelField] || graph.getNodeAttribute(n, 'label');
-      div.addEventListener('click', () => {
-        focusNode(n);
+      const actorName = attrs[DATA.nodeLabelField] || graph.getNodeAttribute(n, 'label');
+      const row = document.createElement('div');
+      row.className = 'search-result-row';
+
+      const selectButton = document.createElement('button');
+      selectButton.className = 'search-result-name';
+      selectButton.type = 'button';
+      selectButton.textContent = actorName;
+      selectButton.addEventListener('click', () => {
         openNodeDetails(n);
       });
-      searchResults.appendChild(div);
-    });
-  });
 
-  function focusNode(nodeId) {
-    const pos = renderer.getNodeDisplayData(nodeId);
-    if (!pos) return;
-    renderer.getCamera().animate({ x: pos.x, y: pos.y, ratio: 0.3 }, { duration: 400 });
-  }
+      const pinButton = document.createElement('button');
+      pinButton.className = 'search-result-pin';
+      pinButton.type = 'button';
+      pinButton.dataset.nodeId = n;
+      pinButton.dataset.actorName = actorName;
+      pinButton.addEventListener('click', () => {
+        togglePinnedSelection(createNodeSelection(graph, n));
+        if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
+          setPanel('details');
+        }
+      });
+
+      row.append(selectButton, pinButton);
+      searchResults.appendChild(row);
+    });
+    syncSearchPinButtons();
+  });
 
   renderer.on('clickNode', ({ node }) => openNodeDetails(node));
   renderer.on('clickEdge', ({ edge }) => openEdgeDetails(edge));
+  renderer.on('rightClickNode', ({ node, event }) => showPinContextMenu(createNodeSelection(graph, node), event));
+  renderer.on('rightClickEdge', ({ edge, event }) => showPinContextMenu(createEdgeSelection(graph, edge), event));
+  renderer.on('enterEdge', ({ edge }) => updateHoveredEdgePair(edge));
+  renderer.on('leaveEdge', clearHoveredEdges);
 
   // Zoom controls
   const zoomWrapper = document.createElement('div');
@@ -524,11 +956,15 @@ async function main() {
     yearSlider.value = '2026';
     state.selectedYear = 2026;
     yearValue.textContent = '2026';
+    zoomToSelectedToggle.checked = true;
+    state.zoomToSelected = true;
     positionToggle.checked = false;
     document.getElementById('freeze-positions').checked = false;
     state.freezePositions = false;
-    document.getElementById('node-details').innerHTML = '';
-    detailsSidebar.classList.remove('has-selection');
+    state.currentSelection = null;
+    renderCurrentSelection();
+    state.selectedEdgeIds.clear();
+    state.hoveredEdgeIds.clear();
     setPanel('filters');
     renderer.getCamera().animatedReset({ duration: 300 });
     refresh();

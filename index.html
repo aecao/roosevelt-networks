@@ -86,17 +86,45 @@
             <input id="freeze-positions" type="checkbox" />
             <span>Freeze actor position</span>
           </label>
+          <label class="toggle-row">
+            <input id="zoom-to-selected" type="checkbox" checked />
+            <span>Zoom to selected</span>
+          </label>
         </div>
       </div>
       </aside>
         <aside id="details-sidebar" aria-label="Details">
-          <h2 class="details-sidebar-heading">Details</h2>
-          <div id="node-details" class="details"></div>
+          <div id="details-resize-handle" aria-hidden="true"></div>
+          <header class="sidebar-header">
+            <div class="sidebar-heading">
+              <h1>Details</h1>
+            </div>
+            <button id="details-toggle" class="sidebar-toggle" type="button" aria-label="Minimize details" aria-expanded="true">−</button>
+          </header>
+          <div id="details-content">
+            <section id="active-selection" class="selection-section" hidden>
+              <header class="selection-heading">
+                <h2 id="current-selection-title"></h2>
+                <button id="pin-selection" class="pin-selection" type="button">Pin</button>
+              </header>
+              <div id="node-details" class="details"></div>
+            </section>
+            <section id="pinned-section" class="pinned-section" aria-label="Pinned selections" hidden>
+              <header class="pinned-section-heading">
+                <h2>Pinned selections</h2>
+                <span id="pinned-count">0</span>
+              </header>
+              <ol id="pinned-list" class="pinned-list"></ol>
+            </section>
+          </div>
         </aside>
       </div>
       <main id="graph-container"></main>
       <div id="mode-placeholder" hidden aria-hidden="true"></div>
     </div>
+  </div>
+  <div id="selection-context-menu" class="selection-context-menu" role="menu" hidden>
+    <button id="context-pin-toggle" type="button" role="menuitem">Pin selection</button>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>
