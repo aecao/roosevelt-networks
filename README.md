@@ -51,6 +51,10 @@ Current relationships:
 
 To add another adjacency matrix, drop the CSV in `public/data/edges/` and add an entry to `manifest.json` — no code changes needed.
 
+### Refresh from Google Sheets
+
+Use **Refresh from Google Sheets** in the sidebar to fetch the published `actor_working` tab and the nine `matrix_*` tabs, then rebuild the graph. Other workbook tabs are ignored. The workbook must remain published to the web. Normal startup uses the bundled CSV snapshot; after refresh, the page stays in sheet mode on subsequent reloads. Published tab IDs are configured in `src/config.js`.
+
 ## Local development
 
 ```bash

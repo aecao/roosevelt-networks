@@ -5,6 +5,21 @@ export const DATA = {
   actorsFile: `${base}data/actors.csv`,
   edgesManifest: `${base}data/edges/manifest.json`,
   edgesDir: `${base}data/edges/`,
+  googleSheets: {
+    publishedUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pub',
+    actorGid: '1300872278',
+    matrixGids: {
+      'matrix_adm.csv': '119384752',
+      'matrix_col.csv': '368522815',
+      'matrix_cre.csv': '615922550',
+      'matrix_fin.csv': '899745488',
+      'matrix_own.csv': '816708796',
+      'matrix_par.csv': '721788304',
+      'matrix_pos.csv': '1399262735',
+      'matrix_pre.csv': '1972359226',
+      'matrix_rep.csv': '923473874',
+    },
+  },
   // Column in actors.csv used as the graph node id. Must match the row/column
   // headers used in the adjacency matrix CSVs.
   nodeIdField: 'actor',

@@ -1,14 +1,25 @@
 import Papa from 'papaparse';
 import { DATA } from './config.js';
 
-async function fetchText(url) {
-  const res = await fetch(url);
+async function fetchText(url, options) {
+  const res = await fetch(url, options);
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
   return res.text();
 }
 
-export async function loadActors() {
-  const text = await fetchText(DATA.actorsFile);
+async function fetchGoogleSheetCsv(gid) {
+  const url = new URL(DATA.googleSheets.publishedUrl);
+  url.searchParams.set('gid', gid);
+  url.searchParams.set('single', 'true');
+  url.searchParams.set('output', 'csv');
+  url.searchParams.set('refresh', String(Date.now()));
+  return fetchText(url, { cache: 'no-store' });
+}
+
+export async function loadActors(fromGoogleSheets = false) {
+  const text = fromGoogleSheets
+    ? await fetchGoogleSheetCsv(DATA.googleSheets.actorGid)
+    : await fetchText(DATA.actorsFile);
   const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
 
   const seen = new Set();
@@ -40,8 +51,15 @@ export async function loadEdgeManifest() {
 // Parses a square adjacency matrix CSV (actor ids as both the header row and
 // the first column) into a flat list of { source, target, weight } edges.
 // A cell counts as an edge when it is non-empty and not "0".
-export async function loadAdjacencyMatrix(file) {
-  const text = await fetchText(`${DATA.edgesDir}${file}`);
+export async function loadAdjacencyMatrix(file, fromGoogleSheets = false) {
+  let text;
+  if (fromGoogleSheets) {
+    const gid = DATA.googleSheets.matrixGids[file];
+    if (!gid) throw new Error(`No published Google Sheets tab configured for ${file}`);
+    text = await fetchGoogleSheetCsv(gid);
+  } else {
+    text = await fetchText(`${DATA.edgesDir}${file}`);
+  }
   const { data: rows } = Papa.parse(text, { skipEmptyLines: true });
   if (rows.length < 2) return [];
 

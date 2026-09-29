@@ -43,10 +43,10 @@ function parseYear(raw) {
   return Number.isInteger(year) ? year : null;
 }
 
-async function buildGraph() {
+async function buildGraph(fromGoogleSheets = false) {
   const graph = new Graph({ multi: true });
 
-  const actors = await loadActors();
+  const actors = await loadActors(fromGoogleSheets);
   const categories = [...new Set(actors.map((a) => a[DATA.nodeCategoryField] || 'Unknown'))].sort();
   categories.forEach((cat, i) => state.categoryColors.set(cat, PALETTE[i % PALETTE.length]));
   const topics = [...new Set(actors.flatMap((actor) =>
@@ -86,8 +86,12 @@ async function buildGraph() {
   const edgeTypes = [];
   manifest.forEach((entry, i) => state.edgeTypeColors.set(entry.type, PALETTE[i % PALETTE.length]));
 
-  for (const entry of manifest) {
-    const edges = await loadAdjacencyMatrix(entry.file);
+  const adjacencyMatrices = await Promise.all(manifest.map(async (entry) => ({
+    entry,
+    edges: await loadAdjacencyMatrix(entry.file, fromGoogleSheets),
+  })));
+
+  for (const { entry, edges } of adjacencyMatrices) {
     edgeTypes.push(entry.type);
     const directed = !DATA.undirectedEdgeTypes.includes(entry.type);
     const color = state.edgeTypeColors.get(entry.type);
@@ -192,7 +196,34 @@ function showNodeDetails(graph, nodeId) {
 }
 
 async function main() {
-  const { graph, categories, scales, manifest } = await buildGraph();
+  const refreshButton = document.getElementById('refresh-sheets');
+  const refreshStatus = document.getElementById('refresh-status');
+  const fromGoogleSheets = new URLSearchParams(window.location.search).get('source') === 'sheets';
+
+  refreshButton.addEventListener('click', () => {
+    refreshButton.disabled = true;
+    refreshStatus.hidden = false;
+    refreshStatus.textContent = 'Fetching published sheets…';
+    const url = new URL(window.location.href);
+    url.searchParams.set('source', 'sheets');
+    url.searchParams.set('refresh', String(Date.now()));
+    window.location.assign(url);
+  });
+
+  if (fromGoogleSheets) {
+    refreshButton.disabled = true;
+    refreshStatus.hidden = false;
+    refreshStatus.textContent = 'Loading published sheets…';
+  }
+
+  const { graph, categories, scales, manifest } = await buildGraph(fromGoogleSheets);
+  if (fromGoogleSheets) {
+    refreshButton.disabled = false;
+    refreshStatus.textContent = 'Updated from Google Sheets';
+    const url = new URL(window.location.href);
+    url.searchParams.delete('refresh');
+    window.history.replaceState(null, '', url);
+  }
   state.graph = graph;
 
   const container = document.getElementById('graph-container');
@@ -412,6 +443,13 @@ async function main() {
 
 main().catch((err) => {
   console.error(err);
+  const refreshButton = document.getElementById('refresh-sheets');
+  const refreshStatus = document.getElementById('refresh-status');
+  if (new URLSearchParams(window.location.search).get('source') === 'sheets') {
+    refreshButton.disabled = false;
+    refreshStatus.hidden = false;
+    refreshStatus.textContent = `Google Sheets refresh failed: ${err.message}`;
+  }
   document.getElementById('graph-container').innerHTML =
     `<p style="padding:20px;color:#ff6b6b">Failed to load network data: ${err.message}. Check the console and the files in /public/data.</p>`;
 });
