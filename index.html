@@ -10,13 +10,21 @@
   <div id="app">
     <header id="app-header">
       <div class="app-brand">Roosevelt Networks</div>
-      <nav class="mode-tabs" aria-label="Network mode">
-        <button class="mode-tab" type="button" data-mode="relationships" aria-pressed="true">Relationships</button>
-        <button class="mode-tab" type="button" data-mode="timeline" aria-pressed="false">Timeline</button>
-        <button class="mode-tab" type="button" data-mode="map" aria-pressed="false">Map</button>
-      </nav>
+      <div class="mode-switch">
+        <span class="mode-label">MODE</span>
+        <nav class="mode-tabs" aria-label="Network mode">
+          <button class="mode-tab" type="button" data-mode="relationships" aria-pressed="true">Relationships</button>
+          <button class="mode-tab" type="button" data-mode="timeline" aria-pressed="false">Timeline</button>
+          <button class="mode-tab" type="button" data-mode="map" aria-pressed="false">Map</button>
+        </nav>
+      </div>
     </header>
     <div id="workspace" data-mode="relationships">
+      <div id="panel-dock" data-panel="filters">
+        <nav id="panel-tabs" aria-label="Sidebar panel">
+          <button class="panel-tab" type="button" data-panel="filters" aria-pressed="true">Filters</button>
+          <button class="panel-tab" type="button" data-panel="details" aria-pressed="false">Details</button>
+        </nav>
       <aside id="sidebar">
       <header class="sidebar-header">
         <div class="sidebar-heading">
@@ -79,10 +87,13 @@
             <span>Freeze actor position</span>
           </label>
         </div>
-
-        <div id="node-details" class="panel details hidden"></div>
       </div>
       </aside>
+        <aside id="details-sidebar" aria-label="Details">
+          <h2 class="details-sidebar-heading">Details</h2>
+          <div id="node-details" class="details"></div>
+        </aside>
+      </div>
       <main id="graph-container"></main>
       <div id="mode-placeholder" hidden aria-hidden="true"></div>
     </div>

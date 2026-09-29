@@ -63,12 +63,14 @@ async function buildGraph(fromGoogleSheets = false) {
     const id = actor[DATA.nodeIdField];
     if (!id) return;
     const category = actor[DATA.nodeCategoryField] || 'Unknown';
+    const fullName = actor[DATA.nodeLabelField] || id;
+    const abbreviation = (actor[DATA.nodeAbbreviationField] || '').trim();
     const actorTopics = (actor[DATA.nodeTopicField] || '')
       .split(',')
       .map((topic) => topic.trim().toUpperCase())
       .filter(Boolean);
     graph.addNode(id, {
-      label: actor[DATA.nodeLabelField] || id,
+      label: abbreviation || fullName,
       size: 6,
       color: state.categoryColors.get(category),
       category,
@@ -186,21 +188,56 @@ function buildFilterCheckboxes(container, items, activeSet, colorFor, onChange) 
 
 function showNodeDetails(graph, nodeId) {
   const panel = document.getElementById('node-details');
+  document.getElementById('details-sidebar').classList.add('has-selection');
   const attrs = graph.getNodeAttribute(nodeId, 'attributes') || {};
+  const fullName = attrs[DATA.nodeLabelField] || graph.getNodeAttribute(nodeId, 'label');
   const rows = Object.entries(attrs)
     .filter(([, v]) => v)
     .map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`)
     .join('');
-  panel.innerHTML = `<h3>${graph.getNodeAttribute(nodeId, 'label')}</h3><dl>${rows}</dl>`;
-  panel.classList.remove('hidden');
+  panel.innerHTML = `<h3>${fullName}</h3><dl>${rows}</dl>`;
+}
+
+function showEdgeDetails(graph, edge) {
+  const panel = document.getElementById('node-details');
+  document.getElementById('details-sidebar').classList.add('has-selection');
+  const [source, target] = graph.extremities(edge);
+  const getFullName = (node) => {
+    const attrs = graph.getNodeAttribute(node, 'attributes') || {};
+    return attrs[DATA.nodeLabelField] || graph.getNodeAttribute(node, 'label') || node;
+  };
+  const adjacencyTypes = new Set();
+
+  graph.forEachEdge((candidate, attrs, edgeSource, edgeTarget) => {
+    const samePair = (edgeSource === source && edgeTarget === target)
+      || (edgeSource === target && edgeTarget === source);
+    if (samePair) adjacencyTypes.add(attrs.label || attrs.adjacencyType);
+  });
+
+  const types = [...adjacencyTypes].map((type) => `<li>${type}</li>`).join('');
+  panel.innerHTML = `<h3>Connection</h3><dl><dt>Connected actors</dt><dd>${getFullName(source)}</dd><dd>${getFullName(target)}</dd><dt>Adjacency types</dt><dd><ul class="detail-list">${types}</ul></dd></dl>`;
 }
 
 async function main() {
   const workspace = document.getElementById('workspace');
   const sidebar = document.getElementById('sidebar');
+  const panelDock = document.getElementById('panel-dock');
+  const detailsSidebar = document.getElementById('details-sidebar');
   const graphContainer = document.getElementById('graph-container');
   const modePlaceholder = document.getElementById('mode-placeholder');
   const modeTabs = [...document.querySelectorAll('.mode-tab')];
+  const panelTabs = [...document.querySelectorAll('.panel-tab')];
+
+  function setPanel(panel) {
+    panelDock.dataset.panel = panel;
+    panelTabs.forEach((tab) => {
+      tab.setAttribute('aria-pressed', String(tab.dataset.panel === panel));
+    });
+  }
+
+  panelTabs.forEach((tab) => {
+    tab.addEventListener('click', () => setPanel(tab.dataset.panel));
+  });
 
   function setMode(mode) {
     const isRelationships = mode === 'relationships';
@@ -208,7 +245,7 @@ async function main() {
     modePlaceholder.hidden = isRelationships;
     modePlaceholder.setAttribute('aria-hidden', String(isRelationships));
     modePlaceholder.setAttribute('aria-label', `${mode[0].toUpperCase()}${mode.slice(1)} view`);
-    sidebar.inert = !isRelationships;
+    panelDock.inert = !isRelationships;
     graphContainer.inert = !isRelationships;
     modeTabs.forEach((tab) => {
       tab.setAttribute('aria-pressed', String(tab.dataset.mode === mode));
@@ -263,6 +300,16 @@ async function main() {
     defaultDrawNodeLabel: (context, data, settings) => {
       const size = Math.max(9, Math.min(15, 8 + data.size * 0.3));
       drawDiscNodeLabel(context, data, { ...settings, labelSize: size });
+      const attributes = graph.getNodeAttribute(data.key, 'attributes') || {};
+      const fullName = attributes[DATA.nodeLabelField] || data.label;
+      if (fullName === data.label || data.size < 12) return;
+      const secondarySize = Math.max(7, Math.min(9, size * 0.7));
+      const textColor = settings.labelColor.attribute
+        ? graph.getNodeAttribute(data.key, settings.labelColor.attribute) || settings.labelColor.color || '#000000'
+        : settings.labelColor.color;
+      context.font = `${settings.labelWeight} ${secondarySize}px ${settings.labelFont}`;
+      context.fillStyle = textColor;
+      context.fillText(fullName, data.x + data.size + 3, data.y + size / 3 + secondarySize + 2);
     },
     defaultDrawNodeHover: (context, data, settings) => {
       const size = Math.max(10, Math.min(16, 9 + data.size * 0.3));
@@ -272,6 +319,7 @@ async function main() {
         labelColor: { color: '#171717' },
       });
     },
+    enableEdgeEvents: true,
     defaultEdgeType: 'line',
     edgeProgramClasses: { line: EdgeLineProgram, arrow: EdgeArrowProgram },
   });
@@ -386,6 +434,7 @@ async function main() {
   const sidebarToggle = document.getElementById('sidebar-toggle');
   sidebarToggle.addEventListener('click', () => {
     const collapsed = sidebar.classList.toggle('collapsed');
+    panelDock.classList.toggle('filters-collapsed', collapsed);
     sidebarToggle.setAttribute('aria-expanded', String(!collapsed));
     sidebarToggle.setAttribute('aria-label', collapsed ? 'Show filters' : 'Hide filters');
     sidebarToggle.textContent = collapsed ? '+' : '−';
@@ -394,19 +443,39 @@ async function main() {
   // Search
   const searchInput = document.getElementById('search');
   const searchResults = document.getElementById('search-results');
+  function openNodeDetails(nodeId) {
+    showNodeDetails(graph, nodeId);
+    if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
+      setPanel('details');
+    }
+  }
+
+  function openEdgeDetails(edge) {
+    showEdgeDetails(graph, edge);
+    if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
+      setPanel('details');
+    }
+  }
+
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim().toLowerCase();
     searchResults.innerHTML = '';
     if (!q) return;
     const matches = graph.nodes()
-      .filter((n) => graph.getNodeAttribute(n, 'label').toLowerCase().includes(q))
+      .filter((n) => {
+        const attrs = graph.getNodeAttribute(n, 'attributes') || {};
+        const fullName = (attrs[DATA.nodeLabelField] || '').toLowerCase();
+        const abbreviation = (attrs[DATA.nodeAbbreviationField] || '').toLowerCase();
+        return fullName.includes(q) || abbreviation.includes(q);
+      })
       .slice(0, 10);
     matches.forEach((n) => {
       const div = document.createElement('div');
-      div.textContent = graph.getNodeAttribute(n, 'label');
+      const attrs = graph.getNodeAttribute(n, 'attributes') || {};
+      div.textContent = attrs[DATA.nodeLabelField] || graph.getNodeAttribute(n, 'label');
       div.addEventListener('click', () => {
         focusNode(n);
-        showNodeDetails(graph, n);
+        openNodeDetails(n);
       });
       searchResults.appendChild(div);
     });
@@ -418,7 +487,8 @@ async function main() {
     renderer.getCamera().animate({ x: pos.x, y: pos.y, ratio: 0.3 }, { duration: 400 });
   }
 
-  renderer.on('clickNode', ({ node }) => showNodeDetails(graph, node));
+  renderer.on('clickNode', ({ node }) => openNodeDetails(node));
+  renderer.on('clickEdge', ({ edge }) => openEdgeDetails(edge));
 
   // Zoom controls
   const zoomWrapper = document.createElement('div');
@@ -457,7 +527,9 @@ async function main() {
     positionToggle.checked = false;
     document.getElementById('freeze-positions').checked = false;
     state.freezePositions = false;
-    document.getElementById('node-details').classList.add('hidden');
+    document.getElementById('node-details').innerHTML = '';
+    detailsSidebar.classList.remove('has-selection');
+    setPanel('filters');
     renderer.getCamera().animatedReset({ duration: 300 });
     refresh();
     relayout();

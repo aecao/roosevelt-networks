@@ -21,6 +21,7 @@ html, body {
 }
 
 #app {
+  --sidebar-width: 300px;
   display: grid;
   grid-template-rows: 48px minmax(0, 1fr);
   height: 100vh;
@@ -29,10 +30,10 @@ html, body {
 }
 
 #app-header {
-  display: flex;
+  display: grid;
+  grid-template-columns: calc(var(--sidebar-width) - 14px) minmax(0, 1fr);
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  gap: 0;
   min-width: 0;
   padding: 0 14px;
   background: var(--panel-bg);
@@ -44,6 +45,22 @@ html, body {
   font-size: 0.9rem;
   font-weight: 600;
   white-space: nowrap;
+}
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mode-label {
+  flex: 0 0 auto;
+  color: #999999;
+  font-family: "Helvetica Neue", Helvetica, sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .mode-tabs {
@@ -83,7 +100,16 @@ html, body {
   overflow: hidden;
 }
 
+#panel-dock {
+  display: contents;
+}
+
+#panel-tabs {
+  display: none;
+}
+
 #sidebar {
+  order: 0;
   width: 300px;
   flex-shrink: 0;
   display: flex;
@@ -308,7 +334,40 @@ button:hover {
   margin: 0;
 }
 
+.detail-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.detail-list li + li {
+  margin-top: 4px;
+}
+
+#details-sidebar {
+  order: 2;
+  display: none;
+  flex: 0 0 300px;
+  flex-direction: column;
+  height: 100%;
+  padding: 16px;
+  overflow-y: auto;
+  background: var(--panel-bg);
+  border-left: 1px solid var(--border);
+}
+
+#details-sidebar.has-selection {
+  display: flex;
+}
+
+.details-sidebar-heading {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
 #graph-container {
+  order: 1;
   position: relative;
   flex: 1;
   min-width: 0;
@@ -325,8 +384,8 @@ button:hover {
   display: none;
 }
 
-#workspace[data-mode="timeline"] #sidebar,
-#workspace[data-mode="map"] #sidebar {
+#workspace[data-mode="timeline"] #panel-dock,
+#workspace[data-mode="map"] #panel-dock {
   visibility: hidden;
 }
 
@@ -358,12 +417,25 @@ button:hover {
   }
 
   #app-header {
-    gap: 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
     padding: 0 8px;
   }
 
   .app-brand {
-    font-size: 0.82rem;
+    display: block;
+    max-width: 68px;
+    font-size: 0.74rem;
+    line-height: 0.95;
+    white-space: normal;
+  }
+
+  .mode-switch {
+    flex: 0 0 auto;
+    gap: 5px;
+    margin-left: auto;
+    padding-left: 0;
   }
 
   .mode-tabs {
@@ -372,8 +444,8 @@ button:hover {
 
   .mode-tab {
     min-width: 0;
-    padding: 0 8px;
-    font-size: 0.78rem;
+    padding: 0 4px;
+    font-size: 0.72rem;
   }
 
   #workspace {
@@ -387,29 +459,90 @@ button:hover {
     height: 100%;
   }
 
-  #sidebar {
+  #panel-dock {
     position: absolute;
     z-index: 20;
     inset: auto 0 0;
+    display: flex;
+    flex-direction: column;
     width: 100%;
     height: min(52vh, 480px);
     height: min(52dvh, 480px);
     min-height: 220px;
-    padding: 12px 14px max(12px, env(safe-area-inset-bottom));
-    border-right: 0;
+    padding: 0 14px max(12px, env(safe-area-inset-bottom));
+    overflow: hidden;
+    background: var(--panel-bg);
     border-top: 1px solid var(--border);
   }
 
-  #sidebar.collapsed {
+  #panel-tabs {
+    display: flex;
+    flex: 0 0 40px;
+    gap: 4px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-tab {
+    width: auto;
+    flex: 1;
+    padding: 0 10px;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--muted);
+  }
+
+  .panel-tab[aria-pressed="true"] {
+    border-bottom-color: var(--accent);
+    color: var(--text);
+  }
+
+  #sidebar,
+  #details-sidebar {
+    position: static;
+    order: initial;
     width: 100%;
     height: auto;
+    flex: 1;
     min-height: 0;
-    padding: 8px 14px max(8px, env(safe-area-inset-bottom));
+    padding: 12px 0 0;
+    overflow: hidden;
+    background: transparent;
+    border: 0;
+  }
+
+  #panel-dock[data-panel="filters"] #sidebar {
+    display: flex;
+  }
+
+  #panel-dock[data-panel="filters"] #details-sidebar,
+  #panel-dock[data-panel="details"] #sidebar {
+    display: none;
+  }
+
+  #panel-dock[data-panel="details"] #details-sidebar {
+    display: flex;
+    overflow-y: auto;
+  }
+
+  #panel-dock.filters-collapsed[data-panel="filters"] {
+    height: auto;
+    min-height: 0;
+  }
+
+  #sidebar.collapsed {
+    flex: 0 0 auto;
+    padding: 8px 0 0;
   }
 
   .sidebar-header {
     align-items: center;
     margin-bottom: 10px;
+  }
+
+  .sidebar-heading,
+  .details-sidebar-heading {
+    display: none;
   }
 
   #sidebar-content {
@@ -431,12 +564,17 @@ button:hover {
 }
 
 @media (max-width: 360px) and (orientation: portrait) {
-  .app-brand {
-    font-size: 0.75rem;
+  .mode-switch {
+    gap: 5px;
+    padding-left: 0;
+  }
+
+  .mode-label {
+    font-size: 0.64rem;
   }
 
   .mode-tab {
-    padding: 0 5px;
-    font-size: 0.72rem;
+    padding: 0 2px;
+    font-size: 0.68rem;
   }
 }

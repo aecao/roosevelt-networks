@@ -24,6 +24,7 @@ export const DATA = {
   // headers used in the adjacency matrix CSVs.
   nodeIdField: 'actor',
   nodeLabelField: 'actor',
+  nodeAbbreviationField: 'abbrev',
   // Column used to build the "Actor category" filter + node color.
   nodeCategoryField: 'type',
   nodeTopicField: 'topic',
