@@ -9,7 +9,10 @@
 <body>
   <div id="app">
     <header id="app-header">
-      <div class="app-brand">Roosevelt Networks</div>
+      <div class="header-brand-group">
+        <div class="app-brand">Roosevelt Networks</div>
+        <span id="refresh-status" class="refresh-status visually-hidden" role="status" aria-live="polite" hidden></span>
+      </div>
       <div class="mode-switch">
         <span class="mode-label">MODE</span>
         <nav class="mode-tabs" aria-label="Network mode">
@@ -18,6 +21,9 @@
           <button class="mode-tab" type="button" data-mode="map" aria-pressed="false">Map</button>
         </nav>
       </div>
+      <button id="refresh-sheets" class="header-refresh" type="button" title="Relink data from Google Sheets">
+        <span aria-hidden="true">↻</span><span>Relink data</span>
+      </button>
     </header>
     <div id="workspace" data-mode="relationships">
       <div id="panel-dock" data-panel="filters">
@@ -40,28 +46,51 @@
         </div>
 
         <div class="panel">
-          <button id="refresh-sheets" type="button">Refresh from Google Sheets</button>
-          <p id="refresh-status" class="refresh-status" role="status" aria-live="polite" hidden></p>
+          <div class="filter-heading">
+            <button class="filter-group-toggle" type="button" aria-expanded="true" aria-controls="edge-type-group">
+              <span class="filter-group-chevron">▾</span><span>Adjacency type</span>
+            </button>
+          </div>
+          <div id="edge-type-group" class="filter-group-content">
+            <label class="filter-all"><input id="edge-type-select-all" type="checkbox" checked /><span>All</span></label>
+            <div id="edge-type-filters" class="filter-list"></div>
+          </div>
         </div>
 
         <div class="panel">
-          <h2>Adjacency type</h2>
-          <div id="edge-type-filters" class="filter-list"></div>
+          <div class="filter-heading">
+            <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="node-type-group">
+              <span class="filter-group-chevron">▸</span><span>Actor category</span>
+            </button>
+          </div>
+          <div id="node-type-group" class="filter-group-content" hidden>
+            <label class="filter-all"><input id="node-type-select-all" type="checkbox" checked /><span>All</span></label>
+            <div id="node-type-filters" class="filter-list"></div>
+          </div>
         </div>
 
         <div class="panel">
-          <h2>Actor category</h2>
-          <div id="node-type-filters" class="filter-list"></div>
+          <div class="filter-heading">
+            <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="topic-group">
+              <span class="filter-group-chevron">▸</span><span>Topic</span>
+            </button>
+          </div>
+          <div id="topic-group" class="filter-group-content" hidden>
+            <label class="filter-all"><input id="topic-select-all" type="checkbox" checked /><span>All</span></label>
+            <div id="topic-filters" class="filter-list"></div>
+          </div>
         </div>
 
         <div class="panel">
-          <h2>Topic</h2>
-          <div id="topic-filters" class="filter-list"></div>
-        </div>
-
-        <div class="panel">
-          <h2>Scale</h2>
-          <div id="scale-filters" class="filter-list"></div>
+          <div class="filter-heading">
+            <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="scale-group">
+              <span class="filter-group-chevron">▸</span><span>Scale</span>
+            </button>
+          </div>
+          <div id="scale-group" class="filter-group-content" hidden>
+            <label class="filter-all"><input id="scale-select-all" type="checkbox" checked /><span>All</span></label>
+            <div id="scale-filters" class="filter-list"></div>
+          </div>
         </div>
 
         <div class="panel">
@@ -80,17 +109,16 @@
           </label>
         </div>
 
-        <div class="panel">
-          <button id="reset-view">Reset view</button>
-          <label class="toggle-row">
-            <input id="freeze-positions" type="checkbox" />
-            <span>Freeze actor position</span>
-          </label>
-          <label class="toggle-row">
-            <input id="zoom-to-selected" type="checkbox" checked />
-            <span>Zoom to selected</span>
-          </label>
-        </div>
+          <div class="panel">
+            <label class="toggle-row">
+              <input id="freeze-positions" type="checkbox" />
+              <span>Freeze actor position</span>
+            </label>
+            <label class="toggle-row">
+              <input id="zoom-to-selected" type="checkbox" checked />
+              <span>Zoom to selected</span>
+            </label>
+          </div>
       </div>
       </aside>
         <aside id="details-sidebar" aria-label="Details">

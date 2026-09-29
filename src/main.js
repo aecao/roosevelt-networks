@@ -168,8 +168,26 @@ function computeFilteredLayout(graph, activeEdgeTypes, includeNode = () => true)
   return positions;
 }
 
-function buildFilterCheckboxes(container, items, activeSet, colorFor, onChange) {
+function buildFilterCheckboxes(container, items, activeSet, colorFor, onChange, selectAllId) {
   container.innerHTML = '';
+  const selectAll = document.getElementById(selectAllId);
+  const syncSelectAll = () => {
+    const activeCount = items.filter((item) => activeSet.has(item.value)).length;
+    selectAll.checked = activeCount === items.length;
+    selectAll.indeterminate = activeCount > 0 && activeCount < items.length;
+  };
+
+  selectAll.addEventListener('change', () => {
+    activeSet.clear();
+    if (selectAll.checked) items.forEach((item) => activeSet.add(item.value));
+    container.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+      checkbox.checked = selectAll.checked;
+    });
+    selectAll.indeterminate = false;
+    onChange();
+  });
+
+
   items.forEach((item) => {
     const label = document.createElement('label');
 
@@ -190,9 +208,11 @@ function buildFilterCheckboxes(container, items, activeSet, colorFor, onChange) 
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) activeSet.add(item.value);
       else activeSet.delete(item.value);
+      syncSelectAll();
       onChange();
     });
   });
+  syncSelectAll();
 }
 
 function syncDetailsSidebar() {
@@ -459,8 +479,13 @@ async function main() {
     tab.addEventListener('click', () => setPanel(tab.dataset.panel));
   });
 
+  function togglePinnedSelectionAndZoom(selection) {
+    togglePinnedSelection(selection);
+    if (state.zoomToSelected) zoomToCurrentAndPinned();
+  }
+
   pinSelectionButton.addEventListener('click', () => {
-    if (state.currentSelection) togglePinnedSelection(state.currentSelection);
+    if (state.currentSelection) togglePinnedSelectionAndZoom(state.currentSelection);
   });
 
   function setMode(mode) {
@@ -513,7 +538,7 @@ async function main() {
 
   contextPinToggle.addEventListener('click', () => {
     if (!contextSelection) return;
-    togglePinnedSelection(contextSelection);
+    togglePinnedSelectionAndZoom(contextSelection);
     selectionContextMenu.hidden = true;
     if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
       setPanel('details');
@@ -529,7 +554,7 @@ async function main() {
 
   const refreshButton = document.getElementById('refresh-sheets');
   const refreshStatus = document.getElementById('refresh-status');
-  const fromGoogleSheets = new URLSearchParams(window.location.search).get('source') === 'sheets';
+  const fromGoogleSheets = true;
 
   refreshButton.addEventListener('click', () => {
     refreshButton.disabled = true;
@@ -541,20 +566,16 @@ async function main() {
     window.location.assign(url);
   });
 
-  if (fromGoogleSheets) {
-    refreshButton.disabled = true;
-    refreshStatus.hidden = false;
-    refreshStatus.textContent = 'Loading published sheets…';
-  }
+  refreshButton.disabled = true;
+  refreshStatus.hidden = false;
+  refreshStatus.textContent = 'Loading published sheets…';
 
   const { graph, categories, scales, manifest } = await buildGraph(fromGoogleSheets);
-  if (fromGoogleSheets) {
-    refreshButton.disabled = false;
-    refreshStatus.textContent = 'Updated from Google Sheets';
-    const url = new URL(window.location.href);
-    url.searchParams.delete('refresh');
-    window.history.replaceState(null, '', url);
-  }
+  refreshButton.disabled = false;
+  refreshStatus.textContent = 'Updated from Google Sheets';
+  const url = new URL(window.location.href);
+  url.searchParams.delete('refresh');
+  window.history.replaceState(null, '', url);
   state.graph = graph;
 
   const container = document.getElementById('graph-container');
@@ -724,6 +745,7 @@ async function main() {
       refresh();
       relayout();
     },
+    'edge-type-select-all',
   );
 
   document.getElementById('freeze-positions').addEventListener('change', (e) => {
@@ -746,6 +768,7 @@ async function main() {
       refresh();
       relayout();
     },
+    'node-type-select-all',
   );
 
   buildFilterCheckboxes(
@@ -757,6 +780,7 @@ async function main() {
       refresh();
       relayout();
     },
+    'topic-select-all',
   );
 
   // Scale filters
@@ -769,7 +793,18 @@ async function main() {
       refresh();
       relayout();
     },
+    'scale-select-all',
   );
+
+  document.querySelectorAll('.filter-group-toggle').forEach((toggle) => {
+    toggle.addEventListener('click', () => {
+      const expanded = toggle.getAttribute('aria-expanded') === 'true';
+      const content = document.getElementById(toggle.getAttribute('aria-controls'));
+      toggle.setAttribute('aria-expanded', String(!expanded));
+      toggle.querySelector('.filter-group-chevron').textContent = expanded ? '▸' : '▾';
+      content.hidden = expanded;
+    });
+  });
 
   const yearToggle = document.getElementById('year-filter-toggle');
   const yearControls = document.getElementById('year-controls');
@@ -903,7 +938,7 @@ async function main() {
       pinButton.dataset.nodeId = n;
       pinButton.dataset.actorName = actorName;
       pinButton.addEventListener('click', () => {
-        togglePinnedSelection(createNodeSelection(graph, n));
+        togglePinnedSelectionAndZoom(createNodeSelection(graph, n));
         if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
           setPanel('details');
         }
@@ -936,51 +971,15 @@ async function main() {
   document.getElementById('zoom-out').addEventListener('click', () => renderer.getCamera().animatedUnzoom({ duration: 300 }));
   document.getElementById('zoom-fit').addEventListener('click', () => renderer.getCamera().animatedReset({ duration: 300 }));
 
-  document.getElementById('reset-view').addEventListener('click', () => {
-    document.querySelectorAll('#edge-type-filters input, #node-type-filters input, #topic-filters input, #scale-filters input').forEach((cb) => {
-      cb.checked = true;
-    });
-    state.activeEdgeTypes.clear();
-    manifest.forEach((m) => {
-      if (m.type !== POSITION_EDGE_TYPE) state.activeEdgeTypes.add(m.type);
-    });
-    state.activeNodeTypes.clear();
-    categories.forEach((category) => state.activeNodeTypes.add(category));
-    state.activeTopics.clear();
-    state.allTopics.forEach((topic) => state.activeTopics.add(topic));
-    state.activeScales.clear();
-    scales.forEach((scale) => state.activeScales.add(scale));
-    yearToggle.checked = false;
-    state.yearFilterEnabled = false;
-    yearControls.hidden = true;
-    yearSlider.value = '2026';
-    state.selectedYear = 2026;
-    yearValue.textContent = '2026';
-    zoomToSelectedToggle.checked = true;
-    state.zoomToSelected = true;
-    positionToggle.checked = false;
-    document.getElementById('freeze-positions').checked = false;
-    state.freezePositions = false;
-    state.currentSelection = null;
-    renderCurrentSelection();
-    state.selectedEdgeIds.clear();
-    state.hoveredEdgeIds.clear();
-    setPanel('filters');
-    renderer.getCamera().animatedReset({ duration: 300 });
-    refresh();
-    relayout();
-  });
 }
 
 main().catch((err) => {
   console.error(err);
   const refreshButton = document.getElementById('refresh-sheets');
   const refreshStatus = document.getElementById('refresh-status');
-  if (new URLSearchParams(window.location.search).get('source') === 'sheets') {
-    refreshButton.disabled = false;
-    refreshStatus.hidden = false;
-    refreshStatus.textContent = `Google Sheets refresh failed: ${err.message}`;
-  }
+  refreshButton.disabled = false;
+  refreshStatus.hidden = false;
+  refreshStatus.textContent = `Google Sheets refresh failed: ${err.message}`;
   document.getElementById('graph-container').innerHTML =
     `<p style="padding:20px;color:#ff6b6b">Failed to load network data: ${err.message}. Check the console and the files in /public/data.</p>`;
 });
