@@ -12,7 +12,7 @@ import { circular } from 'graphology-layout';
 import { DATA, PALETTE } from './config.js';
 import { dataLoadState, loadActors, loadEdgeManifest, loadAdjacencyMatrix } from './data.js';
 
-const mapModeModule = import('./map-mode.js');
+const mapGeoModule = import('./map-mode.js');
 
 const MIN_SIZE = 4;
 const MAX_SIZE = 8;
@@ -92,7 +92,7 @@ function assignParallelEdgeCurves(graph) {
   });
 }
 
-async function buildGraph(fromGoogleSheets = false) {
+async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   const graph = new Graph({ multi: true });
 
   const actors = await loadActors(fromGoogleSheets);
@@ -137,10 +137,16 @@ async function buildGraph(fromGoogleSheets = false) {
   const edgeTypes = [];
   manifest.forEach((entry, i) => state.edgeTypeColors.set(entry.type, PALETTE[i % PALETTE.length]));
 
-  const adjacencyMatrices = await Promise.all(manifest.map(async (entry) => ({
-    entry,
-    edges: await loadAdjacencyMatrix(entry.file, fromGoogleSheets),
-  })));
+  const totalSteps = manifest.length + 1;
+  let completedSteps = 1;
+  onProgress(completedSteps, totalSteps);
+
+  const adjacencyMatrices = await Promise.all(manifest.map(async (entry) => {
+    const edges = await loadAdjacencyMatrix(entry.file, fromGoogleSheets);
+    completedSteps += 1;
+    onProgress(completedSteps, totalSteps);
+    return { entry, edges };
+  }));
 
   for (const { entry, edges } of adjacencyMatrices) {
     edgeTypes.push(entry.type);
@@ -497,7 +503,6 @@ async function main() {
   const panelDock = document.getElementById('panel-dock');
   const detailsSidebar = document.getElementById('details-sidebar');
   const graphContainer = document.getElementById('graph-container');
-  const modePlaceholder = document.getElementById('mode-placeholder');
   const modeTabs = [...document.querySelectorAll('.mode-tab')];
   const panelTabs = [...document.querySelectorAll('.panel-tab')];
   const pinSelectionButton = document.getElementById('pin-selection');
@@ -509,12 +514,18 @@ async function main() {
   const timelineSummary = document.getElementById('timeline-summary');
   const timelineStartInput = document.getElementById('timeline-start');
   const timelineEndInput = document.getElementById('timeline-end');
-  const mapContainer = document.getElementById('map');
-  const mapBuildingStatus = document.getElementById('map-building-state');
+  const mapCaption = document.getElementById('map-caption');
   let timelineStart = 1920;
   let timelineEnd = 2026;
   let contextSelection = null;
-  let mapInstance = null;
+  let mapGeography = null;
+  let mapModeApplied = false;
+  let mapGeoCanvas = null;
+  let mapGeoContext = null;
+  let mapGeoFrontCanvas = null;
+  let mapGeoFrontContext = null;
+  let mapProjection = null;
+  const mapOriginalPositions = new Map();
 
   function setPanel(panel) {
     panelDock.dataset.panel = panel;
@@ -536,62 +547,27 @@ async function main() {
     if (state.currentSelection) togglePinnedSelectionAndZoom(state.currentSelection);
   });
 
-  function getActorStyle(actorId) {
-    if (!state.graph || !state.graph.hasNode(actorId)) return null;
-    const attrs = state.graph.getNodeAttributes(actorId);
-    return { color: attrs.color, label: attrs.attributes?.[DATA.nodeLabelField] || actorId, category: attrs.category };
-  }
-
-  async function ensureMap() {
-    if (mapInstance) return mapInstance;
-    const { mountMap } = await mapModeModule;
-    mapInstance = mountMap(mapContainer, mapBuildingStatus, { getActorStyle });
-    return mapInstance;
-  }
-
   function setMode(mode) {
-    const isRelationships = mode === 'relationships';
     const isMap = mode === 'map';
     workspace.dataset.mode = mode;
-    modePlaceholder.hidden = !isMap;
-    modePlaceholder.setAttribute('aria-hidden', String(!isMap));
-    modePlaceholder.setAttribute('aria-label', `${mode[0].toUpperCase()}${mode.slice(1)} view`);
-    panelDock.inert = isMap;
-    graphContainer.inert = isMap;
     timelineView.setAttribute('aria-hidden', String(mode !== 'timeline'));
+    mapCaption.hidden = !isMap;
     modeTabs.forEach((tab) => {
       tab.setAttribute('aria-pressed', String(tab.dataset.mode === mode));
     });
+    if (!isMap) restoreRelationshipsLayout();
     if (mode === 'timeline' && state.graph) renderTimeline();
-    if (isRelationships && state.renderer) {
+    if (mode === 'relationships' && state.renderer) {
       refresh();
       relayout();
     }
-    if (isMap) {
-      ensureMap().then((instance) => instance.invalidateSize());
-    }
+    if (isMap) applyMapLayout();
   }
 
   modeTabs.forEach((tab) => {
     tab.addEventListener('click', () => setMode(tab.dataset.mode));
   });
   setMode(workspace.dataset.mode);
-
-  document.querySelectorAll('[data-map-style]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      const instance = await ensureMap();
-      instance.setStyle(button.dataset.mapStyle);
-      document.querySelectorAll('[data-map-style]').forEach((styleButton) => {
-        const isActive = styleButton === button;
-        styleButton.classList.toggle('is-active', isActive);
-        styleButton.setAttribute('aria-pressed', String(isActive));
-      });
-    });
-  });
-
-  document.querySelector('[data-map-action="zoom-in"]').addEventListener('click', async () => (await ensureMap()).zoomIn());
-  document.querySelector('[data-map-action="zoom-out"]').addEventListener('click', async () => (await ensureMap()).zoomOut());
-  document.querySelector('[data-map-action="home"]').addEventListener('click', async () => (await ensureMap()).resetView());
 
   function showPinContextMenu(selection, mouseCoords) {
     contextSelection = selection;
@@ -641,7 +617,15 @@ async function main() {
 
   const refreshButton = document.getElementById('refresh-sheets');
   const refreshStatus = document.getElementById('refresh-status');
-  const fromGoogleSheets = true;
+  const refreshProgress = document.getElementById('refresh-progress');
+  const refreshProgressBar = document.getElementById('refresh-progress-bar');
+  const fromGoogleSheets = new URL(window.location.href).searchParams.get('source') === 'sheets';
+
+  function updateRefreshProgress(completed, total) {
+    const percent = total ? Math.round((completed / total) * 100) : 0;
+    refreshProgressBar.style.width = `${percent}%`;
+    refreshProgress.setAttribute('aria-valuenow', String(percent));
+  }
 
   refreshButton.addEventListener('click', () => {
     refreshButton.disabled = true;
@@ -655,18 +639,25 @@ async function main() {
 
   refreshButton.disabled = true;
   refreshStatus.hidden = false;
-  refreshStatus.textContent = 'Loading published sheets…';
+  refreshStatus.textContent = fromGoogleSheets ? 'Loading published sheets…' : 'Loading local data…';
+  if (fromGoogleSheets) {
+    refreshProgress.hidden = false;
+    updateRefreshProgress(0, 1);
+  }
 
-  const { graph, categories, scales, manifest } = await buildGraph(fromGoogleSheets);
+  const { graph, categories, scales, manifest } = await buildGraph(fromGoogleSheets, updateRefreshProgress);
   refreshButton.disabled = false;
-  refreshStatus.textContent = dataLoadState.usedLocalFallback
-    ? 'Sheets incomplete; local CSV fallback used'
-    : 'Updated from Google Sheets';
+  refreshProgress.hidden = true;
+  refreshStatus.textContent = !fromGoogleSheets
+    ? 'Using local data'
+    : dataLoadState.usedLocalFallback
+      ? 'Sheets incomplete; local CSV fallback used'
+      : 'Updated from Google Sheets';
   const url = new URL(window.location.href);
   url.searchParams.delete('refresh');
   window.history.replaceState(null, '', url);
   state.graph = graph;
-  if (mapInstance) mapInstance.refreshActorStyles();
+  if (workspace.dataset.mode === 'map') applyMapLayout();
 
   const container = document.getElementById('graph-container');
   const renderer = new Sigma(graph, container, {
@@ -1210,6 +1201,177 @@ async function main() {
     });
     sizeHaloContext.globalAlpha = 1;
   });
+
+  async function ensureMapGeography() {
+    if (mapGeography) return mapGeography;
+    const { loadMapGeography } = await mapGeoModule;
+    mapGeography = await loadMapGeography();
+    return mapGeography;
+  }
+
+  function computeGraphBounds() {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    graph.forEachNode((node, attrs) => {
+      minX = Math.min(minX, attrs.x);
+      maxX = Math.max(maxX, attrs.x);
+      minY = Math.min(minY, attrs.y);
+      maxY = Math.max(maxY, attrs.y);
+    });
+    return { minX, maxX, minY, maxY };
+  }
+
+  // Maps lng/lat onto the network's existing coordinate space, preserving
+  // the island's aspect ratio and centering it within the graph's spread.
+  function createGeoProjection(geoBounds, target) {
+    const geoWidth = geoBounds.maxLng - geoBounds.minLng || 1;
+    const geoHeight = geoBounds.maxLat - geoBounds.minLat || 1;
+    const scale = geoWidth / geoHeight > target.width / target.height
+      ? target.width / geoWidth
+      : target.height / geoHeight;
+    const geoCenterLng = (geoBounds.minLng + geoBounds.maxLng) / 2;
+    const geoCenterLat = (geoBounds.minLat + geoBounds.maxLat) / 2;
+    return (lng, lat) => ({
+      x: target.centerX + (lng - geoCenterLng) * scale,
+      y: target.centerY + (lat - geoCenterLat) * scale,
+    });
+  }
+
+  function ensureMapGeoLayer() {
+    if (mapGeoCanvas) return;
+    renderer.createCanvasContext('geo', { beforeLayer: 'edges', style: { pointerEvents: 'none' } });
+    mapGeoCanvas = renderer.getCanvases().geo;
+    mapGeoContext = mapGeoCanvas.getContext('2d');
+    // Appended last (no beforeLayer/afterLayer) so the island outline sits above every other layer.
+    renderer.createCanvasContext('geoFront', { style: { pointerEvents: 'none' } });
+    mapGeoFrontCanvas = renderer.getCanvases().geoFront;
+    mapGeoFrontContext = mapGeoFrontCanvas.getContext('2d');
+    renderer.on('afterRender', drawMapGeoLayer);
+    renderer.resize(true);
+  }
+
+  function drawRings(ctx, rings, fillStyle, strokeStyle) {
+    rings.forEach((ring) => {
+      if (ring.length < 3) return;
+      ctx.beginPath();
+      ring.forEach((point, index) => {
+        // graphToViewport normalizes raw graph-space coordinates before projecting to pixels.
+        const viewportPoint = renderer.graphToViewport(mapProjection(point.lng, point.lat));
+        if (index === 0) ctx.moveTo(viewportPoint.x, viewportPoint.y);
+        else ctx.lineTo(viewportPoint.x, viewportPoint.y);
+      });
+      ctx.closePath();
+      if (fillStyle) {
+        ctx.fillStyle = fillStyle;
+        ctx.fill();
+      }
+      if (strokeStyle) {
+        ctx.strokeStyle = strokeStyle;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+    });
+  }
+
+  function drawMapGeoLayer() {
+    if (!mapGeoContext || !mapModeApplied || !mapGeography || !mapProjection) return;
+    const { width, height } = renderer.getDimensions();
+    mapGeoContext.clearRect(0, 0, width, height);
+    mapGeography.buildingFootprints.forEach((footprint) => {
+      drawRings(
+        mapGeoContext,
+        footprint.rings,
+        footprint.actorId ? 'rgba(255, 255, 255, 0.28)' : 'rgba(255, 255, 255, 0.1)',
+        'rgba(255, 255, 255, 0.6)',
+      );
+    });
+
+    if (!mapGeoFrontContext) return;
+    mapGeoFrontContext.clearRect(0, 0, width, height);
+    drawRings(mapGeoFrontContext, mapGeography.islandRings, null, 'rgba(160, 200, 255, 0.9)');
+  }
+
+  // Pins actors tied to a building at that building's projected location and
+  // lets the rest of the network settle around that fixed geography.
+  async function applyMapLayout() {
+    if (mapModeApplied || !state.graph || !state.renderer) return;
+    mapModeApplied = true;
+    const geo = await ensureMapGeography();
+    const graphBounds = computeGraphBounds();
+    const graphWidth = (graphBounds.maxX - graphBounds.minX) || 1;
+    const graphHeight = (graphBounds.maxY - graphBounds.minY) || 1;
+    mapProjection = createGeoProjection(geo.bounds, {
+      centerX: (graphBounds.minX + graphBounds.maxX) / 2,
+      centerY: (graphBounds.minY + graphBounds.maxY) / 2,
+      width: graphWidth * 0.6,
+      height: graphHeight * 0.6,
+    });
+
+    geo.actorCentroids.forEach((centroid, actorId) => {
+      if (!graph.hasNode(actorId)) return;
+      if (!mapOriginalPositions.has(actorId)) {
+        const attrs = graph.getNodeAttributes(actorId);
+        mapOriginalPositions.set(actorId, { x: attrs.x, y: attrs.y });
+      }
+      const projected = mapProjection(centroid.lng, centroid.lat);
+      graph.setNodeAttribute(actorId, 'x', projected.x);
+      graph.setNodeAttribute(actorId, 'y', projected.y);
+      graph.setNodeAttribute(actorId, 'fixed', true);
+    });
+
+    forceAtlas2.assign(graph, LAYOUT_SETTINGS);
+    ensureMapGeoLayer();
+    refresh();
+    drawMapGeoLayer();
+
+    // Frames the whole network within most of the viewport. Camera x/y/ratio
+    // operate in sigma's *normalized* coordinate space, so we read each node's
+    // display data (already normalized) rather than its raw x/y attribute.
+    renderer.resize(true);
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    graph.forEachNode((node) => {
+      const data = renderer.getNodeDisplayData(node);
+      if (!data) return;
+      minX = Math.min(minX, data.x);
+      maxX = Math.max(maxX, data.x);
+      minY = Math.min(minY, data.y);
+      maxY = Math.max(maxY, data.y);
+    });
+    const camera = renderer.getCamera();
+    const dimensions = renderer.getDimensions();
+    const scale = renderer.getGraphToViewportRatio();
+    const span = Math.max(maxX - minX, maxY - minY) || 1;
+    const targetPixels = Math.min(dimensions.width, dimensions.height) * 0.85;
+    const ratio = camera.getBoundedRatio((camera.getState().ratio * scale * span) / targetPixels);
+    const center = {
+      x: (minX + maxX) / 2,
+      y: (minY + maxY) / 2,
+    };
+    camera.animate({ x: center.x, y: center.y, ratio }, { duration: 500, easing: 'quadraticInOut' });
+  }
+
+  function restoreRelationshipsLayout() {
+    if (!mapModeApplied) return;
+    mapOriginalPositions.forEach((pos, actorId) => {
+      if (!graph.hasNode(actorId)) return;
+      graph.setNodeAttribute(actorId, 'x', pos.x);
+      graph.setNodeAttribute(actorId, 'y', pos.y);
+      graph.removeNodeAttribute(actorId, 'fixed');
+    });
+    mapOriginalPositions.clear();
+    mapModeApplied = false;
+    if (mapGeoContext) {
+      const { width, height } = renderer.getDimensions();
+      mapGeoContext.clearRect(0, 0, width, height);
+      if (mapGeoFrontContext) mapGeoFrontContext.clearRect(0, 0, width, height);
+    }
+    refresh();
+  }
 
   function zoomToCurrentAndPinned() {
     if (!state.zoomToSelected) return;
