@@ -442,6 +442,56 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.78rem;
 }
 
+.appearance-controls label[for="centrality-threshold-slider"] {
+  display: flex;
+  justify-content: space-between;
+}
+
+.appearance-controls output {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+#centrality-threshold-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.slider-with-steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 4px 0 0;
+}
+
+.slider-step-button {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #000000;
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.slider-step-button:hover {
+  border-color: var(--accent);
+}
+
+.slider-step-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 #search {
   width: 100%;
   padding: 8px 10px;

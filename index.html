@@ -106,7 +106,7 @@
                     <option value="public-sentiment">Public sentiment</option>
                     <option value="plain">Plain</option>
                   </select>
-                  <label for="size-mode">SIZE MODE</label>
+                  <label for="size-mode">HALO TYPE</label>
                   <select id="size-mode">
                     <option value="scale-of-actor">Scale of actor</option>
                     <option value="public-interest">Public interest</option>
@@ -116,6 +116,32 @@
                     <option value="eigenvector-centrality">Prestige (eigenvector centrality)</option>
                     <option value="plain">Plain</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel relationships-only">
+              <div class="filter-heading">
+                <button class="filter-group-toggle" type="button" aria-expanded="true" aria-controls="centrality-group">
+                  <span class="filter-group-chevron">▾</span><span>CENTRALITY</span>
+                </button>
+              </div>
+              <div id="centrality-group" class="filter-group-content">
+                <div class="appearance-controls">
+                  <label for="centrality-type">CENTRALITY TYPE</label>
+                  <select id="centrality-type">
+                    <option value="degree-centrality">Degree centrality</option>
+                    <option value="closeness-centrality">Closeness centrality</option>
+                    <option value="betweenness-centrality">Betweenness centrality</option>
+                    <option value="eigenvector-centrality">Eigenvector centrality</option>
+                  </select>
+                  <label for="centrality-threshold-slider">Minimum number of connections <output id="centrality-threshold-value">0</output></label>
+                  <div class="slider-with-steps">
+                    <button id="centrality-threshold-decrement" class="slider-step-button" type="button" aria-label="Decrease minimum connections">−</button>
+                    <input id="centrality-threshold-slider" type="range" min="0" max="1" step="1" value="0" list="centrality-threshold-ticks" />
+                    <button id="centrality-threshold-increment" class="slider-step-button" type="button" aria-label="Increase minimum connections">+</button>
+                  </div>
+                  <datalist id="centrality-threshold-ticks"></datalist>
                 </div>
               </div>
             </div>

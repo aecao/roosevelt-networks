@@ -3,7 +3,6 @@ import Sigma from 'sigma';
 import EdgeCurveProgram, { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import betweennessCentrality from 'graphology-metrics/centrality/betweenness';
 import closenessCentrality from 'graphology-metrics/centrality/closeness';
-import { degreeCentrality } from 'graphology-metrics/centrality/degree';
 import eigenvectorCentrality from 'graphology-metrics/centrality/eigenvector';
 import { drawDiscNodeHover, drawDiscNodeLabel, EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
@@ -36,6 +35,8 @@ const state = {
   freezePositions: false,
   zoomToSelected: true,
   sizeMode: 'scale-of-actor',
+  centralityFilterType: 'degree-centrality',
+  centralityThreshold: 0,
   yearFilterEnabled: false,
   selectedYear: 2026,
   detailsManuallyCollapsed: false,
@@ -499,6 +500,14 @@ async function main() {
   const workspace = document.getElementById('workspace');
   const sizeModeSelect = document.getElementById('size-mode');
   state.sizeMode = sizeModeSelect.value;
+  const centralityTypeSelect = document.getElementById('centrality-type');
+  const centralityThresholdSlider = document.getElementById('centrality-threshold-slider');
+  const centralityThresholdValue = document.getElementById('centrality-threshold-value');
+  const centralityThresholdTicks = document.getElementById('centrality-threshold-ticks');
+  const centralityThresholdDecrement = document.getElementById('centrality-threshold-decrement');
+  const centralityThresholdIncrement = document.getElementById('centrality-threshold-increment');
+  state.centralityFilterType = centralityTypeSelect.value;
+  state.centralityThreshold = Number(centralityThresholdSlider.value);
   const sidebar = document.getElementById('sidebar');
   const panelDock = document.getElementById('panel-dock');
   const detailsSidebar = document.getElementById('details-sidebar');
@@ -525,7 +534,9 @@ async function main() {
   let mapGeoFrontCanvas = null;
   let mapGeoFrontContext = null;
   let mapProjection = null;
+  let mapCancelAnimation = null;
   const mapOriginalPositions = new Map();
+  let frozenRelationshipsPositions = null;
 
   function setPanel(panel) {
     panelDock.dataset.panel = panel;
@@ -549,6 +560,11 @@ async function main() {
 
   function setMode(mode) {
     const isMap = mode === 'map';
+    const leavingRelationships = workspace.dataset.mode === 'relationships' && mode !== 'relationships';
+    if (leavingRelationships && state.freezePositions) {
+      frozenRelationshipsPositions = new Map();
+      graph.forEachNode((node, attrs) => frozenRelationshipsPositions.set(node, { x: attrs.x, y: attrs.y }));
+    }
     workspace.dataset.mode = mode;
     timelineView.setAttribute('aria-hidden', String(mode !== 'timeline'));
     mapCaption.hidden = !isMap;
@@ -710,13 +726,21 @@ async function main() {
   }
 
   let cancelAnimation = null;
+  let centralityFilterScoreCache = null;
+  // 1-based rank (ascending by connection count) per node, and the connection count
+  // shown at each slider index; index 0 always means "no node filtered out".
+  let centralityThresholdRanks = new Map();
+  let centralityThresholdSteps = [0];
+  let centralityThresholdTickIndices = [0];
   function relayout() {
+    centralityFilterScoreCache = null;
     if (workspace.dataset.mode === 'timeline') {
       renderTimeline();
       return;
     }
     if (workspace.dataset.mode !== 'relationships') return;
     updateNodeSizes();
+    updateCentralityThresholdRange();
     if (state.freezePositions) {
       renderer.refresh();
       return;
@@ -732,7 +756,7 @@ async function main() {
 
   sizeModeSelect.addEventListener('change', relayout);
 
-  function isNodeVisible(node) {
+  function isNodeVisibleBase(node) {
     const attrs = graph.getNodeAttributes(node);
     const hasSelectedTopic = state.activeTopics.size === state.allTopics.size
       || attrs.topics.some((topic) => state.activeTopics.has(topic));
@@ -745,6 +769,53 @@ async function main() {
       && hasSelectedTopic
       && state.activeScales.has(attrs.scale)
       && activeInSelectedYear;
+  }
+
+  function getCentralityFilterScores() {
+    if (!centralityFilterScoreCache) centralityFilterScoreCache = centralityScores(state.centralityFilterType);
+    return centralityFilterScoreCache;
+  }
+
+  function updateCentralityThresholdRange() {
+    if (state.centralityFilterType !== 'degree-centrality') return;
+    const scores = getCentralityFilterScores();
+    const sortedEntries = Object.entries(scores).sort((first, second) => first[1] - second[1]);
+    centralityThresholdRanks = new Map(sortedEntries.map(([node], rank) => [node, rank + 1]));
+    centralityThresholdSteps = [0, ...sortedEntries.map(([, value]) => value)];
+    const maxIndex = sortedEntries.length;
+    centralityThresholdSlider.min = '0';
+    centralityThresholdSlider.max = String(maxIndex);
+    centralityThresholdSlider.step = '1';
+    const index = Math.min(state.centralityThreshold, maxIndex);
+    state.centralityThreshold = index;
+    centralityThresholdSlider.value = String(index);
+    centralityThresholdValue.textContent = String(centralityThresholdSteps[index] ?? 0);
+    // Only mark indices where the connection-count value actually changes, so ticks
+    // cluster where many nodes tie (usually the low end) and spread out where values
+    // are mostly unique (usually the high end).
+    const tickIndices = centralityThresholdSteps
+      .map((value, stepIndex) => (stepIndex === 0 || value !== centralityThresholdSteps[stepIndex - 1] ? stepIndex : null))
+      .filter((stepIndex) => stepIndex !== null);
+    centralityThresholdTickIndices = tickIndices;
+    centralityThresholdTicks.replaceChildren(...tickIndices.map((tickIndex) => {
+      const option = document.createElement('option');
+      option.value = String(tickIndex);
+      return option;
+    }));
+    centralityThresholdDecrement.disabled = index <= tickIndices[0];
+    centralityThresholdIncrement.disabled = index >= tickIndices[tickIndices.length - 1];
+  }
+
+  function passesCentralityThreshold(node) {
+    if (state.centralityThreshold <= 0) return true;
+    // Only degree centrality filtering is implemented so far; other types pass through.
+    if (state.centralityFilterType !== 'degree-centrality') return true;
+    const rank = centralityThresholdRanks.get(node) ?? 0;
+    return rank > state.centralityThreshold;
+  }
+
+  function isNodeVisible(node) {
+    return isNodeVisibleBase(node) && passesCentralityThreshold(node);
   }
 
   function isTimelineActorVisible(node) {
@@ -1114,7 +1185,7 @@ async function main() {
   function buildMetricGraph() {
     const metricGraph = new Graph({ multi: true });
     graph.forEachNode((node) => {
-      if (isNodeVisible(node)) metricGraph.addNode(node);
+      if (isNodeVisibleBase(node)) metricGraph.addNode(node);
     });
     graph.forEachEdge((edge, attrs, source, target) => {
       if (!state.activeEdgeTypes.has(attrs.adjacencyType)
@@ -1134,7 +1205,13 @@ async function main() {
     const metricGraph = buildMetricGraph();
     if (metricGraph.order < 2) return {};
     try {
-      if (mode === 'degree-centrality') return degreeCentrality(metricGraph);
+      if (mode === 'degree-centrality') {
+        // Raw connection counts (not the normalized degreeCentrality score) so the
+        // threshold slider and its label can speak in whole connections.
+        const scores = {};
+        metricGraph.forEachNode((node) => { scores[node] = metricGraph.degree(node); });
+        return scores;
+      }
       if (mode === 'closeness-centrality') {
         return closenessCentrality(metricGraph, { wassermanFaust: true });
       }
@@ -1179,6 +1256,7 @@ async function main() {
   }
 
   updateNodeSizes();
+  updateCentralityThresholdRange();
 
   renderer.createCanvasContext('size-halos', {
     beforeLayer: 'nodes',
@@ -1309,6 +1387,15 @@ async function main() {
       height: graphHeight * 0.6,
     });
 
+    // Compute the target layout on a throwaway copy of the graph so the live
+    // graph's positions aren't touched until animateNodes interpolates them.
+    const temp = new Graph({ multi: true });
+    graph.forEachNode((node, attrs) => temp.addNode(node, { x: attrs.x, y: attrs.y }));
+    graph.forEachEdge((edge, attrs, source, target) => {
+      if (graph.isDirected(edge)) temp.addDirectedEdge(source, target);
+      else temp.addUndirectedEdge(source, target);
+    });
+
     geo.actorCentroids.forEach((centroid, actorId) => {
       if (!graph.hasNode(actorId)) return;
       if (!mapOriginalPositions.has(actorId)) {
@@ -1316,43 +1403,51 @@ async function main() {
         mapOriginalPositions.set(actorId, { x: attrs.x, y: attrs.y });
       }
       const projected = mapProjection(centroid.lng, centroid.lat);
-      graph.setNodeAttribute(actorId, 'x', projected.x);
-      graph.setNodeAttribute(actorId, 'y', projected.y);
+      temp.setNodeAttribute(actorId, 'x', projected.x);
+      temp.setNodeAttribute(actorId, 'y', projected.y);
+      temp.setNodeAttribute(actorId, 'fixed', true);
       graph.setNodeAttribute(actorId, 'fixed', true);
     });
 
-    forceAtlas2.assign(graph, LAYOUT_SETTINGS);
+    forceAtlas2.assign(temp, LAYOUT_SETTINGS);
+    const positions = {};
+    temp.forEachNode((node, attrs) => {
+      positions[node] = { x: attrs.x, y: attrs.y };
+    });
+
     ensureMapGeoLayer();
-    refresh();
+    if (mapCancelAnimation) mapCancelAnimation();
+    mapCancelAnimation = animateNodes(graph, positions, { duration: 700, easing: 'quadraticInOut' });
     drawMapGeoLayer();
 
-    // Frames the whole network within most of the viewport. Camera x/y/ratio
-    // operate in sigma's *normalized* coordinate space, so we read each node's
-    // display data (already normalized) rather than its raw x/y attribute.
+    // Defaults to framing the whole island boundary (not just the actor
+    // nodes, which can cluster far tighter than the island itself).
     renderer.resize(true);
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    graph.forEachNode((node) => {
-      const data = renderer.getNodeDisplayData(node);
-      if (!data) return;
-      minX = Math.min(minX, data.x);
-      maxX = Math.max(maxX, data.x);
-      minY = Math.min(minY, data.y);
-      maxY = Math.max(maxY, data.y);
-    });
-    const camera = renderer.getCamera();
-    const dimensions = renderer.getDimensions();
-    const scale = renderer.getGraphToViewportRatio();
-    const span = Math.max(maxX - minX, maxY - minY) || 1;
-    const targetPixels = Math.min(dimensions.width, dimensions.height) * 0.85;
-    const ratio = camera.getBoundedRatio((camera.getState().ratio * scale * span) / targetPixels);
-    const center = {
-      x: (minX + maxX) / 2,
-      y: (minY + maxY) / 2,
-    };
-    camera.animate({ x: center.x, y: center.y, ratio }, { duration: 500, easing: 'quadraticInOut' });
+    const islandPoints = geo.islandRings.flat().map((point) => mapProjection(point.lng, point.lat));
+    if (islandPoints.length) {
+      const viewportPoints = islandPoints.map((point) => renderer.graphToViewport(point));
+      const minPx = {
+        x: Math.min(...viewportPoints.map((point) => point.x)),
+        y: Math.min(...viewportPoints.map((point) => point.y)),
+      };
+      const maxPx = {
+        x: Math.max(...viewportPoints.map((point) => point.x)),
+        y: Math.max(...viewportPoints.map((point) => point.y)),
+      };
+      const camera = renderer.getCamera();
+      const dimensions = renderer.getDimensions();
+      const spanX = Math.max(maxPx.x - minPx.x, 1);
+      const spanY = Math.max(maxPx.y - minPx.y, 1);
+      const fitFactor = Math.min((dimensions.width * 0.85) / spanX, (dimensions.height * 0.85) / spanY);
+      const ratio = camera.getBoundedRatio(camera.getState().ratio / fitFactor);
+      const center = renderer.viewportToFramedGraph({
+        x: (minPx.x + maxPx.x) / 2,
+        y: (minPx.y + maxPx.y) / 2,
+      });
+      camera.animate({ x: center.x, y: center.y, ratio }, { duration: 500, easing: 'quadraticInOut' });
+    }
+    // Same selection-framing behavior as relationships mode, applied on top of the default island view.
+    if (state.zoomToSelected) zoomToCurrentAndPinned();
   }
 
   function restoreRelationshipsLayout() {
@@ -1364,6 +1459,14 @@ async function main() {
       graph.removeNodeAttribute(actorId, 'fixed');
     });
     mapOriginalPositions.clear();
+    // Building-anchored nodes are restored above; frozen snapshot covers every node that drifted during the map layout.
+    if (state.freezePositions && frozenRelationshipsPositions) {
+      frozenRelationshipsPositions.forEach((pos, actorId) => {
+        if (!graph.hasNode(actorId)) return;
+        graph.setNodeAttribute(actorId, 'x', pos.x);
+        graph.setNodeAttribute(actorId, 'y', pos.y);
+      });
+    }
     mapModeApplied = false;
     if (mapGeoContext) {
       const { width, height } = renderer.getDimensions();
@@ -1478,6 +1581,7 @@ async function main() {
 
   document.getElementById('freeze-positions').addEventListener('change', (e) => {
     state.freezePositions = e.target.checked;
+    if (!state.freezePositions) frozenRelationshipsPositions = null;
   });
 
   const zoomToSelectedToggle = document.getElementById('zoom-to-selected');
@@ -1560,6 +1664,41 @@ async function main() {
     else state.activeEdgeTypes.delete(POSITION_EDGE_TYPE);
     refresh();
     relayout();
+  });
+
+  centralityTypeSelect.addEventListener('change', () => {
+    state.centralityFilterType = centralityTypeSelect.value;
+    refresh();
+    relayout();
+  });
+
+  function applyCentralityThresholdIndex(index) {
+    centralityThresholdSlider.value = String(index);
+    state.centralityThreshold = index;
+    centralityThresholdValue.textContent = String(centralityThresholdSteps[index] ?? 0);
+    refresh();
+    relayout();
+  }
+
+  centralityThresholdSlider.addEventListener('input', () => {
+    const raw = Number(centralityThresholdSlider.value);
+    // Snap to the nearest tick index so the slider only rests on achievable thresholds.
+    const index = centralityThresholdTickIndices.reduce((closest, candidate) => (
+      Math.abs(candidate - raw) < Math.abs(closest - raw) ? candidate : closest
+    ), centralityThresholdTickIndices[0] ?? 0);
+    applyCentralityThresholdIndex(index);
+  });
+
+  centralityThresholdDecrement.addEventListener('click', () => {
+    const current = Number(centralityThresholdSlider.value);
+    const previous = [...centralityThresholdTickIndices].reverse().find((tickIndex) => tickIndex < current);
+    if (previous !== undefined) applyCentralityThresholdIndex(previous);
+  });
+
+  centralityThresholdIncrement.addEventListener('click', () => {
+    const current = Number(centralityThresholdSlider.value);
+    const next = centralityThresholdTickIndices.find((tickIndex) => tickIndex > current);
+    if (next !== undefined) applyCentralityThresholdIndex(next);
   });
 
   const sidebarToggle = document.getElementById('sidebar-toggle');
