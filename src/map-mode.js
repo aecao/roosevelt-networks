@@ -4,6 +4,21 @@ import 'leaflet/dist/leaflet.css';
 const base = import.meta.env.BASE_URL;
 const buildingsDir = `${base}data/buildings/`;
 const islandBoundaryUrl = `${buildingsDir}roosevelt_island_boundary.geojson`;
+const actorMappingUrl = `${buildingsDir}building_actors.csv`;
+const DEFAULT_ACTOR_COLOR = '#9ca3af';
+
+// Mixes a hex color toward white, used to tint buildings linked to an actor.
+function lightenColor(hex, amount = 0.6) {
+  const clean = (hex || '').replace('#', '');
+  const full = clean.length === 3 ? clean.split('').map((ch) => ch + ch).join('') : clean;
+  const num = Number.parseInt(full, 16);
+  if (Number.isNaN(num)) return DEFAULT_ACTOR_COLOR;
+  const mix = (channel) => Math.round(channel + (255 - channel) * amount);
+  const r = mix((num >> 16) & 255);
+  const g = mix((num >> 8) & 255);
+  const b = mix(num & 255);
+  return `#${[r, g, b].map((v) => v.toString(16).padStart(2, '0')).join('')}`;
+}
 
 // Large ring covering the world, so subtracting the island ring (as a hole)
 // darkens everywhere outside Roosevelt Island.
@@ -63,6 +78,32 @@ function parseCsv(text) {
     .map((values) => Object.fromEntries(headers.map((header, index) => [header, values[index] ?? ''])));
 }
 
+function createActorPopup(actorStyle, bins) {
+  const content = document.createElement('div');
+  content.className = 'building-popup-content';
+
+  const kicker = document.createElement('div');
+  kicker.className = 'popup-kicker';
+  kicker.textContent = bins.length > 1 ? `ACTOR / ${bins.length} BUILDINGS` : 'ACTOR';
+  content.append(kicker);
+
+  const title = document.createElement('h2');
+  title.textContent = actorStyle.label;
+  content.append(title);
+
+  if (actorStyle.category) {
+    const details = document.createElement('dl');
+    details.className = 'popup-details';
+    const term = document.createElement('dt');
+    term.textContent = 'Sector';
+    const description = document.createElement('dd');
+    description.textContent = actorStyle.category;
+    details.append(term, description);
+    content.append(details);
+  }
+  return content;
+}
+
 function createBuildingPopup(record) {
   const content = document.createElement('div');
   content.className = 'building-popup-content';
@@ -92,7 +133,8 @@ function createBuildingPopup(record) {
 
 // Lazily creates the Leaflet map inside `container` the first time map mode
 // is shown, then returns the same instance on subsequent calls.
-export function mountMap(container, statusEl) {
+export function mountMap(container, statusEl, options = {}) {
+  const getActorStyle = options.getActorStyle || (() => null);
   const map = L.map(container, {
     center: islandCenter,
     zoom: islandZoom,
@@ -151,11 +193,113 @@ export function mountMap(container, statusEl) {
 
   loadIslandMask();
 
+  const buildingLayersByBin = new Map();
+  const actorOverlayGroup = L.layerGroup().addTo(map);
+
+  function buildingStyleFor(actorId) {
+    if (!actorId) {
+      return {
+        color: '#a85e2a',
+        weight: 1.2,
+        opacity: 0.95,
+        fillColor: '#e9ad73',
+        fillOpacity: 0.66,
+      };
+    }
+    const actorColor = (getActorStyle(actorId) || {}).color || DEFAULT_ACTOR_COLOR;
+    return {
+      color: actorColor,
+      weight: 1.2,
+      opacity: 0.95,
+      fillColor: lightenColor(actorColor),
+      fillOpacity: 0.75,
+    };
+  }
+
+  // Draws an actor node over a single linked building, or a central actor node
+  // plus small unclickable per-building nodes and connecting lines when an
+  // actor spans multiple buildings. Safe to call repeatedly (e.g. once actor
+  // colors become available after the relationships graph finishes loading).
+  function applyActorOverlay() {
+    actorOverlayGroup.clearLayers();
+
+    const actorBins = new Map();
+    buildingLayersByBin.forEach(({ layer, actorId }, bin) => {
+      if (!actorId) return;
+      layer.setStyle(buildingStyleFor(actorId));
+      if (!actorBins.has(actorId)) actorBins.set(actorId, []);
+      actorBins.get(actorId).push({ bin, latlng: layer.getBounds().getCenter() });
+    });
+
+    actorBins.forEach((bins, actorId) => {
+      const style = getActorStyle(actorId) || { label: actorId, color: DEFAULT_ACTOR_COLOR };
+      const color = style.color || DEFAULT_ACTOR_COLOR;
+
+      if (bins.length === 1) {
+        L.circleMarker(bins[0].latlng, {
+          radius: 7,
+          color: '#0b0d10',
+          weight: 1.5,
+          fillColor: color,
+          fillOpacity: 0.95,
+        })
+          .bindPopup(createActorPopup(style, bins), { maxWidth: 300, className: 'building-popup' })
+          .addTo(actorOverlayGroup);
+        return;
+      }
+
+      const centerLat = bins.reduce((sum, b) => sum + b.latlng.lat, 0) / bins.length;
+      const centerLng = bins.reduce((sum, b) => sum + b.latlng.lng, 0) / bins.length;
+      const center = L.latLng(centerLat, centerLng);
+
+      bins.forEach(({ latlng }) => {
+        L.polyline([latlng, center], {
+          color,
+          weight: 1.5,
+          opacity: 0.6,
+          dashArray: '3,4',
+          interactive: false,
+        }).addTo(actorOverlayGroup);
+        L.circleMarker(latlng, {
+          radius: 4,
+          color: '#0b0d10',
+          weight: 1,
+          fillColor: color,
+          fillOpacity: 0.9,
+          interactive: false,
+        }).addTo(actorOverlayGroup);
+      });
+
+      L.circleMarker(center, {
+        radius: 8,
+        color: '#0b0d10',
+        weight: 1.5,
+        fillColor: color,
+        fillOpacity: 0.95,
+      })
+        .bindPopup(createActorPopup(style, bins), { maxWidth: 300, className: 'building-popup' })
+        .addTo(actorOverlayGroup);
+    });
+  }
+
   async function loadBuildings() {
     try {
-      const csvResponse = await fetch(`${buildingsDir}buildings.csv`);
+      const [csvResponse, actorCsvResponse] = await Promise.all([
+        fetch(`${buildingsDir}buildings.csv`),
+        fetch(actorMappingUrl),
+      ]);
       if (!csvResponse.ok) throw new Error('Building data is unavailable');
       const records = parseCsv(await csvResponse.text()).filter((record) => record.BIN?.trim());
+
+      const actorByBin = new Map();
+      if (actorCsvResponse.ok) {
+        parseCsv(await actorCsvResponse.text()).forEach((row) => {
+          const bin = row.BIN?.trim();
+          const actor = row.Actor?.trim();
+          if (bin && actor) actorByBin.set(bin, actor);
+        });
+      }
+
       const features = await Promise.all(records.map(async (record) => {
         const footprintResponse = await fetch(`${buildingsDir}bin-${encodeURIComponent(record.BIN.trim())}.geojson`);
         if (!footprintResponse.ok) throw new Error(`Footprint unavailable for BIN ${record.BIN}`);
@@ -168,12 +312,8 @@ export function mountMap(container, statusEl) {
       L.geoJSON(
         { type: 'FeatureCollection', features: features.map(({ feature }) => feature) },
         {
-          style: {
-            color: '#a85e2a',
-            weight: 1.2,
-            opacity: 0.95,
-            fillColor: '#e9ad73',
-            fillOpacity: 0.66,
+          style(feature) {
+            return buildingStyleFor(actorByBin.get(String(feature.properties.bin)));
           },
           onEachFeature(feature, layer) {
             const bin = String(feature.properties.bin);
@@ -194,11 +334,18 @@ export function mountMap(container, statusEl) {
               maxWidth: 340,
               className: 'building-popup',
             });
-            layer.on('mouseover', () => layer.setStyle({ color: '#70431f', fillColor: '#f1c756', fillOpacity: 0.9, weight: 2 }));
-            layer.on('mouseout', () => layer.setStyle({ color: '#a85e2a', fillColor: '#e9ad73', fillOpacity: 0.66, weight: 1.2 }));
+            const baseStyle = layer.options;
+            const hoverFill = actorByBin.has(bin) ? baseStyle.fillColor : '#f1c756';
+            const hoverColor = actorByBin.has(bin) ? baseStyle.color : '#70431f';
+            layer.on('mouseover', () => layer.setStyle({ color: hoverColor, fillColor: hoverFill, fillOpacity: 0.9, weight: 2 }));
+            layer.on('mouseout', () => layer.setStyle(layer.options));
+
+            buildingLayersByBin.set(bin, { layer, actorId: actorByBin.get(bin) || null });
           },
         },
       ).addTo(map);
+
+      applyActorOverlay();
 
       if (statusEl) {
         statusEl.textContent = `${features.length} ON MAP`;
@@ -237,5 +384,5 @@ export function mountMap(container, statusEl) {
     map.invalidateSize();
   }
 
-  return { map, setStyle, zoomIn, zoomOut, resetView, invalidateSize };
+  return { map, setStyle, zoomIn, zoomOut, resetView, invalidateSize, refreshActorStyles: applyActorOverlay };
 }

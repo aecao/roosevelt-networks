@@ -12,7 +12,6 @@ import { circular } from 'graphology-layout';
 import { DATA, PALETTE } from './config.js';
 import { dataLoadState, loadActors, loadEdgeManifest, loadAdjacencyMatrix } from './data.js';
 
-const networkGradientModule = import('./network-gradient.js');
 const mapModeModule = import('./map-mode.js');
 
 const MIN_SIZE = 4;
@@ -537,10 +536,16 @@ async function main() {
     if (state.currentSelection) togglePinnedSelectionAndZoom(state.currentSelection);
   });
 
+  function getActorStyle(actorId) {
+    if (!state.graph || !state.graph.hasNode(actorId)) return null;
+    const attrs = state.graph.getNodeAttributes(actorId);
+    return { color: attrs.color, label: attrs.attributes?.[DATA.nodeLabelField] || actorId, category: attrs.category };
+  }
+
   async function ensureMap() {
     if (mapInstance) return mapInstance;
     const { mountMap } = await mapModeModule;
-    mapInstance = mountMap(mapContainer, mapBuildingStatus);
+    mapInstance = mountMap(mapContainer, mapBuildingStatus, { getActorStyle });
     return mapInstance;
   }
 
@@ -661,35 +666,7 @@ async function main() {
   url.searchParams.delete('refresh');
   window.history.replaceState(null, '', url);
   state.graph = graph;
-
-  const { mountNetworkGradient } = await networkGradientModule;
-  const updateGradientFromMovement = mountNetworkGradient(document.getElementById('network-gradient'));
-  const previousPositions = new Map();
-  graph.forEachNode((node, attributes) => {
-    previousPositions.set(node, { x: attributes.x, y: attributes.y });
-  });
-  let pendingDisplacement = 0;
-  let gradientUpdateFrame = null;
-  graph.on('nodeAttributesUpdated', ({ key, name }) => {
-    if (name !== 'x' && name !== 'y') return;
-    const attributes = graph.getNodeAttributes(key);
-    const previous = previousPositions.get(key);
-    if (!previous) {
-      previousPositions.set(key, { x: attributes.x, y: attributes.y });
-      return;
-    }
-    const displacement = Math.hypot(attributes.x - previous.x, attributes.y - previous.y);
-    previous.x = attributes.x;
-    previous.y = attributes.y;
-    if (displacement < 0.0001) return;
-    pendingDisplacement += displacement;
-    if (gradientUpdateFrame !== null) return;
-    gradientUpdateFrame = requestAnimationFrame(() => {
-      gradientUpdateFrame = null;
-      updateGradientFromMovement(pendingDisplacement);
-      pendingDisplacement = 0;
-    });
-  });
+  if (mapInstance) mapInstance.refreshActorStyles();
 
   const container = document.getElementById('graph-container');
   const renderer = new Sigma(graph, container, {
