@@ -3,6 +3,13 @@ import 'leaflet/dist/leaflet.css';
 
 const base = import.meta.env.BASE_URL;
 const buildingsDir = `${base}data/buildings/`;
+const islandBoundaryUrl = `${buildingsDir}roosevelt_island_boundary.geojson`;
+
+// Large ring covering the world, so subtracting the island ring (as a hole)
+// darkens everywhere outside Roosevelt Island.
+const WORLD_RING = [
+  [-90, -180], [-90, 180], [90, 180], [90, -180], [-90, -180],
+];
 
 const islandCenter = [40.7625, -73.9497];
 const islandZoom = 15.2;
@@ -117,6 +124,32 @@ export function mountMap(container, statusEl) {
 
   lightLayer.addTo(map);
   L.control.scale({ position: 'bottomright', metric: true, imperial: false }).addTo(map);
+
+  // Darkens everywhere outside Roosevelt Island by drawing a world-covering
+  // polygon with the island geometry cut out as a hole.
+  async function loadIslandMask() {
+    try {
+      const response = await fetch(islandBoundaryUrl);
+      if (!response.ok) throw new Error('Island boundary is unavailable');
+      const data = await response.json();
+      const geometry = data.features?.[0]?.geometry;
+      if (!geometry) throw new Error('Island boundary has no geometry');
+
+      const polygons = geometry.type === 'MultiPolygon' ? geometry.coordinates : [geometry.coordinates];
+      const islandRings = polygons.flat().map((ring) => ring.map(([lng, lat]) => [lat, lng]));
+
+      L.polygon([WORLD_RING, ...islandRings], {
+        stroke: false,
+        fillColor: '#05070a',
+        fillOpacity: 0.72,
+        interactive: false,
+      }).addTo(map);
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  loadIslandMask();
 
   async function loadBuildings() {
     try {
