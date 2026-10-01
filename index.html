@@ -40,85 +40,118 @@
       </header>
 
       <div id="sidebar-content">
-        <div class="panel">
+        <div id="sidebar-search" class="panel">
           <input id="search" type="search" placeholder="Search actor…" autocomplete="off" />
           <div id="search-results" class="search-results"></div>
         </div>
 
-        <div class="panel">
-          <div class="filter-heading">
-            <button class="filter-group-toggle" type="button" aria-expanded="true" aria-controls="edge-type-group">
-              <span class="filter-group-chevron">▾</span><span>Adjacency type</span>
-            </button>
-          </div>
-          <div id="edge-type-group" class="filter-group-content">
-            <label class="filter-all"><input id="edge-type-select-all" type="checkbox" checked /><span>All</span></label>
-            <div id="edge-type-filters" class="filter-list"></div>
-          </div>
+        <div id="sidebar-filters-scroll">
+          <section class="filter-section">
+            <h2>ACTORS</h2>
+
+            <div class="panel">
+              <div class="filter-heading">
+                <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="node-type-group">
+                  <span class="filter-group-chevron">▸</span><span>SECTOR</span>
+                </button>
+              </div>
+              <div id="node-type-group" class="filter-group-content" hidden>
+                <label class="filter-all"><input id="node-type-select-all" type="checkbox" checked /><span>All</span></label>
+                <div id="node-type-filters" class="filter-list"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="filter-heading">
+                <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="topic-group">
+                  <span class="filter-group-chevron">▸</span><span>CATEGORY</span>
+                </button>
+              </div>
+              <div id="topic-group" class="filter-group-content" hidden>
+                <label class="filter-all"><input id="topic-select-all" type="checkbox" checked /><span>All</span></label>
+                <div id="topic-filters" class="filter-list"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="filter-heading">
+                <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="scale-group">
+                  <span class="filter-group-chevron">▸</span><span>SCALE</span>
+                </button>
+              </div>
+              <div id="scale-group" class="filter-group-content" hidden>
+                <label class="filter-all"><input id="scale-select-all" type="checkbox" checked /><span>All</span></label>
+                <div id="scale-filters" class="filter-list"></div>
+              </div>
+            </div>
+
+            <div class="panel">
+              <div class="filter-heading">
+                <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="appearance-group">
+                  <span class="filter-group-chevron">▸</span><span>APPEARANCE</span>
+                </button>
+              </div>
+              <div id="appearance-group" class="filter-group-content" hidden>
+                <div class="appearance-controls">
+                  <label for="color-mode">COLOR MODE</label>
+                  <select id="color-mode">
+                    <option value="sector">Sector</option>
+                    <option value="category">Category</option>
+                    <option value="public-sentiment">Public sentiment</option>
+                    <option value="plain">Plain</option>
+                  </select>
+                  <label for="size-mode">SIZE MODE</label>
+                  <select id="size-mode">
+                    <option value="scale-of-actor">Scale of actor</option>
+                    <option value="public-interest">Public interest</option>
+                    <option value="degree-centrality">Number of connections (degree centrality)</option>
+                    <option value="closeness-centrality">Average shortest-path (closeness centrality)</option>
+                    <option value="betweenness-centrality">Bridging (betweenness centrality)</option>
+                    <option value="eigenvector-centrality">Prestige (eigenvector centrality)</option>
+                    <option value="plain">Plain</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="filter-section">
+            <h2>RELATIONSHIPS</h2>
+            <div class="panel">
+              <label class="filter-all"><input id="edge-type-select-all" type="checkbox" checked /><span>All</span></label>
+              <div id="edge-type-filters" class="filter-list"></div>
+            </div>
+          </section>
+
+          <section class="filter-section">
+            <h2>TIME RANGE</h2>
+            <div class="panel">
+              <label class="toggle-row">
+                <input id="year-filter-toggle" type="checkbox" />
+                <span>Filter by active year</span>
+              </label>
+              <div id="year-controls" class="year-controls" hidden>
+                <label for="year-slider">Year <output id="year-value">2026</output></label>
+                <input id="year-slider" type="range" min="1920" max="2026" step="1" value="2026" />
+              </div>
+              <label class="toggle-row">
+                <input id="position-filter-toggle" type="checkbox" />
+                <span>Position–Incumbent</span>
+              </label>
+            </div>
+          </section>
         </div>
 
-        <div class="panel">
-          <div class="filter-heading">
-            <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="node-type-group">
-              <span class="filter-group-chevron">▸</span><span>Actor category</span>
-            </button>
-          </div>
-          <div id="node-type-group" class="filter-group-content" hidden>
-            <label class="filter-all"><input id="node-type-select-all" type="checkbox" checked /><span>All</span></label>
-            <div id="node-type-filters" class="filter-list"></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="filter-heading">
-            <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="topic-group">
-              <span class="filter-group-chevron">▸</span><span>Topic</span>
-            </button>
-          </div>
-          <div id="topic-group" class="filter-group-content" hidden>
-            <label class="filter-all"><input id="topic-select-all" type="checkbox" checked /><span>All</span></label>
-            <div id="topic-filters" class="filter-list"></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="filter-heading">
-            <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="scale-group">
-              <span class="filter-group-chevron">▸</span><span>Scale</span>
-            </button>
-          </div>
-          <div id="scale-group" class="filter-group-content" hidden>
-            <label class="filter-all"><input id="scale-select-all" type="checkbox" checked /><span>All</span></label>
-            <div id="scale-filters" class="filter-list"></div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <h2>Time</h2>
+        <div id="sidebar-footer" class="panel">
           <label class="toggle-row">
-            <input id="year-filter-toggle" type="checkbox" />
-            <span>Filter by active year</span>
+            <input id="freeze-positions" type="checkbox" />
+            <span>Freeze actor position</span>
           </label>
-          <div id="year-controls" class="year-controls" hidden>
-            <label for="year-slider">Year <output id="year-value">2026</output></label>
-            <input id="year-slider" type="range" min="1920" max="2026" step="1" value="2026" />
-          </div>
           <label class="toggle-row">
-            <input id="position-filter-toggle" type="checkbox" />
-            <span>Position–Incumbent</span>
+            <input id="zoom-to-selected" type="checkbox" checked />
+            <span>Zoom to selected</span>
           </label>
         </div>
-
-          <div class="panel">
-            <label class="toggle-row">
-              <input id="freeze-positions" type="checkbox" />
-              <span>Freeze actor position</span>
-            </label>
-            <label class="toggle-row">
-              <input id="zoom-to-selected" type="checkbox" checked />
-              <span>Zoom to selected</span>
-            </label>
-          </div>
       </div>
       </aside>
         <aside id="details-sidebar" aria-label="Details">

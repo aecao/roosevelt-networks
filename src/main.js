@@ -1,5 +1,6 @@
 import Graph from 'graphology';
 import Sigma from 'sigma';
+import EdgeCurveProgram, { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import { drawDiscNodeHover, drawDiscNodeLabel, EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
@@ -47,6 +48,27 @@ function parseScale(raw) {
 function parseYear(raw) {
   const year = Number.parseInt((raw || '').trim(), 10);
   return Number.isInteger(year) ? year : null;
+}
+
+function assignParallelEdgeCurves(graph) {
+  const edgesByPair = new Map();
+  graph.forEachEdge((edge, attrs, source, target) => {
+    const pair = [source, target].sort();
+    const key = JSON.stringify(pair);
+    if (!edgesByPair.has(key)) edgesByPair.set(key, { pair, edges: [] });
+    edgesByPair.get(key).edges.push({ edge, source, attrs });
+  });
+
+  edgesByPair.forEach(({ pair, edges }) => {
+    if (edges.length < 2) return;
+    edges.slice(1).forEach(({ edge, source, attrs }, index) => {
+      const magnitude = 0.05 + Math.floor(index / 2) * 0.025;
+      const side = index % 2 === 0 ? 1 : -1;
+      const direction = source === pair[0] ? 1 : -1;
+      graph.setEdgeAttribute(edge, 'type', attrs.type === 'arrow' ? 'curvedArrow' : 'curve');
+      graph.setEdgeAttribute(edge, 'curvature', side * direction * magnitude);
+    });
+  });
 }
 
 async function buildGraph(fromGoogleSheets = false) {
@@ -120,6 +142,8 @@ async function buildGraph(fromGoogleSheets = false) {
       else graph.addUndirectedEdge(source, target, attrs);
     });
   }
+
+  assignParallelEdgeCurves(graph);
 
   state.activeEdgeTypes = new Set(edgeTypes.filter((type) => type !== POSITION_EDGE_TYPE));
   state.activeNodeTypes = new Set(categories);
@@ -588,7 +612,8 @@ async function main() {
     labelDensity: 0.35,
     labelRenderedSizeThreshold: 10,
     labelColor: { color: '#ffffff' },
-    labelFont: '"Helvetica Neue", Helvetica, Arial, sans-serif',
+    labelFont: '"Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif',
+    labelWeight: '300',
     labelSize: 10,
     defaultDrawNodeLabel: (context, data, settings) => {
       const size = Math.max(9, Math.min(15, 8 + data.size * 0.3));
@@ -614,7 +639,12 @@ async function main() {
     },
     enableEdgeEvents: true,
     defaultEdgeType: 'line',
-    edgeProgramClasses: { line: EdgeLineProgram, arrow: EdgeArrowProgram },
+    edgeProgramClasses: {
+      line: EdgeLineProgram,
+      arrow: EdgeArrowProgram,
+      curve: EdgeCurveProgram,
+      curvedArrow: EdgeCurvedArrowProgram,
+    },
   });
   state.renderer = renderer;
 
@@ -761,7 +791,10 @@ async function main() {
   // Node category filters
   buildFilterCheckboxes(
     document.getElementById('node-type-filters'),
-    categories.map((c) => ({ value: c, label: c })),
+    categories.map((category) => ({
+      value: category,
+      label: category === 'COMMUNITY' ? 'VOLUNTARY' : category,
+    })),
     state.activeNodeTypes,
     (value) => state.categoryColors.get(value),
     () => {
