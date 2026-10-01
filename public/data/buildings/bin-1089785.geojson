@@ -1,0 +1,186 @@
+{
+    "type":  "Feature",
+    "id":  "1089785",
+    "properties":  {
+                       "bin":  "1089785",
+                       "bbl":  "1013737507",
+                       "address":  "11 EAST LOOP ROAD",
+                       "building_use":  "Commercial \u0026 Office Buildings",
+                       "pluto_landuse_code":  "5",
+                       "building_class":  "RC",
+                       "pluto_year_built":  "2015",
+                       "pluto_floors":  "6.0000000",
+                       "residential_units":  "0",
+                       "total_units":  "4",
+                       "building_area_sqft":  "165343",
+                       "lot_area_sqft":  "65112",
+                       "construction_year":  "2017",
+                       "height_roof":  "106",
+                       "feature_code":  "2100",
+                       "geometry_source":  "Other (Manual)",
+                       "last_status_type":  "Constructed",
+                       "retrieved_on":  "2026-09-29",
+                       "source_footprint":  "NYC DoITT BUILDING (Socrata 5zhs-2jue)",
+                       "source_taxlot":  "NYC DCP PLUTO 26v2 (Socrata 64uk-42ks)",
+                       "source_boundary":  "OpenStreetMap relation 2389564 (Roosevelt Island)",
+                       "source_attributes":  {
+                                                 "building":  {
+                                                                  "name":  null,
+                                                                  "base_bbl":  "1013730075",
+                                                                  "shape_area":  "5746.2265625",
+                                                                  "construction_year":  "2017",
+                                                                  "ground_elevation":  "6",
+                                                                  "mappluto_bbl":  "1013737507",
+                                                                  "objectid":  "818851",
+                                                                  "feature_code":  "2100",
+                                                                  "shape_length":  "360.72099601617651",
+                                                                  "height_roof":  "106",
+                                                                  "last_status_type":  "Constructed",
+                                                                  "bin":  "1089785",
+                                                                  "last_edited_date":  "2019-10-17T20:15:52.000Z",
+                                                                  "geom_source":  "Other (Manual)",
+                                                                  "doitt_id":  "1281891"
+                                                              },
+                                                 "pluto":  {
+                                                               "borough":  "MN",
+                                                               "block":  "1373",
+                                                               "lot":  "7507",
+                                                               "cd":  "108",
+                                                               "ct2010":  "238.01",
+                                                               "cb2010":  "1016",
+                                                               "schooldist":  "2",
+                                                               "council":  "5",
+                                                               "zipcode":  "10044",
+                                                               "firecomp":  "E260",
+                                                               "policeprct":  "114",
+                                                               "healtharea":  "8300",
+                                                               "sanitboro":  "1",
+                                                               "address":  "11 EAST LOOP ROAD",
+                                                               "zonedist1":  "C4-5",
+                                                               "spdist1":  "SRI",
+                                                               "splitzone":  false,
+                                                               "bldgclass":  "RC",
+                                                               "landuse":  "5",
+                                                               "easements":  "0",
+                                                               "ownername":  "UNAVAILABLE OWNER",
+                                                               "lotarea":  "65112",
+                                                               "bldgarea":  "165343",
+                                                               "comarea":  "165343",
+                                                               "resarea":  "0",
+                                                               "officearea":  "158684",
+                                                               "retailarea":  "6659",
+                                                               "garagearea":  "0",
+                                                               "strgearea":  "0",
+                                                               "factryarea":  "0",
+                                                               "otherarea":  "0",
+                                                               "areasource":  "2",
+                                                               "numbldgs":  "1",
+                                                               "numfloors":  "6.0000000",
+                                                               "unitsres":  "0",
+                                                               "unitstotal":  "4",
+                                                               "lotfront":  "392.1000000",
+                                                               "lotdepth":  "294.8000000",
+                                                               "bldgfront":  "0.0000000",
+                                                               "bldgdepth":  "0.0000000",
+                                                               "proxcode":  "0",
+                                                               "irrlotcode":  true,
+                                                               "lottype":  "5",
+                                                               "bsmtcode":  "5",
+                                                               "assessland":  "6873751.00000",
+                                                               "assesstot":  "26972551.00000",
+                                                               "exempttot":  "26776007.00000",
+                                                               "yearbuilt":  "2015",
+                                                               "yearalter1":  "2015",
+                                                               "yearalter2":  "0",
+                                                               "builtfar":  "2.54000000000",
+                                                               "residfar":  "3.44000000000",
+                                                               "commfar":  "3.40000000000",
+                                                               "facilfar":  "6.50000000000",
+                                                               "affresfar":  "5.01000000000",
+                                                               "mnffar":  "0.00000000000",
+                                                               "borocode":  "1",
+                                                               "bbl":  "1013737507.00000000",
+                                                               "condono":  "2660",
+                                                               "tract2010":  "23801",
+                                                               "xcoord":  "996536",
+                                                               "ycoord":  "214384",
+                                                               "latitude":  "40.7551025",
+                                                               "longitude":  "-73.9556545",
+                                                               "zonemap":  "9b",
+                                                               "sanborn":  "106E070",
+                                                               "taxmap":  "10507",
+                                                               "appbbl":  "1013730075.00000000",
+                                                               "appdate":  "2017-07-14T00:00:00.000",
+                                                               "plutomapid":  "1",
+                                                               "version":  "26v2",
+                                                               "sanitdistrict":  "8",
+                                                               "healthcenterdistrict":  "13",
+                                                               "pfirm15_flag":  "1",
+                                                               "bct2020":  "1023804",
+                                                               "bctcb2020":  "10238041001",
+                                                               "transitzone":  "Inner Transit Zone"
+                                                           }
+                                             }
+                   },
+    "geometry":  {
+                     "type":  "MultiPolygon",
+                     "coordinates":  [
+                                         [
+                                             [
+                                                 [
+                                                     -73.955750127312,
+                                                     40.75549648451
+                                                 ],
+                                                 [
+                                                     -73.954951156796,
+                                                     40.755499153718
+                                                 ],
+                                                 [
+                                                     -73.955076584118,
+                                                     40.755353268568
+                                                 ],
+                                                 [
+                                                     -73.955221502692,
+                                                     40.755341412201
+                                                 ],
+                                                 [
+                                                     -73.955217684647,
+                                                     40.755195476584
+                                                 ],
+                                                 [
+                                                     -73.955174618397,
+                                                     40.755171634257
+                                                 ],
+                                                 [
+                                                     -73.955378430186,
+                                                     40.754942388823
+                                                 ],
+                                                 [
+                                                     -73.955958061005,
+                                                     40.754954524669
+                                                 ],
+                                                 [
+                                                     -73.955934508687,
+                                                     40.755034928112
+                                                 ],
+                                                 [
+                                                     -73.95578562931,
+                                                     40.755115283516
+                                                 ],
+                                                 [
+                                                     -73.955777689092,
+                                                     40.755276105363
+                                                 ],
+                                                 [
+                                                     -73.955840355311,
+                                                     40.75527315143
+                                                 ],
+                                                 [
+                                                     -73.955750127312,
+                                                     40.75549648451
+                                                 ]
+                                             ]
+                                         ]
+                                     ]
+                 }
+}

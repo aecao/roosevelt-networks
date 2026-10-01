@@ -1,0 +1,201 @@
+{
+    "type":  "Feature",
+    "id":  "1087314",
+    "properties":  {
+                       "bin":  "1087314",
+                       "bbl":  "1013737504",
+                       "address":  "405 MAIN STREET",
+                       "building_use":  "Mixed Residential \u0026 Commercial Buildings",
+                       "pluto_landuse_code":  "4",
+                       "building_class":  "RM",
+                       "pluto_year_built":  "2007",
+                       "pluto_floors":  "16.0000000",
+                       "residential_units":  "242",
+                       "total_units":  "243",
+                       "building_area_sqft":  "212021",
+                       "lot_area_sqft":  "56268",
+                       "construction_year":  "2007",
+                       "height_roof":  "193",
+                       "feature_code":  "2100",
+                       "geometry_source":  "Other (Manual)",
+                       "last_status_type":  "Constructed",
+                       "retrieved_on":  "2026-09-29",
+                       "source_footprint":  "NYC DoITT BUILDING (Socrata 5zhs-2jue)",
+                       "source_taxlot":  "NYC DCP PLUTO 26v2 (Socrata 64uk-42ks)",
+                       "source_boundary":  "OpenStreetMap relation 2389564 (Roosevelt Island)",
+                       "source_attributes":  {
+                                                 "building":  {
+                                                                  "name":  null,
+                                                                  "base_bbl":  "1013730007",
+                                                                  "shape_area":  "2841.21875",
+                                                                  "construction_year":  "2007",
+                                                                  "ground_elevation":  "17",
+                                                                  "mappluto_bbl":  "1013737504",
+                                                                  "objectid":  "670742",
+                                                                  "feature_code":  "2100",
+                                                                  "shape_length":  "278.02841126904",
+                                                                  "height_roof":  "193",
+                                                                  "last_status_type":  "Constructed",
+                                                                  "bin":  "1087314",
+                                                                  "last_edited_date":  "2017-08-22T18:19:12.000Z",
+                                                                  "geom_source":  "Other (Manual)",
+                                                                  "doitt_id":  "1097801"
+                                                              },
+                                                 "pluto":  {
+                                                               "borough":  "MN",
+                                                               "block":  "1373",
+                                                               "lot":  "7504",
+                                                               "cd":  "108",
+                                                               "ct2010":  "238.01",
+                                                               "cb2010":  "1008",
+                                                               "schooldist":  "2",
+                                                               "council":  "5",
+                                                               "zipcode":  "10044",
+                                                               "firecomp":  "E260",
+                                                               "policeprct":  "114",
+                                                               "healtharea":  "8300",
+                                                               "sanitboro":  "1",
+                                                               "address":  "405 MAIN STREET",
+                                                               "zonedist1":  "R7-2",
+                                                               "splitzone":  false,
+                                                               "bldgclass":  "RM",
+                                                               "landuse":  "4",
+                                                               "easements":  "0",
+                                                               "ownertype":  "X",
+                                                               "ownername":  "UNAVAILABLE OWNER",
+                                                               "lotarea":  "56268",
+                                                               "bldgarea":  "212021",
+                                                               "comarea":  "2995",
+                                                               "resarea":  "209026",
+                                                               "officearea":  "0",
+                                                               "retailarea":  "0",
+                                                               "garagearea":  "0",
+                                                               "strgearea":  "0",
+                                                               "factryarea":  "0",
+                                                               "otherarea":  "2995",
+                                                               "areasource":  "2",
+                                                               "numbldgs":  "1",
+                                                               "numfloors":  "16.0000000",
+                                                               "unitsres":  "242",
+                                                               "unitstotal":  "243",
+                                                               "lotfront":  "167.0000000",
+                                                               "lotdepth":  "175.0000000",
+                                                               "bldgfront":  "162.0000000",
+                                                               "bldgdepth":  "91.0000000",
+                                                               "proxcode":  "1",
+                                                               "irrlotcode":  true,
+                                                               "lottype":  "5",
+                                                               "bsmtcode":  "5",
+                                                               "assessland":  "4041000.00000",
+                                                               "assesstot":  "33489990.00000",
+                                                               "exempttot":  "33489990.00000",
+                                                               "yearbuilt":  "2007",
+                                                               "yearalter1":  "0",
+                                                               "yearalter2":  "0",
+                                                               "builtfar":  "3.77000000000",
+                                                               "residfar":  "3.44000000000",
+                                                               "commfar":  "0.00000000000",
+                                                               "facilfar":  "6.50000000000",
+                                                               "affresfar":  "5.01000000000",
+                                                               "mnffar":  "0.00000000000",
+                                                               "borocode":  "1",
+                                                               "bbl":  "1013737504.00000000",
+                                                               "condono":  "2053",
+                                                               "tract2010":  "23801",
+                                                               "xcoord":  "996999",
+                                                               "ycoord":  "215434",
+                                                               "latitude":  "40.7579838",
+                                                               "longitude":  "-73.9539813",
+                                                               "zonemap":  "9b",
+                                                               "sanborn":  "16E 070",
+                                                               "taxmap":  "10507",
+                                                               "appbbl":  "1013730007.00000000",
+                                                               "appdate":  "2009-08-26T00:00:00.000",
+                                                               "plutomapid":  "1",
+                                                               "version":  "26v2",
+                                                               "sanitdistrict":  "8",
+                                                               "healthcenterdistrict":  "13",
+                                                               "bct2020":  "1023804",
+                                                               "bctcb2020":  "10238042001",
+                                                               "transitzone":  "Inner Transit Zone"
+                                                           }
+                                             }
+                   },
+    "geometry":  {
+                     "type":  "MultiPolygon",
+                     "coordinates":  [
+                                         [
+                                             [
+                                                 [
+                                                     -73.954361590017,
+                                                     40.75808424155
+                                                 ],
+                                                 [
+                                                     -73.953971605936,
+                                                     40.757926907713
+                                                 ],
+                                                 [
+                                                     -73.953735339871,
+                                                     40.758002885955
+                                                 ],
+                                                 [
+                                                     -73.953701862765,
+                                                     40.757942693543
+                                                 ],
+                                                 [
+                                                     -73.9536811596,
+                                                     40.757905466439
+                                                 ],
+                                                 [
+                                                     -73.953656593545,
+                                                     40.757861296683
+                                                 ],
+                                                 [
+                                                     -73.953951178398,
+                                                     40.757766564591
+                                                 ],
+                                                 [
+                                                     -73.954024038561,
+                                                     40.757743133728
+                                                 ],
+                                                 [
+                                                     -73.954253739195,
+                                                     40.757830871344
+                                                 ],
+                                                 [
+                                                     -73.954264025576,
+                                                     40.757815299389
+                                                 ],
+                                                 [
+                                                     -73.954359044595,
+                                                     40.757851593214
+                                                 ],
+                                                 [
+                                                     -73.954561147267,
+                                                     40.757928789672
+                                                 ],
+                                                 [
+                                                     -73.954548478142,
+                                                     40.757947968137
+                                                 ],
+                                                 [
+                                                     -73.954580199399,
+                                                     40.757960083438
+                                                 ],
+                                                 [
+                                                     -73.954432745772,
+                                                     40.75817749902
+                                                 ],
+                                                 [
+                                                     -73.954327169884,
+                                                     40.758139419873
+                                                 ],
+                                                 [
+                                                     -73.954361590017,
+                                                     40.75808424155
+                                                 ]
+                                             ]
+                                         ]
+                                     ]
+                 }
+}

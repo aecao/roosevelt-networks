@@ -1,0 +1,273 @@
+{
+    "type":  "Feature",
+    "id":  "1083201",
+    "properties":  {
+                       "bin":  "1083201",
+                       "bbl":  "1013730001",
+                       "address":  "MAIN STREET",
+                       "building_use":  "Multi-Family Elevator Buildings",
+                       "pluto_landuse_code":  "3",
+                       "building_class":  "D4",
+                       "pluto_year_built":  "1975",
+                       "pluto_floors":  "18.0000000",
+                       "residential_units":  "8018",
+                       "total_units":  "8088",
+                       "building_area_sqft":  "4786701",
+                       "lot_area_sqft":  "4227757",
+                       "construction_year":  "1975",
+                       "height_roof":  "38.86",
+                       "feature_code":  "2100",
+                       "geometry_source":  "Photogrammetric",
+                       "last_status_type":  "Constructed",
+                       "retrieved_on":  "2026-09-29",
+                       "source_footprint":  "NYC DoITT BUILDING (Socrata 5zhs-2jue)",
+                       "source_taxlot":  "NYC DCP PLUTO 26v2 (Socrata 64uk-42ks)",
+                       "source_boundary":  "OpenStreetMap relation 2389564 (Roosevelt Island)",
+                       "source_attributes":  {
+                                                 "building":  {
+                                                                  "name":  null,
+                                                                  "base_bbl":  "1013730001",
+                                                                  "shape_area":  "2580.4765625",
+                                                                  "construction_year":  "1975",
+                                                                  "ground_elevation":  "13",
+                                                                  "mappluto_bbl":  "1013730001",
+                                                                  "objectid":  "741794",
+                                                                  "feature_code":  "2100",
+                                                                  "shape_length":  "311.09703974560546",
+                                                                  "height_roof":  "38.86",
+                                                                  "last_status_type":  "Constructed",
+                                                                  "bin":  "1083201",
+                                                                  "last_edited_date":  "2018-12-07T18:34:15.000Z",
+                                                                  "geom_source":  "Photogrammetric",
+                                                                  "doitt_id":  "481531"
+                                                              },
+                                                 "pluto":  {
+                                                               "borough":  "MN",
+                                                               "block":  "1373",
+                                                               "lot":  "1",
+                                                               "cd":  "108",
+                                                               "ct2010":  "238.01",
+                                                               "cb2010":  "1015",
+                                                               "schooldist":  "2",
+                                                               "council":  "5",
+                                                               "zipcode":  "10044",
+                                                               "firecomp":  "E260",
+                                                               "policeprct":  "114",
+                                                               "healtharea":  "8300",
+                                                               "sanitboro":  "1",
+                                                               "address":  "MAIN STREET",
+                                                               "zonedist1":  "R7-2",
+                                                               "splitzone":  false,
+                                                               "bldgclass":  "D4",
+                                                               "landuse":  "3",
+                                                               "easements":  "1",
+                                                               "ownertype":  "C",
+                                                               "ownername":  "RIVERWALK 8 AFFORDABLE, L.P.",
+                                                               "lotarea":  "4227757",
+                                                               "bldgarea":  "4786701",
+                                                               "comarea":  "1046956",
+                                                               "resarea":  "3739745",
+                                                               "officearea":  "7496",
+                                                               "retailarea":  "537154",
+                                                               "garagearea":  "406500",
+                                                               "strgearea":  "0",
+                                                               "factryarea":  "0",
+                                                               "otherarea":  "95806",
+                                                               "areasource":  "2",
+                                                               "numbldgs":  "38",
+                                                               "numfloors":  "18.0000000",
+                                                               "unitsres":  "8018",
+                                                               "unitstotal":  "8088",
+                                                               "lotfront":  "200.0000000",
+                                                               "lotdepth":  "102.5000000",
+                                                               "bldgfront":  "0.0000000",
+                                                               "bldgdepth":  "0.0000000",
+                                                               "ext":  "N",
+                                                               "proxcode":  "0",
+                                                               "irrlotcode":  true,
+                                                               "lottype":  "7",
+                                                               "bsmtcode":  "0",
+                                                               "assessland":  "134391150.00000",
+                                                               "assesstot":  "592936650.00000",
+                                                               "exempttot":  "592936650.00000",
+                                                               "yearbuilt":  "1975",
+                                                               "yearalter1":  "0",
+                                                               "yearalter2":  "0",
+                                                               "landmark":  "INDIVIDUAL LANDMARK",
+                                                               "builtfar":  "1.13000000000",
+                                                               "residfar":  "3.44000000000",
+                                                               "commfar":  "0.00000000000",
+                                                               "facilfar":  "6.50000000000",
+                                                               "affresfar":  "5.01000000000",
+                                                               "mnffar":  "0.00000000000",
+                                                               "borocode":  "1",
+                                                               "bbl":  "1013730001.00000000",
+                                                               "tract2010":  "23801",
+                                                               "xcoord":  "996792",
+                                                               "ycoord":  "215349",
+                                                               "latitude":  "40.7577508",
+                                                               "longitude":  "-73.9547287",
+                                                               "zonemap":  "9a",
+                                                               "zmcode":  true,
+                                                               "sanborn":  "106E070",
+                                                               "taxmap":  "10507",
+                                                               "appbbl":  "1013730001.00000000",
+                                                               "appdate":  "2023-12-06T00:00:00.000",
+                                                               "plutomapid":  "1",
+                                                               "version":  "26v2",
+                                                               "sanitdistrict":  "8",
+                                                               "healthcenterdistrict":  "13",
+                                                               "firm07_flag":  "1",
+                                                               "pfirm15_flag":  "1",
+                                                               "bct2020":  "1023804",
+                                                               "bctcb2020":  "10238041000",
+                                                               "transitzone":  "Inner Transit Zone"
+                                                           }
+                                             }
+                   },
+    "geometry":  {
+                     "type":  "MultiPolygon",
+                     "coordinates":  [
+                                         [
+                                             [
+                                                 [
+                                                     -73.950414867084,
+                                                     40.762619978372
+                                                 ],
+                                                 [
+                                                     -73.95048706946,
+                                                     40.76253750789
+                                                 ],
+                                                 [
+                                                     -73.950417290264,
+                                                     40.762502188005
+                                                 ],
+                                                 [
+                                                     -73.950466979481,
+                                                     40.76244543256
+                                                 ],
+                                                 [
+                                                     -73.950471608456,
+                                                     40.762447775862
+                                                 ],
+                                                 [
+                                                     -73.950567424717,
+                                                     40.762338333655
+                                                 ],
+                                                 [
+                                                     -73.95056497882,
+                                                     40.762337096213
+                                                 ],
+                                                 [
+                                                     -73.950610598559,
+                                                     40.762284988264
+                                                 ],
+                                                 [
+                                                     -73.950681537833,
+                                                     40.762320894759
+                                                 ],
+                                                 [
+                                                     -73.950887781593,
+                                                     40.762085319883
+                                                 ],
+                                                 [
+                                                     -73.950865421687,
+                                                     40.762074002711
+                                                 ],
+                                                 [
+                                                     -73.950888979886,
+                                                     40.762047093969
+                                                 ],
+                                                 [
+                                                     -73.950927796645,
+                                                     40.762002755248
+                                                 ],
+                                                 [
+                                                     -73.95093299307,
+                                                     40.761996819533
+                                                 ],
+                                                 [
+                                                     -73.950934077502,
+                                                     40.761997368403
+                                                 ],
+                                                 [
+                                                     -73.95096770199,
+                                                     40.762014387849
+                                                 ],
+                                                 [
+                                                     -73.951054598676,
+                                                     40.762058370328
+                                                 ],
+                                                 [
+                                                     -73.951118845471,
+                                                     40.762090888714
+                                                 ],
+                                                 [
+                                                     -73.951063729512,
+                                                     40.762153843914
+                                                 ],
+                                                 [
+                                                     -73.951031176341,
+                                                     40.762137367056
+                                                 ],
+                                                 [
+                                                     -73.950962316489,
+                                                     40.762216020265
+                                                 ],
+                                                 [
+                                                     -73.950937047843,
+                                                     40.762244882389
+                                                 ],
+                                                 [
+                                                     -73.950935653906,
+                                                     40.762246474789
+                                                 ],
+                                                 [
+                                                     -73.951004038496,
+                                                     40.762281086872
+                                                 ],
+                                                 [
+                                                     -73.950940265866,
+                                                     40.762353928572
+                                                 ],
+                                                 [
+                                                     -73.95087145267,
+                                                     40.762319098346
+                                                 ],
+                                                 [
+                                                     -73.950812047781,
+                                                     40.762386952141
+                                                 ],
+                                                 [
+                                                     -73.950835918418,
+                                                     40.762399034495
+                                                 ],
+                                                 [
+                                                     -73.9507184501,
+                                                     40.76253320813
+                                                 ],
+                                                 [
+                                                     -73.950644793612,
+                                                     40.762617339565
+                                                 ],
+                                                 [
+                                                     -73.950615213053,
+                                                     40.762602367706
+                                                 ],
+                                                 [
+                                                     -73.950543010766,
+                                                     40.762684838267
+                                                 ],
+                                                 [
+                                                     -73.95044650046,
+                                                     40.762635989447
+                                                 ],
+                                                 [
+                                                     -73.950414867084,
+                                                     40.762619978372
+                                                 ]
+                                             ]
+                                         ]
+                                     ]
+                 }
+}

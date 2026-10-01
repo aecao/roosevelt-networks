@@ -13,6 +13,7 @@ import { DATA, PALETTE } from './config.js';
 import { dataLoadState, loadActors, loadEdgeManifest, loadAdjacencyMatrix } from './data.js';
 
 const networkGradientModule = import('./network-gradient.js');
+const mapModeModule = import('./map-mode.js');
 
 const MIN_SIZE = 4;
 const MAX_SIZE = 8;
@@ -509,9 +510,12 @@ async function main() {
   const timelineSummary = document.getElementById('timeline-summary');
   const timelineStartInput = document.getElementById('timeline-start');
   const timelineEndInput = document.getElementById('timeline-end');
+  const mapContainer = document.getElementById('map');
+  const mapBuildingStatus = document.getElementById('map-building-state');
   let timelineStart = 1920;
   let timelineEnd = 2026;
   let contextSelection = null;
+  let mapInstance = null;
 
   function setPanel(panel) {
     panelDock.dataset.panel = panel;
@@ -533,6 +537,13 @@ async function main() {
     if (state.currentSelection) togglePinnedSelectionAndZoom(state.currentSelection);
   });
 
+  async function ensureMap() {
+    if (mapInstance) return mapInstance;
+    const { mountMap } = await mapModeModule;
+    mapInstance = mountMap(mapContainer, mapBuildingStatus);
+    return mapInstance;
+  }
+
   function setMode(mode) {
     const isRelationships = mode === 'relationships';
     const isMap = mode === 'map';
@@ -551,12 +562,31 @@ async function main() {
       refresh();
       relayout();
     }
+    if (isMap) {
+      ensureMap().then((instance) => instance.invalidateSize());
+    }
   }
 
   modeTabs.forEach((tab) => {
     tab.addEventListener('click', () => setMode(tab.dataset.mode));
   });
   setMode(workspace.dataset.mode);
+
+  document.querySelectorAll('[data-map-style]').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const instance = await ensureMap();
+      instance.setStyle(button.dataset.mapStyle);
+      document.querySelectorAll('[data-map-style]').forEach((styleButton) => {
+        const isActive = styleButton === button;
+        styleButton.classList.toggle('is-active', isActive);
+        styleButton.setAttribute('aria-pressed', String(isActive));
+      });
+    });
+  });
+
+  document.querySelector('[data-map-action="zoom-in"]').addEventListener('click', async () => (await ensureMap()).zoomIn());
+  document.querySelector('[data-map-action="zoom-out"]').addEventListener('click', async () => (await ensureMap()).zoomOut());
+  document.querySelector('[data-map-action="home"]').addEventListener('click', async () => (await ensureMap()).resetView());
 
   function showPinContextMenu(selection, mouseCoords) {
     contextSelection = selection;

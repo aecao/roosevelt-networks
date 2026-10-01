@@ -1,8 +1,8 @@
 # Roosevelt Networks
 
-Interactive network model of New Deal-era actors, built with [sigma.js](https://www.sigmajs.org/) + [graphology](https://graphology.github.io/), deployed to GitHub Pages.
+Interactive network model of New Deal-era actors, built with [sigma.js](https://www.sigmajs.org/) + [graphology](https://graphology.github.io/).
 
-Live site: https://aecao.github.io/roosevelt-networks/
+Live site: https://imadeitfor.you/app/roosevelt-networks/ (not yet linked from the portfolio's own pages)
 
 ## Data format
 
@@ -71,6 +71,14 @@ npm run preview
 
 ## Deployment
 
-Pushing to `main` runs [.github/workflows/deploy.yml](.github/workflows/deploy.yml), which builds the site with Vite and publishes it via GitHub Pages.
+Pushing to `main` runs two workflows:
 
-One-time setup in the GitHub repo: **Settings → Pages → Source → GitHub Actions**.
+- [.github/workflows/deploy-portfolio.yml](.github/workflows/deploy-portfolio.yml) builds the site with Vite (base path `/app/roosevelt-networks/`) and publishes `dist/` into the `aecao/portfolio` repo's `main` branch under `app/roosevelt-networks/`, leaving the rest of that repo untouched. This is the canonical deployment, served at https://imadeitfor.you/app/roosevelt-networks/.
+- [.github/workflows/deploy.yml](.github/workflows/deploy.yml) publishes a tiny redirect page to this repo's own GitHub Pages site (https://aecao.github.io/roosevelt-networks/), so the old URL forwards visitors to the new one.
+
+One-time setup for the portfolio deployment:
+
+1. In GitHub, create a [fine-grained personal access token](https://github.com/settings/personal-access-tokens) scoped to the `aecao/portfolio` repo with read/write access to contents.
+2. In this repo, add it as a secret named `PORTFOLIO_DEPLOY_TOKEN` (Settings → Secrets and variables → Actions).
+
+One-time setup for the redirect alias: **Settings → Pages → Source → GitHub Actions** (already configured if the old workflow was running before).

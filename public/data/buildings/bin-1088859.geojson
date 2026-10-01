@@ -1,0 +1,162 @@
+{
+    "type":  "Feature",
+    "id":  "1088859",
+    "properties":  {
+                       "bin":  "1088859",
+                       "bbl":  "1013730009",
+                       "address":  "460 MAIN STREET",
+                       "building_use":  "Multi-Family Elevator Buildings",
+                       "pluto_landuse_code":  "3",
+                       "building_class":  "D3",
+                       "pluto_year_built":  "2019",
+                       "pluto_floors":  "21.0000000",
+                       "residential_units":  "342",
+                       "total_units":  "343",
+                       "building_area_sqft":  "255327",
+                       "lot_area_sqft":  "29861",
+                       "construction_year":  "2020",
+                       "height_roof":  "195",
+                       "feature_code":  "2100",
+                       "geometry_source":  "Other (Manual)",
+                       "last_status_type":  "Constructed",
+                       "retrieved_on":  "2026-09-29",
+                       "source_footprint":  "NYC DoITT BUILDING (Socrata 5zhs-2jue)",
+                       "source_taxlot":  "NYC DCP PLUTO 26v2 (Socrata 64uk-42ks)",
+                       "source_boundary":  "OpenStreetMap relation 2389564 (Roosevelt Island)",
+                       "source_attributes":  {
+                                                 "building":  {
+                                                                  "name":  null,
+                                                                  "base_bbl":  "1013730009",
+                                                                  "shape_area":  "1923.765625",
+                                                                  "construction_year":  "2020",
+                                                                  "ground_elevation":  "24",
+                                                                  "mappluto_bbl":  "1013730009",
+                                                                  "objectid":  "1079441",
+                                                                  "feature_code":  "2100",
+                                                                  "shape_length":  "214.83002822265419",
+                                                                  "height_roof":  "195",
+                                                                  "last_status_type":  "Constructed",
+                                                                  "bin":  "1088859",
+                                                                  "last_edited_date":  "2021-08-19T13:29:34.000Z",
+                                                                  "geom_source":  "Other (Manual)",
+                                                                  "doitt_id":  "1295170"
+                                                              },
+                                                 "pluto":  {
+                                                               "borough":  "MN",
+                                                               "block":  "1373",
+                                                               "lot":  "9",
+                                                               "cd":  "108",
+                                                               "ct2010":  "238.01",
+                                                               "cb2010":  "1011",
+                                                               "schooldist":  "2",
+                                                               "council":  "5",
+                                                               "zipcode":  "10044",
+                                                               "firecomp":  "E260",
+                                                               "policeprct":  "114",
+                                                               "healtharea":  "8300",
+                                                               "sanitboro":  "1",
+                                                               "address":  "460 MAIN STREET",
+                                                               "zonedist1":  "R7-2",
+                                                               "splitzone":  false,
+                                                               "bldgclass":  "D3",
+                                                               "landuse":  "3",
+                                                               "easements":  "0",
+                                                               "ownertype":  "C",
+                                                               "ownername":  "ROOSEVELT ISLAND OPERATING CORP",
+                                                               "lotarea":  "29861",
+                                                               "bldgarea":  "255327",
+                                                               "comarea":  "2157",
+                                                               "resarea":  "253170",
+                                                               "officearea":  "1004",
+                                                               "retailarea":  "0",
+                                                               "garagearea":  "0",
+                                                               "strgearea":  "0",
+                                                               "factryarea":  "0",
+                                                               "otherarea":  "1153",
+                                                               "areasource":  "2",
+                                                               "numbldgs":  "1",
+                                                               "numfloors":  "21.0000000",
+                                                               "unitsres":  "342",
+                                                               "unitstotal":  "343",
+                                                               "lotfront":  "226.0000000",
+                                                               "lotdepth":  "140.0000000",
+                                                               "bldgfront":  "153.9000000",
+                                                               "bldgdepth":  "114.0000000",
+                                                               "proxcode":  "1",
+                                                               "irrlotcode":  true,
+                                                               "lottype":  "0",
+                                                               "bsmtcode":  "2",
+                                                               "assessland":  "7803000.00000",
+                                                               "assesstot":  "28148400.00000",
+                                                               "exempttot":  "28148400.00000",
+                                                               "yearbuilt":  "2019",
+                                                               "yearalter1":  "2018",
+                                                               "yearalter2":  "0",
+                                                               "builtfar":  "8.55000000000",
+                                                               "residfar":  "3.44000000000",
+                                                               "commfar":  "0.00000000000",
+                                                               "facilfar":  "6.50000000000",
+                                                               "affresfar":  "5.01000000000",
+                                                               "mnffar":  "0.00000000000",
+                                                               "borocode":  "1",
+                                                               "bbl":  "1013730009.00000000",
+                                                               "tract2010":  "23801",
+                                                               "xcoord":  "997773",
+                                                               "ycoord":  "215811",
+                                                               "latitude":  "40.7590174",
+                                                               "longitude":  "-73.9511867",
+                                                               "zonemap":  "9b",
+                                                               "sanborn":  "16E 070",
+                                                               "taxmap":  "10507",
+                                                               "appbbl":  "1013730001.00000000",
+                                                               "appdate":  "2019-08-08T00:00:00.000",
+                                                               "plutomapid":  "1",
+                                                               "version":  "26v2",
+                                                               "sanitdistrict":  "8",
+                                                               "healthcenterdistrict":  "13",
+                                                               "firm07_flag":  "1",
+                                                               "pfirm15_flag":  "1",
+                                                               "bct2020":  "1023804",
+                                                               "bctcb2020":  "10238042000",
+                                                               "transitzone":  "Inner Transit Zone"
+                                                           }
+                                             }
+                   },
+    "geometry":  {
+                     "type":  "MultiPolygon",
+                     "coordinates":  [
+                                         [
+                                             [
+                                                 [
+                                                     -73.951907690645,
+                                                     40.759052656476
+                                                 ],
+                                                 [
+                                                     -73.951732013899,
+                                                     40.758956683715
+                                                 ],
+                                                 [
+                                                     -73.951535877056,
+                                                     40.759161968765
+                                                 ],
+                                                 [
+                                                     -73.951379202341,
+                                                     40.759075416439
+                                                 ],
+                                                 [
+                                                     -73.951704577808,
+                                                     40.758734865196
+                                                 ],
+                                                 [
+                                                     -73.952036255551,
+                                                     40.758918093564
+                                                 ],
+                                                 [
+                                                     -73.951907690645,
+                                                     40.759052656476
+                                                 ]
+                                             ]
+                                         ]
+                                     ]
+                 }
+}

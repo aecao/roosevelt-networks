@@ -1,0 +1,30 @@
+name: Deploy to portfolio (imadeitfor.you)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Publish dist/ into aecao/portfolio at app/roosevelt-networks
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.PORTFOLIO_DEPLOY_TOKEN }}
+          external_repository: aecao/portfolio
+          publish_branch: main
+          publish_dir: ./dist
+          destination_dir: app/roosevelt-networks
+          keep_files: true
+          user_name: github-actions[bot]
+          user_email: github-actions[bot]@users.noreply.github.com
+          commit_message: "Deploy roosevelt-networks: ${{ github.sha }}"

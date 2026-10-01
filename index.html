@@ -202,7 +202,35 @@
           <div id="timeline-summary" aria-live="polite"></div>
         </section>
       </main>
-      <div id="mode-placeholder" hidden aria-hidden="true"></div>
+      <div id="mode-placeholder" hidden aria-hidden="true">
+        <section class="map-shell" aria-label="Interactive map of Roosevelt Island">
+          <div id="map" role="application" aria-label="Map. Drag to pan and use the controls to zoom."></div>
+
+          <div class="map-style-switch" role="group" aria-label="Basemap style">
+            <button class="map-style-button is-active" type="button" data-map-style="light" aria-pressed="true">Light</button>
+            <button class="map-style-button" type="button" data-map-style="street" aria-pressed="false">Street</button>
+          </div>
+
+          <div class="map-controls" aria-label="Map controls">
+            <button class="map-control" type="button" data-map-action="zoom-in" aria-label="Zoom in" title="Zoom in">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12" /></svg>
+            </button>
+            <button class="map-control" type="button" data-map-action="zoom-out" aria-label="Zoom out" title="Zoom out">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10h12" /></svg>
+            </button>
+            <span class="control-divider"></span>
+            <button class="map-control home-control" type="button" data-map-action="home" aria-label="Reset map view" title="Reset map view">
+              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 9.2 10 4l6.5 5.2M5.5 8v7.5h9V8M8.3 15.5v-4.2h3.4v4.2" /></svg>
+            </button>
+          </div>
+
+          <div class="map-caption">
+            <span>ROOSEVELT ISLAND</span>
+            <span class="caption-divider"></span>
+            <span id="map-building-state" aria-live="polite">LOADING</span>
+          </div>
+        </section>
+      </div>
     </div>
   </div>
   <div id="selection-context-menu" class="selection-context-menu" role="menu" hidden>

@@ -1,4 +1,4 @@
-name: Deploy to GitHub Pages
+name: Deploy alias to GitHub Pages
 
 on:
   push:
@@ -18,16 +18,27 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run build
+      - name: Build redirect page
+        run: |
+          mkdir -p redirect-dist
+          cat > redirect-dist/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8" />
+            <meta http-equiv="refresh" content="0; url=https://imadeitfor.you/app/roosevelt-networks/" />
+            <link rel="canonical" href="https://imadeitfor.you/app/roosevelt-networks/" />
+            <title>Roosevelt Networks has moved</title>
+            <script>location.replace("https://imadeitfor.you/app/roosevelt-networks/");</script>
+          </head>
+          <body>
+            <p>This page has moved to <a href="https://imadeitfor.you/app/roosevelt-networks/">imadeitfor.you/app/roosevelt-networks</a>.</p>
+          </body>
+          </html>
+          HTML
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: redirect-dist
 
   deploy:
     needs: build
