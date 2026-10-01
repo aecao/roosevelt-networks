@@ -1,6 +1,8 @@
 import Papa from 'papaparse';
 import { DATA } from './config.js';
 
+export const dataLoadState = { usedLocalFallback: false };
+
 async function fetchText(url, options) {
   const res = await fetch(url, options);
   if (!res.ok) throw new Error(`Failed to fetch ${url}: ${res.status}`);
@@ -13,12 +15,23 @@ async function fetchGoogleSheetCsv(gid) {
   url.searchParams.set('single', 'true');
   url.searchParams.set('output', 'csv');
   url.searchParams.set('refresh', String(Date.now()));
-  return fetchText(url, { cache: 'no-store' });
+  return fetchText(url, { cache: 'no-store', signal: AbortSignal.timeout(10000) });
+}
+
+async function fetchSheetOrLocal(gid, localUrl) {
+  try {
+    return await fetchGoogleSheetCsv(gid);
+  } catch (error) {
+    dataLoadState.usedLocalFallback = true;
+    console.warn(`Unable to load published sheet ${gid}; falling back to local data.`, error);
+    return fetchText(localUrl);
+  }
 }
 
 export async function loadActors(fromGoogleSheets = false) {
+  dataLoadState.usedLocalFallback = false;
   const text = fromGoogleSheets
-    ? await fetchGoogleSheetCsv(DATA.googleSheets.actorGid)
+    ? await fetchSheetOrLocal(DATA.googleSheets.actorGid, DATA.actorsFile)
     : await fetchText(DATA.actorsFile);
   const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
 
@@ -56,7 +69,7 @@ export async function loadAdjacencyMatrix(file, fromGoogleSheets = false) {
   if (fromGoogleSheets) {
     const gid = DATA.googleSheets.matrixGids[file];
     if (!gid) throw new Error(`No published Google Sheets tab configured for ${file}`);
-    text = await fetchGoogleSheetCsv(gid);
+    text = await fetchSheetOrLocal(gid, `${DATA.edgesDir}${file}`);
   } else {
     text = await fetchText(`${DATA.edgesDir}${file}`);
   }

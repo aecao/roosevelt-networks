@@ -85,7 +85,7 @@
               </div>
             </div>
 
-            <div class="panel">
+            <div class="panel relationships-only">
               <div class="filter-heading">
                 <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="appearance-group">
                   <span class="filter-group-chevron">▸</span><span>APPEARANCE</span>
@@ -115,7 +115,19 @@
             </div>
           </section>
 
-          <section class="filter-section">
+          <section class="filter-section timeline-only">
+            <h2>YEAR RANGE</h2>
+            <div class="panel timeline-range-fields">
+              <label for="timeline-start">From
+                <input id="timeline-start" type="number" min="1920" max="2025" step="1" value="1920" />
+              </label>
+              <label for="timeline-end">To
+                <input id="timeline-end" type="number" min="1921" max="2026" step="1" value="2026" />
+              </label>
+            </div>
+          </section>
+
+          <section class="filter-section relationships-only">
             <h2>RELATIONSHIPS</h2>
             <div class="panel">
               <label class="filter-all"><input id="edge-type-select-all" type="checkbox" checked /><span>All</span></label>
@@ -123,7 +135,7 @@
             </div>
           </section>
 
-          <section class="filter-section">
+          <section class="filter-section relationships-only">
             <h2>TIME RANGE</h2>
             <div class="panel">
               <label class="toggle-row">
@@ -142,7 +154,7 @@
           </section>
         </div>
 
-        <div id="sidebar-footer" class="panel">
+        <div id="sidebar-footer" class="panel relationships-only">
           <label class="toggle-row">
             <input id="freeze-positions" type="checkbox" />
             <span>Freeze actor position</span>
@@ -180,7 +192,16 @@
           </div>
         </aside>
       </div>
-      <main id="graph-container"></main>
+      <main id="graph-container">
+        <div id="network-gradient" aria-hidden="true"></div>
+        <section id="timeline-view" aria-label="Actor timeline" aria-hidden="true">
+          <svg id="timeline-axis" aria-hidden="true"></svg>
+          <div id="timeline-scroll">
+            <svg id="timeline-chart" role="img" aria-label="Actor periods of existence"></svg>
+          </div>
+          <div id="timeline-summary" aria-live="polite"></div>
+        </section>
+      </main>
       <div id="mode-placeholder" hidden aria-hidden="true"></div>
     </div>
   </div>
