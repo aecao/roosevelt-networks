@@ -177,11 +177,13 @@ export function mountMap(container, statusEl) {
           },
           onEachFeature(feature, layer) {
             const bin = String(feature.properties.bin);
+            const record = recordsByBin.get(bin);
+            const label = record?.Name?.trim() || record?.Address?.trim() || `BIN ${bin}`;
             const labelOffsets = [
               [0, -16], [14, -14], [20, 0], [14, 14],
               [0, 16], [-14, 14], [-20, 0], [-14, -14],
             ];
-            layer.bindTooltip(`BIN ${bin}`, {
+            layer.bindTooltip(label, {
               permanent: true,
               direction: 'center',
               offset: labelOffsets[Number(bin.slice(-2)) % labelOffsets.length],

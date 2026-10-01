@@ -1090,13 +1090,17 @@ button:hover {
 }
 
 .building-bin-label {
+  max-width: 120px;
   padding: 1px 4px;
+  overflow: hidden;
   background: rgba(26, 26, 26, 0.85);
   border: 1px solid var(--border);
   border-radius: 2px;
   color: #f3f5f4;
   font-size: 0.65rem;
   font-family: var(--font-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .building-bin-label::before {
