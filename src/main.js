@@ -102,7 +102,6 @@ const state = {
   pinnedGraphNodeIds: new Set(),
   pinnedGraphEdgeIds: new Set(),
   updateFocusOpacity: null,
-  clearTransientGraphHover: null,
   currentSelection: null,
   pinnedSelections: [],
 };
@@ -810,9 +809,7 @@ function showEdgeDetails(graph, edge) {
 
 // Clears the active selection when clicking empty canvas; pinned entries remain listed.
 function clearCurrentSelection() {
-  const hadSelection = Boolean(state.currentSelection) || state.selectedEdgeIds.size > 0;
-  const hadHover = state.clearTransientGraphHover?.() || false;
-  if (!hadSelection && !hadHover) return;
+  if (!state.currentSelection) return;
   state.currentSelection = null;
   state.selectedEdgeIds.clear();
   state.renderer?.refresh();
@@ -917,17 +914,6 @@ async function main() {
   let mapCancelAnimation = null;
   const mapOriginalPositions = new Map();
   let frozenRelationshipsPositions = null;
-  state.clearTransientGraphHover = () => {
-    const hadHover = Boolean(hoveredLabelNode)
-      || Boolean(hoveredBuildingActorId)
-      || Boolean(state.hoveredSearchNodeId)
-      || state.hoveredEdgeIds.size > 0;
-    hoveredLabelNode = null;
-    hoveredBuildingActorId = null;
-    state.hoveredSearchNodeId = null;
-    state.hoveredEdgeIds.clear();
-    return hadHover;
-  };
 
   function setPanel(panel) {
     panelDock.dataset.panel = panel;
@@ -996,7 +982,6 @@ async function main() {
   }
 
   function updateHoveredEdgePair(edge) {
-    hoveredLabelNode = null;
     const [source, target] = graph.extremities(edge);
     const hoveredEdges = new Set();
     graph.forEachEdge((candidate, attrs, edgeSource, edgeTarget) => {
@@ -1918,8 +1903,8 @@ async function main() {
 
       const curvature = Number.isFinite(edgeData.curvature) ? edgeData.curvature : 0;
       const control = {
-        x: (start.x + end.x) / 2 + deltaY * curvature,
-        y: (start.y + end.y) / 2 - deltaX * curvature,
+        x: (start.x + end.x) / 2 - deltaY * curvature,
+        y: (start.y + end.y) / 2 + deltaX * curvature,
       };
       directedEdgeGradientContext.beginPath();
       directedEdgeGradientContext.moveTo(start.x, start.y);
@@ -2526,7 +2511,6 @@ async function main() {
   state.zoomToSelection = zoomToCurrentAndPinned;
 
   renderer.on('enterNode', ({ node }) => {
-    state.hoveredEdgeIds.clear();
     hoveredLabelNode = node;
     refresh();
   });
@@ -2992,14 +2976,6 @@ async function main() {
   renderer.on('clickNode', ({ node }) => openNodeDetails(node));
   renderer.on('clickEdge', ({ edge }) => openEdgeDetails(edge));
   renderer.on('clickStage', clearCurrentSelection);
-  graphContainer.addEventListener('click', (event) => {
-    if (!state.currentSelection) return;
-    const bounds = graphContainer.getBoundingClientRect();
-    const x = event.clientX - bounds.left;
-    const y = event.clientY - bounds.top;
-    if (renderer.getNodeAtPosition({ x, y }) || renderer.getEdgeAtPoint(x, y)) return;
-    clearCurrentSelection();
-  });
   renderer.on('rightClickNode', ({ node, event }) => showPinContextMenu(createNodeSelection(graph, node), event));
   renderer.on('rightClickEdge', ({ edge, event }) => showPinContextMenu(createEdgeSelection(graph, edge), event));
   renderer.on('enterEdge', ({ edge }) => updateHoveredEdgePair(edge));
