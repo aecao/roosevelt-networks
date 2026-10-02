@@ -9,7 +9,7 @@ import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
 import { DATA, PALETTE, SHEET_ADJACENCY_TYPES } from './config.js';
-import { dataLoadState, loadActors, loadAdjacencyRows, loadEdgeManifest } from './data.js';
+import { dataLoadState, loadActors, loadActorSentiments, loadAdjacencyRows, loadEdgeManifest } from './data.js';
 
 const mapGeoModule = import('./map-mode.js');
 
@@ -63,6 +63,8 @@ const state = {
   activeScales: new Set(),
   categoryColors: new Map(),
   topicColors: new Map(),
+  colorMode: 'sector',
+  sentimentMaxAbs: 1,
   edgeTypeColors: new Map(),
   freezePositions: false,
   zoomToSelected: true,
@@ -109,6 +111,39 @@ function colorWithOpacity(color, opacity) {
   const green = (value >> 8) & 0xff;
   const blue = value & 0xff;
   return `rgba(${Math.round(red * opacity)}, ${Math.round(green * opacity)}, ${Math.round(blue * opacity)}, ${opacity})`;
+}
+
+function nodeColorForMode(attributes, isEmphasized = false) {
+  if (state.colorMode === 'plain') return isEmphasized ? '#d0d0d0' : '#ffffff';
+  if (state.colorMode === 'public-sentiment') {
+    const sentiment = attributes.sentiment;
+    if (!Number.isFinite(sentiment)) return '#8a8a8a';
+    const intensity = Math.pow(Math.min(1, Math.abs(sentiment) / state.sentimentMaxAbs), 0.7);
+    const endpoint = sentiment < 0 ? [220, 28, 42] : [0, 154, 70];
+    const channels = endpoint.map((channel) => Math.round(255 + (channel - 255) * intensity));
+    return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+  }
+  if (state.colorMode === 'category') {
+    const topic = (attributes.topics || []).find((value) => state.activeTopics.has(value));
+    return topic ? state.topicColors.get(topic) || '#8a8a8a' : '#8a8a8a';
+  }
+  return attributes.color || '#ffffff';
+}
+
+function drawCategoryPie(context, x, y, radius, topics) {
+  const activeTopics = [...new Set((topics || []).filter((topic) => state.activeTopics.has(topic)))];
+  if (activeTopics.length < 2) return false;
+  const sliceAngle = (Math.PI * 2) / activeTopics.length;
+  activeTopics.forEach((topic, index) => {
+    const startAngle = -Math.PI / 2 + sliceAngle * index;
+    context.beginPath();
+    context.moveTo(x, y);
+    context.arc(x, y, radius, startAngle, startAngle + sliceAngle);
+    context.closePath();
+    context.fillStyle = state.topicColors.get(topic) || '#8a8a8a';
+    context.fill();
+  });
+  return true;
 }
 
 // Turns "1 - MESO" into "MESO"; falls back to the raw value or "Unknown".
@@ -172,7 +207,14 @@ function applyEdgeCurvatureScale(graph) {
 async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   const graph = new Graph({ multi: true });
 
-  const actors = await loadActors(fromGoogleSheets);
+  const [actors, sentimentByActor] = await Promise.all([
+    loadActors(fromGoogleSheets),
+    loadActorSentiments(),
+  ]);
+  const sentimentValues = actors
+    .map((actor) => sentimentByActor.get((actor[DATA.nodeIdField] || '').trim().toLowerCase()))
+    .filter(Number.isFinite);
+  state.sentimentMaxAbs = Math.max(0, ...sentimentValues.map(Math.abs)) || 1;
   const categories = [...new Set(actors.map((a) => a[DATA.nodeCategoryField] || 'Unknown'))].sort();
   categories.forEach((cat, i) => state.categoryColors.set(cat, PALETTE[i % PALETTE.length]));
   const topics = [...new Set(actors.flatMap((actor) =>
@@ -199,6 +241,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       label: abbreviation || fullName,
       size: sizeForActorScale(parseScale(actor[DATA.nodeScaleField])),
       color: state.categoryColors.get(category),
+      sentiment: sentimentByActor.get(id.trim().toLowerCase()) ?? null,
       category,
       newFromSheet: dataLoadState.sheetOnlyActorIds.has(id),
       topics: actorTopics,
@@ -687,6 +730,8 @@ async function main() {
   };
   const sizeModeSelect = document.getElementById('size-mode');
   state.sizeMode = sizeModeSelect.value;
+  const colorModeSelect = document.getElementById('color-mode');
+  state.colorMode = colorModeSelect.value;
   const labelsToggle = document.getElementById('labels-toggle');
   state.showLabels = labelsToggle.checked;
   const nodeSizeSlider = document.getElementById('node-size-slider');
@@ -1003,6 +1048,11 @@ async function main() {
     updateFocusOpacity();
     renderer.refresh();
   }
+
+  colorModeSelect.addEventListener('change', () => {
+    state.colorMode = colorModeSelect.value;
+    refresh();
+  });
 
   let cancelAnimation = null;
   let centralityFilterScoreCache = null;
@@ -1700,6 +1750,11 @@ async function main() {
     style: { pointerEvents: 'none' },
   });
   const sizeHaloContext = renderer.getCanvases()['size-halos'].getContext('2d');
+  renderer.createCanvasContext('category-pies', {
+    beforeLayer: 'labels',
+    style: { pointerEvents: 'none' },
+  });
+  const categoryPieContext = renderer.getCanvases()['category-pies'].getContext('2d');
   renderer.resize(true);
   renderer.on('afterRender', () => {
     if (!sizeHaloContext) return;
@@ -1712,12 +1767,31 @@ async function main() {
         : 1;
       sizeHaloContext.globalAlpha = 0.16 * focusAlpha;
       const { x, y } = renderer.graphToViewport({ x: attributes.x, y: attributes.y });
-      sizeHaloContext.fillStyle = attributes.color;
+      const isEmphasized = node === hoveredLabelNode || state.emphasizedNodeIds.has(node);
+      sizeHaloContext.fillStyle = nodeColorForMode(attributes, isEmphasized);
       sizeHaloContext.beginPath();
       sizeHaloContext.arc(x, y, renderer.scaleSize(attributes.size), 0, Math.PI * 2);
       sizeHaloContext.fill();
     });
     sizeHaloContext.globalAlpha = 1;
+  });
+  renderer.on('afterRender', () => {
+    if (!categoryPieContext) return;
+    const { width, height } = renderer.getDimensions();
+    categoryPieContext.clearRect(0, 0, width, height);
+    if (state.colorMode !== 'category') return;
+    graph.forEachNode((node, attributes) => {
+      if (!isNodeVisible(node)) return;
+      const displayData = renderer.getNodeDisplayData(node);
+      if (!displayData || displayData.hidden) return;
+      const { x, y } = renderer.framedGraphToViewport(displayData);
+      const focusAlpha = state.focusOpacityActive && !state.focusNodeIds.has(node)
+        ? FOCUS_DIM_OPACITY
+        : 1;
+      categoryPieContext.globalAlpha = focusAlpha;
+      drawCategoryPie(categoryPieContext, x, y, renderer.scaleSize(displayData.size), attributes.topics);
+    });
+    categoryPieContext.globalAlpha = 1;
   });
 
   // Hints that there are more actors off-screen, by drawing small triangles pointing
@@ -1937,7 +2011,9 @@ async function main() {
     mapFootprintHitTargets = mapGeography.buildingFootprints.map((footprint) => {
       const actorId = footprint.actorId && graph.hasNode(footprint.actorId) ? footprint.actorId : null;
       const path = createProjectedPath(footprint.rings);
-      const color = actorId ? graph.getNodeAttribute(actorId, 'color') : '#ffffff';
+      const attributes = actorId ? graph.getNodeAttributes(actorId) : null;
+      const isEmphasized = actorId === hoveredBuildingActorId || state.emphasizedNodeIds.has(actorId);
+      const color = attributes ? nodeColorForMode(attributes, isEmphasized) : '#ffffff';
       const opacity = actorId && state.focusOpacityActive && !state.focusNodeIds.has(actorId)
         ? FOCUS_DIM_OPACITY
         : 1;
@@ -1955,7 +2031,7 @@ async function main() {
     mapGeoFrontContext.clearRect(0, 0, width, height);
     drawRings(mapGeoFrontContext, mapGeography.islandRings, null, 'rgba(160, 200, 255, 0.9)');
     mapFootprintHitTargets.forEach(({ actorId, path }) => {
-      if (!actorId || !state.emphasizedNodeIds.has(actorId)) return;
+      if (!actorId || (actorId !== hoveredBuildingActorId && !state.emphasizedNodeIds.has(actorId))) return;
       mapGeoFrontContext.beginPath();
       mapGeoFrontContext.strokeStyle = '#ffffff';
       mapGeoFrontContext.lineWidth = 2;
@@ -2192,12 +2268,13 @@ async function main() {
     const isFocusLabel = state.focusNodeIds.has(node);
     const isNewFromSheet = data.newFromSheet === true;
     const isDimmed = state.focusOpacityActive && !state.focusNodeIds.has(node);
+    const nodeColor = nodeColorForMode(data, isEmphasized);
     const zoomEligible = renderer.getCamera().getState().ratio <= LABEL_TIER_MAX_RATIO[tier];
     const labelVisible = isEmphasized || isFocusLabel || isNewFromSheet || (state.showLabels && zoomEligible);
     return {
       ...data,
       size: CORE_NODE_SIZE * state.nodeSizeScale,
-      color: isDimmed ? colorWithOpacity(data.color, FOCUS_DIM_OPACITY) : data.color,
+      color: isDimmed ? colorWithOpacity(nodeColor, FOCUS_DIM_OPACITY) : nodeColor,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
       forceLabel: isEmphasized || isFocusLabel || isNewFromSheet || (tier === 2 && state.showLabels && zoomEligible),

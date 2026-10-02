@@ -3,6 +3,7 @@ const base = import.meta.env.BASE_URL;
 
 export const DATA = {
   actorsFile: `${base}data/actors.csv`,
+  sentimentFile: `${base}data/actor%20database%20-%20actor_working%20-%20with%20news%20hits.csv`,
   adjacencyFile: `${base}data/edges/adjacency.csv`,
   edgesManifest: `${base}data/edges/manifest.json`,
   googleSheets: {

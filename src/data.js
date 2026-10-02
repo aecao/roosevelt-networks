@@ -70,6 +70,22 @@ export async function loadActors(fromGoogleSheets = false) {
   return actors;
 }
 
+export async function loadActorSentiments() {
+  try {
+    const text = await fetchText(DATA.sentimentFile);
+    const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
+    return new Map(data.flatMap((row) => {
+      const actorId = (row[DATA.nodeIdField] || '').trim().toLowerCase();
+      if (!actorId) return [];
+      const sentiment = Number.parseFloat(row.sentiment);
+      return [[actorId, Number.isFinite(sentiment) ? sentiment : null]];
+    }));
+  } catch (error) {
+    console.warn('Unable to load local actor sentiment data.', error);
+    return new Map();
+  }
+}
+
 export async function loadAdjacencyRows(fromGoogleSheets = false) {
   const text = fromGoogleSheets
     ? await fetchSheetOrLocal(DATA.googleSheets.adjacencyGid, DATA.adjacencyFile)
