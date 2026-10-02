@@ -1,7 +1,10 @@
 import Papa from 'papaparse';
 import { DATA } from './config.js';
 
-export const dataLoadState = { usedLocalFallback: false };
+export const dataLoadState = {
+  usedLocalFallback: false,
+  sheetOnlyActorIds: new Set(),
+};
 
 async function fetchText(url, options) {
   const res = await fetch(url, options);
@@ -30,9 +33,20 @@ async function fetchSheetOrLocal(gid, localUrl) {
 
 export async function loadActors(fromGoogleSheets = false) {
   dataLoadState.usedLocalFallback = false;
+  dataLoadState.sheetOnlyActorIds.clear();
   const text = fromGoogleSheets
     ? await fetchSheetOrLocal(DATA.googleSheets.actorGid, DATA.actorsFile)
     : await fetchText(DATA.actorsFile);
+  let localActorIds = null;
+  if (fromGoogleSheets && !dataLoadState.usedLocalFallback) {
+    try {
+      const localText = await fetchText(DATA.actorsFile);
+      const { data: localRows } = Papa.parse(localText, { header: true, skipEmptyLines: true });
+      localActorIds = new Set(localRows.map((row) => (row[DATA.nodeIdField] || '').trim()).filter(Boolean));
+    } catch (error) {
+      console.warn('Unable to compare published actors with the local snapshot.', error);
+    }
+  }
   const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
 
   const seen = new Set();
@@ -45,6 +59,7 @@ export async function loadActors(fromGoogleSheets = false) {
       continue;
     }
     seen.add(id);
+    if (localActorIds && !localActorIds.has(id)) dataLoadState.sheetOnlyActorIds.add(id);
     // Google Sheets export can leave stray whitespace on every cell.
     const trimmed = {};
     for (const [key, value] of Object.entries(row)) {

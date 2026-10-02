@@ -200,6 +200,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       size: sizeForActorScale(parseScale(actor[DATA.nodeScaleField])),
       color: state.categoryColors.get(category),
       category,
+      newFromSheet: dataLoadState.sheetOnlyActorIds.has(id),
       topics: actorTopics,
       scale: parseScale(actor[DATA.nodeScaleField]),
       yearStart: parseYear(actor.year_start),
@@ -263,7 +264,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
     graph.setNodeAttribute(node, 'y', positions[node].y);
   });
 
-  return { graph, categories, scales, manifest };
+  return { graph, categories, scales, manifest, actorCount: actors.length };
 }
 
 // Lays out a copy of the graph containing only the currently active adjacency
@@ -877,14 +878,14 @@ async function main() {
     updateRefreshProgress(0, 1);
   }
 
-  const { graph, categories, scales, manifest } = await buildGraph(fromGoogleSheets, updateRefreshProgress);
+  const { graph, categories, scales, manifest, actorCount } = await buildGraph(fromGoogleSheets, updateRefreshProgress);
   refreshButton.disabled = false;
   refreshProgress.hidden = true;
   refreshStatus.textContent = !fromGoogleSheets
-    ? 'Using local data'
+    ? `Using local data (${actorCount} actors)`
     : dataLoadState.usedLocalFallback
-      ? 'Sheets incomplete; local CSV fallback used'
-      : 'Updated from Google Sheets';
+      ? `Sheets incomplete; local CSV fallback used (${actorCount} actors)`
+      : `Updated from Google Sheets (${actorCount} actors)`;
   const url = new URL(window.location.href);
   url.searchParams.delete('refresh');
   window.history.replaceState(null, '', url);
@@ -995,7 +996,7 @@ async function main() {
   });
   state.renderer = renderer;
   // Starts the relationship diagram ~2x as zoomed in as Sigma's default full-extent fit.
-  renderer.getCamera().setState({ ...renderer.getCamera().getState(), ratio: 0.5 });
+  renderer.getCamera().setState({ ...renderer.getCamera().getState(), ratio: fromGoogleSheets ? 1 : 0.5 });
   relationshipsCameraState = renderer.getCamera().getState();
 
   function refresh() {
@@ -2189,16 +2190,17 @@ async function main() {
     const tier = labelTierByNode.get(node) ?? 1;
     const isEmphasized = node === hoveredLabelNode || state.emphasizedNodeIds.has(node);
     const isFocusLabel = state.focusNodeIds.has(node);
+    const isNewFromSheet = data.newFromSheet === true;
     const isDimmed = state.focusOpacityActive && !state.focusNodeIds.has(node);
     const zoomEligible = renderer.getCamera().getState().ratio <= LABEL_TIER_MAX_RATIO[tier];
-    const labelVisible = isEmphasized || isFocusLabel || (state.showLabels && zoomEligible);
+    const labelVisible = isEmphasized || isFocusLabel || isNewFromSheet || (state.showLabels && zoomEligible);
     return {
       ...data,
       size: CORE_NODE_SIZE * state.nodeSizeScale,
       color: isDimmed ? colorWithOpacity(data.color, FOCUS_DIM_OPACITY) : data.color,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
-      forceLabel: isEmphasized || isFocusLabel || (tier === 2 && state.showLabels && zoomEligible),
+      forceLabel: isEmphasized || isFocusLabel || isNewFromSheet || (tier === 2 && state.showLabels && zoomEligible),
       highlighted: isEmphasized,
       label: labelVisible ? data.label : null,
     };
