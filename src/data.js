@@ -55,34 +55,6 @@ export async function loadActors(fromGoogleSheets = false) {
   return actors;
 }
 
-export async function loadActorSentiments() {
-  try {
-    const text = await fetchText(DATA.sentimentFile);
-    const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
-    return new Map(data.flatMap((row) => {
-      const actor = (row[DATA.nodeIdField] || '').trim().toLowerCase();
-      if (!actor) return [];
-      const sentiment = Number.parseFloat(row.sentiment);
-      return [[actor, Number.isFinite(sentiment) ? sentiment : null]];
-    }));
-  } catch (error) {
-    console.warn('Unable to load local actor sentiment data.', error);
-    return new Map();
-  }
-}
-
-export async function loadAdjacencyRows(fromGoogleSheets = false) {
-  const text = fromGoogleSheets
-    ? await fetchSheetOrLocal(DATA.googleSheets.adjacencyGid, DATA.adjacencyFile)
-    : await fetchText(DATA.adjacencyFile);
-  const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
-  return data
-    .map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [
-      key.trim(), typeof value === 'string' ? value.trim() : value,
-    ])))
-    .filter((row) => row['source-target relationship'] && row.source && row.target);
-}
-
 export async function loadEdgeManifest() {
   const res = await fetch(DATA.edgesManifest);
   if (!res.ok) throw new Error(`Failed to fetch ${DATA.edgesManifest}: ${res.status}`);

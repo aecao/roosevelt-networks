@@ -9,15 +9,7 @@ import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
 import { DATA, PALETTE } from './config.js';
-import { getSheetRelationshipCode, parseEdgeParameters } from './edge-types.js';
-import {
-  dataLoadState,
-  loadActors,
-  loadActorSentiments,
-  loadAdjacencyRows,
-  loadEdgeManifest,
-  loadAdjacencyMatrix,
-} from './data.js';
+import { dataLoadState, loadActors, loadEdgeManifest, loadAdjacencyMatrix } from './data.js';
 
 const mapGeoModule = import('./map-mode.js');
 
@@ -71,14 +63,7 @@ const state = {
   activeScales: new Set(),
   categoryColors: new Map(),
   topicColors: new Map(),
-  colorMode: 'sector',
-  sentimentMaxAbs: 1,
   edgeTypeColors: new Map(),
-  edgeLineWeight: 1,
-  variableLineWeightEnabled: true,
-  ownerTenantParcelAreaRange: [0, 0],
-  financialUpfrontRange: [0, 0],
-  financialOngoingRange: [0, 0],
   freezePositions: false,
   zoomToSelected: true,
   nodeSizeScale: 1,
@@ -124,87 +109,6 @@ function colorWithOpacity(color, opacity) {
   const green = (value >> 8) & 0xff;
   const blue = value & 0xff;
   return `rgba(${Math.round(red * opacity)}, ${Math.round(green * opacity)}, ${Math.round(blue * opacity)}, ${opacity})`;
-}
-
-function lightenHexColor(color, amount) {
-  const match = /^#([\da-f]{6})$/i.exec(color);
-  if (!match) return color;
-  const value = Number.parseInt(match[1], 16);
-  const channels = [value >> 16, (value >> 8) & 0xff, value & 0xff]
-    .map((channel) => Math.round(channel + (255 - channel) * amount));
-  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
-}
-
-function darkenHexColor(color, amount) {
-  const match = /^#([\da-f]{6})$/i.exec(color);
-  if (!match) return color;
-  const value = Number.parseInt(match[1], 16);
-  const channels = [value >> 16, (value >> 8) & 0xff, value & 0xff]
-    .map((channel) => Math.round(channel * (1 - amount)));
-  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
-}
-
-function nodeColorForMode(attributes, isEmphasized = false) {
-  if (state.colorMode === 'plain') return isEmphasized ? '#d0d0d0' : '#ffffff';
-  if (state.colorMode === 'public-sentiment') {
-    const sentiment = attributes.sentiment;
-    if (!Number.isFinite(sentiment)) return '#8a8a8a';
-    const normalizedIntensity = Math.min(1, Math.abs(sentiment) / (state.sentimentMaxAbs || 1));
-    const intensity = Math.pow(normalizedIntensity, 0.7);
-    const endpoint = sentiment < 0 ? [220, 28, 42] : [0, 154, 70];
-    const channels = endpoint.map((channel) => Math.round(255 + (channel - 255) * intensity));
-    return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
-  }
-  if (state.colorMode === 'category') {
-    const topic = (attributes.topics || []).find((value) => state.activeTopics.has(value));
-    return topic ? state.topicColors.get(topic) || '#8a8a8a' : '#8a8a8a';
-  }
-  return attributes.color || '#ffffff';
-}
-
-function drawCategoryPie(context, x, y, radius, topics) {
-  const activeTopics = [...new Set((topics || []).filter((topic) => state.activeTopics.has(topic)))];
-  if (activeTopics.length < 2) return false;
-  const sliceAngle = (Math.PI * 2) / activeTopics.length;
-  activeTopics.forEach((topic, index) => {
-    const startAngle = -Math.PI / 2 + sliceAngle * index;
-    context.beginPath();
-    context.moveTo(x, y);
-    context.arc(x, y, radius, startAngle, startAngle + sliceAngle);
-    context.closePath();
-    context.fillStyle = state.topicColors.get(topic) || '#8a8a8a';
-    context.fill();
-  });
-  return true;
-}
-
-function getEdgeLineWeight(data) {
-  if (!state.variableLineWeightEnabled) return { weight: state.edgeLineWeight, variable: false };
-  const parameters = new Map((data.parameters || []).map(({ label, value }) => [label, value]));
-  const amount = data.adjacencyType === 'own'
-    ? parameters.get('Parcel area (sq ft)')
-    : data.adjacencyType === 'fin'
-      ? parameters.get('Ongoing funds')
-      : null;
-  const range = data.adjacencyType === 'own'
-    ? state.ownerTenantParcelAreaRange
-    : state.financialOngoingRange;
-  if (Number.isFinite(amount)) return { weight: mapAmountToLineWeight(amount, range), variable: true };
-  return { weight: state.edgeLineWeight, variable: false };
-}
-
-function getFinancialUpfrontLineWeight(data) {
-  if (!state.variableLineWeightEnabled || data.adjacencyType !== 'fin') return null;
-  const parameters = new Map((data.parameters || []).map(({ label, value }) => [label, value]));
-  const upfront = parameters.get('Upfront investment');
-  const ongoing = parameters.get('Ongoing funds');
-  if (!Number.isFinite(upfront) || !Number.isFinite(ongoing)) return null;
-  return mapAmountToLineWeight(upfront, state.financialUpfrontRange);
-}
-
-function mapAmountToLineWeight(value, [minimum, maximum]) {
-  const proportion = maximum > minimum ? (value - minimum) / (maximum - minimum) : 0;
-  return 1 + Math.max(0, Math.min(1, proportion)) * 4;
 }
 
 // Turns "1 - MESO" into "MESO"; falls back to the raw value or "Unknown".
@@ -268,14 +172,7 @@ function applyEdgeCurvatureScale(graph) {
 async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   const graph = new Graph({ multi: true });
 
-  const [actors, sentimentByActor] = await Promise.all([
-    loadActors(fromGoogleSheets),
-    loadActorSentiments(),
-  ]);
-  const localSentiments = actors
-    .map((actor) => sentimentByActor.get((actor[DATA.nodeIdField] || '').trim().toLowerCase()))
-    .filter(Number.isFinite);
-  state.sentimentMaxAbs = Math.max(0, ...localSentiments.map(Math.abs)) || 1;
+  const actors = await loadActors(fromGoogleSheets);
   const categories = [...new Set(actors.map((a) => a[DATA.nodeCategoryField] || 'Unknown'))].sort();
   categories.forEach((cat, i) => state.categoryColors.set(cat, PALETTE[i % PALETTE.length]));
   const topics = [...new Set(actors.flatMap((actor) =>
@@ -302,7 +199,6 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       label: abbreviation || fullName,
       size: sizeForActorScale(parseScale(actor[DATA.nodeScaleField])),
       color: state.categoryColors.get(category),
-      sentiment: sentimentByActor.get(id.trim().toLowerCase()) ?? null,
       category,
       topics: actorTopics,
       scale: parseScale(actor[DATA.nodeScaleField]),
@@ -318,41 +214,9 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   const edgeTypes = [];
   manifest.forEach((entry, i) => state.edgeTypeColors.set(entry.type, PALETTE[i % PALETTE.length]));
 
-  const totalSteps = manifest.length + 2;
+  const totalSteps = manifest.length + 1;
   let completedSteps = 1;
   onProgress(completedSteps, totalSteps);
-  const adjacencyRows = await loadAdjacencyRows(fromGoogleSheets);
-  completedSteps += 1;
-  onProgress(completedSteps, totalSteps);
-  const edgeParameters = new Map();
-  const ownerTenantParcelAreas = [];
-  const financialUpfrontAmounts = [];
-  const financialOngoingAmounts = [];
-  adjacencyRows.forEach((row) => {
-    const type = getSheetRelationshipCode(row['source-target relationship']);
-    if (!type) return;
-    const parameters = parseEdgeParameters(row, type);
-    if (parameters.length) edgeParameters.set(JSON.stringify([type, row.source, row.target]), parameters);
-    if (type === 'own') {
-      const parcelArea = parameters.find(({ label }) => label === 'Parcel area (sq ft)')?.value;
-      if (Number.isFinite(parcelArea)) ownerTenantParcelAreas.push(parcelArea);
-    }
-    if (type === 'fin') {
-      const upfront = parameters.find(({ label }) => label === 'Upfront investment')?.value;
-      const ongoing = parameters.find(({ label }) => label === 'Ongoing funds')?.value;
-      if (Number.isFinite(upfront)) financialUpfrontAmounts.push(upfront);
-      if (Number.isFinite(ongoing)) financialOngoingAmounts.push(ongoing);
-    }
-  });
-  state.ownerTenantParcelAreaRange = ownerTenantParcelAreas.length
-    ? [Math.min(...ownerTenantParcelAreas), Math.max(...ownerTenantParcelAreas)]
-    : [0, 0];
-  state.financialUpfrontRange = financialUpfrontAmounts.length
-    ? [Math.min(...financialUpfrontAmounts), Math.max(...financialUpfrontAmounts)]
-    : [0, 0];
-  state.financialOngoingRange = financialOngoingAmounts.length
-    ? [Math.min(...financialOngoingAmounts), Math.max(...financialOngoingAmounts)]
-    : [0, 0];
 
   const adjacencyMatrices = await Promise.all(manifest.map(async (entry) => {
     const edges = await loadAdjacencyMatrix(entry.file, fromGoogleSheets);
@@ -375,16 +239,10 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
         adjacencyType: entry.type,
         label: entry.label,
         weight,
-        parameters: edgeParameters.get(JSON.stringify([entry.type, source, target]))
-          || (DATA.undirectedEdgeTypes.includes(entry.type)
-            ? edgeParameters.get(JSON.stringify([entry.type, target, source]))
-            : undefined),
         size: 1,
         color,
       };
-      const edgeSource = entry.type === 'fin' ? target : source;
-      const edgeTarget = entry.type === 'fin' ? source : target;
-      if (directed) graph.addDirectedEdge(edgeSource, edgeTarget, attrs);
+      if (directed) graph.addDirectedEdge(source, target, attrs);
       else graph.addUndirectedEdge(source, target, attrs);
     });
   }
@@ -561,7 +419,6 @@ function createEdgeSelection(graph, edge) {
   const actorNames = [getFullName(source), getFullName(target)];
   const adjacencyTypes = new Set();
   const selectedEdgeIds = new Set();
-  const parameters = [];
 
   graph.forEachEdge((candidate, attrs, edgeSource, edgeTarget) => {
     const samePair = (edgeSource === source && edgeTarget === target)
@@ -569,9 +426,6 @@ function createEdgeSelection(graph, edge) {
     if (samePair) {
       selectedEdgeIds.add(candidate);
       adjacencyTypes.add(attrs.label || attrs.adjacencyType);
-      (attrs.parameters || []).forEach((parameter) => {
-        parameters.push({ type: attrs.label || attrs.adjacencyType, ...parameter });
-      });
     }
   });
 
@@ -583,7 +437,6 @@ function createEdgeSelection(graph, edge) {
     nodeIds: [source, target],
     actorNames,
     adjacencyTypes: [...adjacencyTypes],
-    parameters,
     edgeIds: [...selectedEdgeIds],
   };
 }
@@ -621,21 +474,6 @@ function renderSelectionDetails(selection, container) {
     });
     typesDescription.appendChild(types);
     details.append(typesTerm, typesDescription);
-
-    if (selection.parameters?.length) {
-      const parametersTerm = document.createElement('dt');
-      parametersTerm.textContent = 'Connection parameters';
-      const parametersDescription = document.createElement('dd');
-      const parametersList = document.createElement('ul');
-      parametersList.className = 'detail-list';
-      selection.parameters.forEach(({ type, label, value }) => {
-        const item = document.createElement('li');
-        item.textContent = `${type}: ${label}: ${value}`;
-        parametersList.appendChild(item);
-      });
-      parametersDescription.appendChild(parametersList);
-      details.append(parametersTerm, parametersDescription);
-    }
   }
   container.appendChild(details);
 }
@@ -845,8 +683,6 @@ async function main() {
   };
   const sizeModeSelect = document.getElementById('size-mode');
   state.sizeMode = sizeModeSelect.value;
-  const colorModeSelect = document.getElementById('color-mode');
-  state.colorMode = colorModeSelect.value;
   const labelsToggle = document.getElementById('labels-toggle');
   state.showLabels = labelsToggle.checked;
   const nodeSizeSlider = document.getElementById('node-size-slider');
@@ -867,13 +703,6 @@ async function main() {
   const edgeCurvatureDecrement = document.getElementById('edge-curvature-decrement');
   const edgeCurvatureIncrement = document.getElementById('edge-curvature-increment');
   state.edgeCurvatureScale = edgeCurvaturePercentToScale(Number(edgeCurvatureSlider.value));
-  const generalLineWeightSlider = document.getElementById('general-line-weight-slider');
-  const generalLineWeightValue = document.getElementById('general-line-weight-value');
-  const generalLineWeightDecrement = document.getElementById('general-line-weight-decrement');
-  const generalLineWeightIncrement = document.getElementById('general-line-weight-increment');
-  state.edgeLineWeight = Number(generalLineWeightSlider.value);
-  const variableLineWeightToggle = document.getElementById('variable-line-weight-toggle');
-  state.variableLineWeightEnabled = variableLineWeightToggle.checked;
   const layoutGravitySlider = document.getElementById('layout-gravity-slider');
   const layoutGravityValue = document.getElementById('layout-gravity-value');
   const layoutGravityDecrement = document.getElementById('layout-gravity-decrement');
@@ -1170,11 +999,6 @@ async function main() {
     updateFocusOpacity();
     renderer.refresh();
   }
-
-  colorModeSelect.addEventListener('change', () => {
-    state.colorMode = colorModeSelect.value;
-    refresh();
-  });
 
   let cancelAnimation = null;
   let centralityFilterScoreCache = null;
@@ -1867,151 +1691,11 @@ async function main() {
     placedLabelBoxes = [];
   });
 
-  function drawDirectedEdgeGradients() {
-    if (!directedEdgeGradientContext) return;
-    const { width, height } = renderer.getDimensions();
-    directedEdgeGradientContext.clearRect(0, 0, width, height);
-    graph.forEachEdge((edge, attributes, source, target) => {
-      if (!graph.isDirected(edge)) return;
-      const edgeData = renderer.getEdgeDisplayData(edge);
-      const sourceData = renderer.getNodeDisplayData(source);
-      const targetData = renderer.getNodeDisplayData(target);
-      if (!edgeData || edgeData.hidden || !sourceData || sourceData.hidden || !targetData || targetData.hidden) return;
-      const start = renderer.framedGraphToViewport(sourceData);
-      const end = renderer.framedGraphToViewport(targetData);
-      const deltaX = end.x - start.x;
-      const deltaY = end.y - start.y;
-      const length = Math.hypot(deltaX, deltaY);
-      if (!length) return;
-
-      const isSelected = state.selectedEdgeIds.has(edge);
-      const isHovered = state.hoveredEdgeIds.has(edge);
-      const color = isSelected ? '#ffffff'
-        : isHovered ? '#ffd166'
-          : state.edgeTypeColors.get(attributes.adjacencyType) || attributes.color || '#9ca3af';
-      const targetColor = darkenHexColor(color, 0.12);
-      const gradient = directedEdgeGradientContext.createLinearGradient(start.x, start.y, end.x, end.y);
-      gradient.addColorStop(0, lightenHexColor(color, 0.76));
-      gradient.addColorStop(1, targetColor);
-      const focusAlpha = state.focusOpacityActive && !state.focusEdgeIds.has(edge)
-        ? FOCUS_DIM_OPACITY
-        : 1;
-      directedEdgeGradientContext.globalAlpha = focusAlpha;
-      directedEdgeGradientContext.strokeStyle = gradient;
-      directedEdgeGradientContext.lineWidth = Math.max(1, renderer.scaleSize(edgeData.size || 1));
-      directedEdgeGradientContext.lineCap = 'round';
-
-      const curvature = Number.isFinite(edgeData.curvature) ? edgeData.curvature : 0;
-      const control = {
-        x: (start.x + end.x) / 2 - deltaY * curvature,
-        y: (start.y + end.y) / 2 + deltaX * curvature,
-      };
-      directedEdgeGradientContext.beginPath();
-      directedEdgeGradientContext.moveTo(start.x, start.y);
-      if (curvature) directedEdgeGradientContext.quadraticCurveTo(control.x, control.y, end.x, end.y);
-      else directedEdgeGradientContext.lineTo(end.x, end.y);
-      directedEdgeGradientContext.stroke();
-
-      const upfrontLineWeight = getFinancialUpfrontLineWeight(edgeData);
-      if (upfrontLineWeight !== null) {
-        const upfrontLineWidth = Math.max(1, renderer.scaleSize(upfrontLineWeight));
-        const offset = (directedEdgeGradientContext.lineWidth + upfrontLineWidth) / 2 + 2;
-        const normalX = -deltaY / length;
-        const normalY = deltaX / length;
-        const offsetStart = { x: start.x + normalX * offset, y: start.y + normalY * offset };
-        const offsetControl = { x: control.x + normalX * offset, y: control.y + normalY * offset };
-        const offsetEnd = { x: end.x + normalX * offset, y: end.y + normalY * offset };
-        const upfrontGradient = directedEdgeGradientContext.createLinearGradient(
-          offsetStart.x,
-          offsetStart.y,
-          offsetEnd.x,
-          offsetEnd.y,
-        );
-        upfrontGradient.addColorStop(0, lightenHexColor(color, 0.76));
-        upfrontGradient.addColorStop(1, targetColor);
-        directedEdgeGradientContext.save();
-        directedEdgeGradientContext.strokeStyle = upfrontGradient;
-        directedEdgeGradientContext.lineWidth = upfrontLineWidth;
-        directedEdgeGradientContext.setLineDash([upfrontLineWidth * 3, upfrontLineWidth * 2]);
-        directedEdgeGradientContext.beginPath();
-        directedEdgeGradientContext.moveTo(offsetStart.x, offsetStart.y);
-        if (curvature) {
-          directedEdgeGradientContext.quadraticCurveTo(offsetControl.x, offsetControl.y, offsetEnd.x, offsetEnd.y);
-        } else {
-          directedEdgeGradientContext.lineTo(offsetEnd.x, offsetEnd.y);
-        }
-        directedEdgeGradientContext.stroke();
-        const upfrontTangentX = curvature ? offsetEnd.x - offsetControl.x : offsetEnd.x - offsetStart.x;
-        const upfrontTangentY = curvature ? offsetEnd.y - offsetControl.y : offsetEnd.y - offsetStart.y;
-        const upfrontTangentLength = Math.hypot(upfrontTangentX, upfrontTangentY) || 1;
-        const upfrontUnitX = upfrontTangentX / upfrontTangentLength;
-        const upfrontUnitY = upfrontTangentY / upfrontTangentLength;
-        const upfrontTipX = offsetEnd.x - upfrontUnitX * targetRadius * 0.8;
-        const upfrontTipY = offsetEnd.y - upfrontUnitY * targetRadius * 0.8;
-        const upfrontHeadLength = Math.max(5, upfrontLineWidth * 3.5);
-        const upfrontHalfWidth = Math.max(3, upfrontLineWidth * 2);
-        const upfrontBaseX = upfrontTipX - upfrontUnitX * upfrontHeadLength;
-        const upfrontBaseY = upfrontTipY - upfrontUnitY * upfrontHeadLength;
-        const upfrontHeadNormalX = -upfrontUnitY;
-        const upfrontHeadNormalY = upfrontUnitX;
-        directedEdgeGradientContext.setLineDash([]);
-        directedEdgeGradientContext.fillStyle = targetColor;
-        directedEdgeGradientContext.beginPath();
-        directedEdgeGradientContext.moveTo(upfrontTipX, upfrontTipY);
-        directedEdgeGradientContext.lineTo(
-          upfrontBaseX + upfrontHeadNormalX * upfrontHalfWidth,
-          upfrontBaseY + upfrontHeadNormalY * upfrontHalfWidth,
-        );
-        directedEdgeGradientContext.lineTo(
-          upfrontBaseX - upfrontHeadNormalX * upfrontHalfWidth,
-          upfrontBaseY - upfrontHeadNormalY * upfrontHalfWidth,
-        );
-        directedEdgeGradientContext.closePath();
-        directedEdgeGradientContext.fill();
-        directedEdgeGradientContext.restore();
-      }
-
-      const tangentX = curvature ? end.x - control.x : deltaX;
-      const tangentY = curvature ? end.y - control.y : deltaY;
-      const tangentLength = Math.hypot(tangentX, tangentY) || 1;
-      const unitX = tangentX / tangentLength;
-      const unitY = tangentY / tangentLength;
-      const targetRadius = renderer.scaleSize(targetData.size || 1);
-      const tipX = end.x - unitX * targetRadius * 0.8;
-      const tipY = end.y - unitY * targetRadius * 0.8;
-      const headLength = Math.max(4, directedEdgeGradientContext.lineWidth * 2.5);
-      const halfWidth = Math.max(2, directedEdgeGradientContext.lineWidth * 1.5);
-      const baseX = tipX - unitX * headLength;
-      const baseY = tipY - unitY * headLength;
-      const normalX = -unitY;
-      const normalY = unitX;
-      directedEdgeGradientContext.fillStyle = targetColor;
-      directedEdgeGradientContext.beginPath();
-      directedEdgeGradientContext.moveTo(tipX, tipY);
-      directedEdgeGradientContext.lineTo(baseX + normalX * halfWidth, baseY + normalY * halfWidth);
-      directedEdgeGradientContext.lineTo(baseX - normalX * halfWidth, baseY - normalY * halfWidth);
-      directedEdgeGradientContext.closePath();
-      directedEdgeGradientContext.fill();
-    });
-    directedEdgeGradientContext.globalAlpha = 1;
-  }
-
   renderer.createCanvasContext('size-halos', {
     beforeLayer: 'nodes',
     style: { pointerEvents: 'none' },
   });
   const sizeHaloContext = renderer.getCanvases()['size-halos'].getContext('2d');
-  renderer.createCanvasContext('directed-edge-gradients', {
-    beforeLayer: 'nodes',
-    style: { pointerEvents: 'none' },
-  });
-  const directedEdgeGradientContext = renderer.getCanvases()['directed-edge-gradients'].getContext('2d');
-  renderer.on('afterRender', drawDirectedEdgeGradients);
-  renderer.createCanvasContext('category-pies', {
-    beforeLayer: 'labels',
-    style: { pointerEvents: 'none' },
-  });
-  const categoryPieContext = renderer.getCanvases()['category-pies'].getContext('2d');
   renderer.resize(true);
   renderer.on('afterRender', () => {
     if (!sizeHaloContext) return;
@@ -2024,33 +1708,12 @@ async function main() {
         : 1;
       sizeHaloContext.globalAlpha = 0.16 * focusAlpha;
       const { x, y } = renderer.graphToViewport({ x: attributes.x, y: attributes.y });
-      const isEmphasized = node === hoveredLabelNode || state.emphasizedNodeIds.has(node);
-      const radius = renderer.scaleSize(attributes.size);
-      if (state.colorMode === 'category' && drawCategoryPie(sizeHaloContext, x, y, radius, attributes.topics)) return;
-      sizeHaloContext.fillStyle = nodeColorForMode(attributes, isEmphasized);
+      sizeHaloContext.fillStyle = attributes.color;
       sizeHaloContext.beginPath();
-      sizeHaloContext.arc(x, y, radius, 0, Math.PI * 2);
+      sizeHaloContext.arc(x, y, renderer.scaleSize(attributes.size), 0, Math.PI * 2);
       sizeHaloContext.fill();
     });
     sizeHaloContext.globalAlpha = 1;
-  });
-  renderer.on('afterRender', () => {
-    if (!categoryPieContext) return;
-    const { width, height } = renderer.getDimensions();
-    categoryPieContext.clearRect(0, 0, width, height);
-    if (state.colorMode !== 'category') return;
-    graph.forEachNode((node, attributes) => {
-      if (!isNodeVisible(node)) return;
-      const data = renderer.getNodeDisplayData(node);
-      if (!data || data.hidden) return;
-      const { x, y } = renderer.framedGraphToViewport(data);
-      const focusAlpha = state.focusOpacityActive && !state.focusNodeIds.has(node)
-        ? FOCUS_DIM_OPACITY
-        : 1;
-      categoryPieContext.globalAlpha = focusAlpha;
-      drawCategoryPie(categoryPieContext, x, y, renderer.scaleSize(data.size), attributes.topics);
-    });
-    categoryPieContext.globalAlpha = 1;
   });
 
   // Hints that there are more actors off-screen, by drawing small triangles pointing
@@ -2270,9 +1933,7 @@ async function main() {
     mapFootprintHitTargets = mapGeography.buildingFootprints.map((footprint) => {
       const actorId = footprint.actorId && graph.hasNode(footprint.actorId) ? footprint.actorId : null;
       const path = createProjectedPath(footprint.rings);
-      const attributes = actorId ? graph.getNodeAttributes(actorId) : null;
-      const isEmphasized = actorId && (state.emphasizedNodeIds.has(actorId) || hoveredLabelNode === actorId);
-      const color = attributes ? nodeColorForMode(attributes, isEmphasized) : '#ffffff';
+      const color = actorId ? graph.getNodeAttribute(actorId, 'color') : '#ffffff';
       const opacity = actorId && state.focusOpacityActive && !state.focusNodeIds.has(actorId)
         ? FOCUS_DIM_OPACITY
         : 1;
@@ -2526,13 +2187,12 @@ async function main() {
     const isEmphasized = node === hoveredLabelNode || state.emphasizedNodeIds.has(node);
     const isFocusLabel = state.focusNodeIds.has(node);
     const isDimmed = state.focusOpacityActive && !state.focusNodeIds.has(node);
-    const color = nodeColorForMode(data, isEmphasized);
     const zoomEligible = renderer.getCamera().getState().ratio <= LABEL_TIER_MAX_RATIO[tier];
     const labelVisible = isEmphasized || isFocusLabel || (state.showLabels && zoomEligible);
     return {
       ...data,
       size: CORE_NODE_SIZE * state.nodeSizeScale,
-      color: isDimmed ? colorWithOpacity(color, FOCUS_DIM_OPACITY) : color,
+      color: isDimmed ? colorWithOpacity(data.color, FOCUS_DIM_OPACITY) : data.color,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
       forceLabel: isEmphasized || isFocusLabel || (tier === 2 && state.showLabels && zoomEligible),
@@ -2547,16 +2207,14 @@ async function main() {
     const hidden = (!state.activeEdgeTypes.has(data.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge))
       || !nodesVisible;
     if (hidden) return { ...data, hidden: true };
-    const { weight, variable } = getEdgeLineWeight(data);
-    const baseSize = data.size || 1;
     if (state.selectedEdgeIds.has(edge)) {
-      return { ...data, color: '#ffffff', size: variable ? weight : Math.max(baseSize, 3) * weight };
+      return { ...data, color: '#ffffff', size: Math.max(data.size || 1, 3) };
     }
     return state.hoveredEdgeIds.has(edge)
-      ? { ...data, color: '#ffd166', size: variable ? weight : Math.max(baseSize, 2.5) * weight }
+      ? { ...data, color: '#ffd166', size: Math.max(data.size || 1, 2.5) }
       : state.focusOpacityActive && !state.focusEdgeIds.has(edge)
-        ? { ...data, color: colorWithOpacity(data.color, FOCUS_DIM_OPACITY), size: baseSize * weight }
-        : { ...data, size: baseSize * weight };
+        ? { ...data, color: colorWithOpacity(data.color, FOCUS_DIM_OPACITY) }
+        : data;
   });
 
   // Edge type filters
@@ -2642,30 +2300,6 @@ async function main() {
     setLayoutGravityDisplay(value);
     state.layoutGravity = value;
     relayout();
-  });
-
-  function applyGeneralLineWeight(value) {
-    const clamped = Math.max(1, Math.min(5, Number(value)));
-    generalLineWeightSlider.value = String(clamped);
-    generalLineWeightValue.textContent = String(clamped);
-    state.edgeLineWeight = clamped;
-    refresh();
-  }
-
-  generalLineWeightSlider.addEventListener('input', () => {
-    applyGeneralLineWeight(Number(generalLineWeightSlider.value));
-  });
-  generalLineWeightDecrement.addEventListener('click', () => {
-    applyGeneralLineWeight(Number(generalLineWeightSlider.value) - 1);
-  });
-  generalLineWeightIncrement.addEventListener('click', () => {
-    applyGeneralLineWeight(Number(generalLineWeightSlider.value) + 1);
-  });
-  makeSliderOutputEditable(generalLineWeightValue, () => ({ min: 1, max: 5 }), applyGeneralLineWeight);
-
-  variableLineWeightToggle.addEventListener('change', () => {
-    state.variableLineWeightEnabled = variableLineWeightToggle.checked;
-    refresh();
   });
 
   document.getElementById('freeze-positions').addEventListener('change', (e) => {

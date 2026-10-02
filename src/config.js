@@ -3,14 +3,11 @@ const base = import.meta.env.BASE_URL;
 
 export const DATA = {
   actorsFile: `${base}data/actors.csv`,
-  sentimentFile: `${base}data/actor%20database%20-%20actor_working%20-%20with%20news%20hits.csv`,
-  adjacencyFile: `${base}data/edges/adjacency.csv`,
   edgesManifest: `${base}data/edges/manifest.json`,
   edgesDir: `${base}data/edges/`,
   googleSheets: {
     publishedUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pub',
     actorGid: '1300872278',
-    adjacencyGid: '548852791',
     matrixGids: {
       'matrix_adm.csv': '119384752',
       'matrix_col.csv': '368522815',
