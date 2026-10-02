@@ -451,12 +451,24 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: space-between;
 }
 
+.appearance-controls label[for="node-size-slider"] {
+  display: flex;
+  justify-content: space-between;
+}
+
 .appearance-controls output {
   color: var(--text);
   font-variant-numeric: tabular-nums;
 }
 
 #centrality-threshold-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+#node-size-slider {
   width: 100%;
   margin: 0;
   accent-color: var(--accent);
@@ -1107,7 +1119,8 @@ button:hover {
 .zoom-controls {
   position: absolute;
   top: 16px;
-  right: 16px;
+  /* Tracks the details panel's live width (set via JS) so it never overlaps it. */
+  right: calc(var(--zoom-controls-details-offset, 56px) + 16px);
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -1189,6 +1202,12 @@ button:hover {
     inset: 0;
     width: 100%;
     height: 100%;
+  }
+
+  /* On mobile the details panel is a bottom tab (not a right-edge overlay), so the
+     zoom controls shouldn't track its width here. */
+  .zoom-controls {
+    right: 16px;
   }
 
   #panel-dock {

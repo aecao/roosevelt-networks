@@ -4,7 +4,7 @@ import EdgeCurveProgram, { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import betweennessCentrality from 'graphology-metrics/centrality/betweenness';
 import closenessCentrality from 'graphology-metrics/centrality/closeness';
 import eigenvectorCentrality from 'graphology-metrics/centrality/eigenvector';
-import { drawDiscNodeHover, drawDiscNodeLabel, EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
+import { drawDiscNodeHover, EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
@@ -18,6 +18,18 @@ const MAX_SIZE = 8;
 const CORE_NODE_SIZE = 2;
 const REFERENCE_CAMERA_RATIO = 0.3;
 const REFERENCE_SIZE_RATIO = Math.sqrt(REFERENCE_CAMERA_RATIO);
+// Maps the node size slider's abstract 1-100 display scale onto the actual size
+// multiplier: 1 -> 1.0x, 50 (default) -> 1.5x, 100 -> 2.0x.
+function nodeSizeDisplayToScale(display) {
+  if (display <= 50) return 1 + ((display - 1) / 49) * 0.5;
+  return 1.5 + ((display - 50) / 50) * 0.5;
+}
+// Label text sizes for the bottom/middle/top thirds of nodes by centrality rank
+// (the current/old label-size formula topped out at 15, so the top two tiers exceed it).
+const LABEL_TIER_SIZES = [11, 19, 26];
+// Max camera ratio (how zoomed OUT the view can be) at which each tier's label still
+// shows; more central nodes (higher tier) keep their label visible from further away.
+const LABEL_TIER_MAX_RATIO = [0.35, 0.8, Infinity];
 const POSITION_EDGE_TYPE = 'pos';
 // The gravity slider's displayed value is intentionally inverted (higher slider value
 // = looser/more spread out), since that reads more intuitively than raw ForceAtlas2
@@ -50,6 +62,7 @@ const state = {
   edgeTypeColors: new Map(),
   freezePositions: false,
   zoomToSelected: true,
+  nodeSizeScale: 1,
   sizeMode: 'scale-of-actor',
   centralityFilterType: 'degree-centrality',
   centralityThreshold: 0,
@@ -58,6 +71,7 @@ const state = {
   yearFilterEnabled: false,
   selectedYear: 2026,
   detailsManuallyCollapsed: true,
+  hasAutoExpandedDetails: false,
   selectedEdgeIds: new Set(),
   hoveredEdgeIds: new Set(),
   currentSelection: null,
@@ -290,6 +304,20 @@ function syncDetailsSidebar() {
   const detailsSidebar = document.getElementById('details-sidebar');
   const hasContent = Boolean(state.currentSelection) || state.pinnedSelections.length > 0;
   detailsSidebar.classList.toggle('has-selection', hasContent);
+  // The very first selection (node or edge) of the session auto-reveals the details
+  // panel; after that, the user's own collapse/expand choice is respected.
+  if (hasContent && !state.hasAutoExpandedDetails) {
+    state.hasAutoExpandedDetails = true;
+    if (detailsSidebar.classList.contains('collapsed')) {
+      detailsSidebar.classList.remove('collapsed');
+      state.detailsManuallyCollapsed = false;
+      const detailsToggle = document.getElementById('details-toggle');
+      detailsToggle.setAttribute('aria-expanded', 'true');
+      detailsToggle.setAttribute('aria-label', 'Minimize details');
+      detailsToggle.textContent = '−';
+      document.getElementById('workspace').style.setProperty('--zoom-controls-details-offset', `${detailsSidebar.offsetWidth}px`);
+    }
+  }
   if (state.detailsManuallyCollapsed
     && !window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
     detailsSidebar.classList.add('has-unread');
@@ -527,8 +555,20 @@ function showEdgeDetails(graph, edge) {
 
 async function main() {
   const workspace = document.getElementById('workspace');
+  // Node -> tier (0 small/close-only, 1 medium, 2 large/visible-from-far), keyed by
+  // the centrality type currently selected in the CENTRALITY panel.
+  let labelTierByNode = new Map();
+  // Bounding boxes of labels already drawn this frame, used to nudge/fade new labels
+  // that would otherwise overlap them. Reset at the start of each render.
+  let placedLabelBoxes = [];
+  const rectsOverlap = (a, b) => !(a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2);
   const sizeModeSelect = document.getElementById('size-mode');
   state.sizeMode = sizeModeSelect.value;
+  const nodeSizeSlider = document.getElementById('node-size-slider');
+  const nodeSizeValue = document.getElementById('node-size-value');
+  const nodeSizeDecrement = document.getElementById('node-size-decrement');
+  const nodeSizeIncrement = document.getElementById('node-size-increment');
+  state.nodeSizeScale = nodeSizeDisplayToScale(Number(nodeSizeSlider.value));
   const centralityTypeSelect = document.getElementById('centrality-type');
   const centralityThresholdSlider = document.getElementById('centrality-threshold-slider');
   const centralityThresholdValue = document.getElementById('centrality-threshold-value');
@@ -730,18 +770,57 @@ async function main() {
     labelWeight: '300',
     labelSize: 10,
     defaultDrawNodeLabel: (context, data, settings) => {
-      const size = Math.max(9, Math.min(15, 8 + data.size * 0.3));
-      drawDiscNodeLabel(context, data, { ...settings, labelSize: size });
-      const attributes = graph.getNodeAttribute(data.key, 'attributes') || {};
-      const fullName = attributes[DATA.nodeLabelField] || data.label;
-      if (fullName === data.label || data.size < 12) return;
-      const secondarySize = Math.max(7, Math.min(9, size * 0.7));
+      const tier = labelTierByNode.get(data.key) ?? 1;
+      const size = LABEL_TIER_SIZES[tier];
+      context.font = `${settings.labelWeight} ${size}px ${settings.labelFont}`;
+      const textWidth = context.measureText(data.label).width;
+
+      // Try the usual spot (right of the node) first, then nudge up/down, then try
+      // the opposite side, before giving up and fading out in favor of whatever
+      // more-central label is already occupying that space.
+      const lineStep = size * 0.95;
+      const candidates = [
+        { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 1, dy: -1 },
+        { dx: -1, dy: 0 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 },
+      ].map(({ dx, dy }) => {
+        const x = dx > 0 ? data.x + data.size + 3 : data.x - data.size - 3 - textWidth;
+        const y = data.y + size / 3 + dy * lineStep;
+        return { x, y, box: { x1: x, y1: y - size * 0.8, x2: x + textWidth, y2: y + size * 0.3 } };
+      });
+
+      let chosen = candidates[0];
+      let chosenOverlaps = placedLabelBoxes.filter((placed) => rectsOverlap(candidates[0].box, placed.box));
+      for (const candidate of candidates) {
+        const overlapping = placedLabelBoxes.filter((placed) => rectsOverlap(candidate.box, placed.box));
+        if (overlapping.length === 0) {
+          chosen = candidate;
+          chosenOverlaps = overlapping;
+          break;
+        }
+      }
+      const nearMoreCentralLabel = chosenOverlaps.some((placed) => placed.tier > tier);
+      const alpha = nearMoreCentralLabel ? 0.4 : 1;
+      placedLabelBoxes.push({ box: chosen.box, tier });
+
       const textColor = settings.labelColor.attribute
         ? graph.getNodeAttribute(data.key, settings.labelColor.attribute) || settings.labelColor.color || '#000000'
         : settings.labelColor.color;
-      context.font = `${settings.labelWeight} ${secondarySize}px ${settings.labelFont}`;
+      context.save();
+      context.globalAlpha = alpha;
       context.fillStyle = textColor;
-      context.fillText(fullName, data.x + data.size + 3, data.y + size / 3 + secondarySize + 2);
+      context.fillText(data.label, chosen.x, chosen.y);
+      context.restore();
+
+      const attributes = graph.getNodeAttribute(data.key, 'attributes') || {};
+      const fullName = attributes[DATA.nodeLabelField] || data.label;
+      if (fullName === data.label || tier === 0) return;
+      const secondarySize = Math.max(7, Math.min(9, size * 0.4));
+      context.font = `${settings.labelWeight} ${secondarySize}px ${settings.labelFont}`;
+      context.save();
+      context.globalAlpha = alpha;
+      context.fillStyle = textColor;
+      context.fillText(fullName, chosen.x, chosen.y + secondarySize);
+      context.restore();
     },
     defaultDrawNodeHover: (context, data, settings) => {
       const size = Math.max(10, Math.min(16, 9 + data.size * 0.3));
@@ -788,6 +867,7 @@ async function main() {
     if (workspace.dataset.mode !== 'relationships') return;
     updateNodeSizes();
     updateCentralityThresholdRange();
+    updateLabelTiers();
     if (state.freezePositions) {
       renderer.refresh();
       return;
@@ -802,6 +882,26 @@ async function main() {
   }
 
   sizeModeSelect.addEventListener('change', relayout);
+
+  function applyNodeSizeDisplay(display) {
+    const clamped = Math.max(1, Math.min(100, display));
+    nodeSizeSlider.value = String(clamped);
+    state.nodeSizeScale = nodeSizeDisplayToScale(clamped);
+    nodeSizeValue.textContent = String(Math.round(clamped));
+    refresh();
+  }
+
+  nodeSizeSlider.addEventListener('input', () => {
+    applyNodeSizeDisplay(Number(nodeSizeSlider.value));
+  });
+
+  nodeSizeDecrement.addEventListener('click', () => {
+    applyNodeSizeDisplay(Number(nodeSizeSlider.value) - 25);
+  });
+
+  nodeSizeIncrement.addEventListener('click', () => {
+    applyNodeSizeDisplay(Number(nodeSizeSlider.value) + 25);
+  });
 
   function isNodeVisibleBase(node) {
     const attrs = graph.getNodeAttributes(node);
@@ -851,6 +951,25 @@ async function main() {
     }));
     centralityThresholdDecrement.disabled = index <= tickIndices[0];
     centralityThresholdIncrement.disabled = index >= tickIndices[tickIndices.length - 1];
+  }
+
+  // Buckets nodes into 3 label tiers (by rank, not raw value) based on whichever
+  // centrality type is currently selected, so label prominence/visibility tracks it.
+  // The top tier (largest text) is capped at 10 nodes; the rest split evenly below it.
+  const MAX_TOP_LABEL_TIER_NODES = 10;
+  function updateLabelTiers() {
+    const scores = getCentralityFilterScores();
+    const sortedEntries = Object.entries(scores).sort((first, second) => first[1] - second[1]);
+    const tiers = new Map();
+    const topCount = Math.min(MAX_TOP_LABEL_TIER_NODES, sortedEntries.length);
+    const topEntries = sortedEntries.slice(sortedEntries.length - topCount);
+    const remainingEntries = sortedEntries.slice(0, sortedEntries.length - topCount);
+    topEntries.forEach(([node]) => tiers.set(node, 2));
+    remainingEntries.forEach(([node], index) => {
+      const percentile = remainingEntries.length > 1 ? index / (remainingEntries.length - 1) : 1;
+      tiers.set(node, percentile >= 0.5 ? 1 : 0);
+    });
+    labelTierByNode = tiers;
   }
 
   function passesCentralityThreshold(node) {
@@ -1304,6 +1423,11 @@ async function main() {
 
   updateNodeSizes();
   updateCentralityThresholdRange();
+  updateLabelTiers();
+
+  renderer.on('beforeRender', () => {
+    placedLabelBoxes = [];
+  });
 
   renderer.createCanvasContext('size-halos', {
     beforeLayer: 'nodes',
@@ -1696,7 +1820,17 @@ async function main() {
 
   renderer.setSetting('nodeReducer', (node, data) => {
     const hidden = !isNodeVisible(node);
-    return hidden ? { ...data, hidden: true } : { ...data, size: CORE_NODE_SIZE };
+    if (hidden) return { ...data, hidden: true };
+    const tier = labelTierByNode.get(node) ?? 1;
+    const labelVisible = renderer.getCamera().getState().ratio <= LABEL_TIER_MAX_RATIO[tier];
+    return {
+      ...data,
+      size: CORE_NODE_SIZE * state.nodeSizeScale,
+      // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
+      // go through the normal spacing algorithm once in-range, to avoid a wall of text.
+      forceLabel: tier === 2 && labelVisible,
+      label: labelVisible ? data.label : null,
+    };
   });
 
   renderer.setSetting('edgeReducer', (edge, data) => {
@@ -1924,6 +2058,12 @@ async function main() {
   });
 
   const detailsToggle = document.getElementById('details-toggle');
+  // Keeps the zoom controls clear of the details panel regardless of its collapsed/
+  // expanded/resized width, since both are anchored to the workspace's right edge.
+  function updateZoomControlsOffset() {
+    workspace.style.setProperty('--zoom-controls-details-offset', `${detailsSidebar.offsetWidth}px`);
+  }
+  updateZoomControlsOffset();
   detailsToggle.addEventListener('click', () => {
     const collapsed = detailsSidebar.classList.toggle('collapsed');
     state.detailsManuallyCollapsed = collapsed;
@@ -1931,6 +2071,7 @@ async function main() {
     detailsToggle.setAttribute('aria-expanded', String(!collapsed));
     detailsToggle.setAttribute('aria-label', collapsed ? 'Show details' : 'Minimize details');
     detailsToggle.textContent = collapsed ? '+' : '−';
+    updateZoomControlsOffset();
   });
 
   const detailsResizeHandle = document.getElementById('details-resize-handle');
@@ -1964,6 +2105,7 @@ async function main() {
       const maximumWidth = window.innerWidth / 2;
       const width = Math.max(minimumWidth, Math.min(maximumWidth, startWidth + startX - moveEvent.clientX));
       detailsSidebar.style.setProperty('--details-sidebar-width', `${width}px`);
+      updateZoomControlsOffset();
     };
 
     document.addEventListener('pointermove', resize);
