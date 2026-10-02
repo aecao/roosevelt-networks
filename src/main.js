@@ -736,6 +736,8 @@ async function main() {
   let mapGeoFrontCanvas = null;
   let mapGeoFrontContext = null;
   let mapProjection = null;
+  let hoveredBuildingActorId = null;
+  let mapFootprintHitTargets = [];
   let mapCenterX = 0;
   let mapCenterY = 0;
   let mapCancelAnimation = null;
@@ -765,6 +767,7 @@ async function main() {
   function setMode(mode) {
     const isMap = mode === 'map';
     const leavingRelationships = workspace.dataset.mode === 'relationships' && mode !== 'relationships';
+    if (!isMap) hoveredBuildingActorId = null;
     if (leavingRelationships && state.renderer) {
       relationshipsCameraState = state.renderer.getCamera().getState();
     }
@@ -1168,7 +1171,7 @@ async function main() {
     state.pinnedGraphNodeIds = pinnedGraphNodeIds;
     state.pinnedGraphEdgeIds = pinnedGraphEdgeIds;
 
-    const hoveredNodeIds = [hoveredLabelNode, state.hoveredSearchNodeId]
+    const hoveredNodeIds = [hoveredLabelNode, hoveredBuildingActorId, state.hoveredSearchNodeId]
       .filter((node) => node && graph.hasNode(node));
     const hoveredEdgeIds = [...state.hoveredEdgeIds];
     const hoveredEdgeSelection = hoveredEdgeIds.length
@@ -1863,48 +1866,97 @@ async function main() {
     mapGeoFrontCanvas = renderer.getCanvases().geoFront;
     mapGeoFrontContext = mapGeoFrontCanvas.getContext('2d');
     renderer.on('afterRender', drawMapGeoLayer);
+    graphContainer.addEventListener('pointermove', updateHoveredBuilding);
+    graphContainer.addEventListener('pointerleave', clearHoveredBuilding);
     renderer.resize(true);
   }
 
-  function drawRings(ctx, rings, fillStyle, strokeStyle) {
+  function createProjectedPath(rings) {
+    const path = new Path2D();
     rings.forEach((ring) => {
       if (ring.length < 3) return;
-      ctx.beginPath();
       ring.forEach((point, index) => {
         // graphToViewport normalizes raw graph-space coordinates before projecting to pixels.
         const viewportPoint = renderer.graphToViewport(mapProjection(point.lng, point.lat));
-        if (index === 0) ctx.moveTo(viewportPoint.x, viewportPoint.y);
-        else ctx.lineTo(viewportPoint.x, viewportPoint.y);
+        if (index === 0) path.moveTo(viewportPoint.x, viewportPoint.y);
+        else path.lineTo(viewportPoint.x, viewportPoint.y);
       });
-      ctx.closePath();
-      if (fillStyle) {
-        ctx.fillStyle = fillStyle;
-        ctx.fill();
-      }
-      if (strokeStyle) {
-        ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth = 1;
-        ctx.stroke();
-      }
+      path.closePath();
     });
+    return path;
+  }
+
+  function drawRings(ctx, rings, fillStyle, strokeStyle, lineWidth = 1) {
+    const path = createProjectedPath(rings);
+    if (fillStyle) {
+      ctx.fillStyle = fillStyle;
+      ctx.fill(path);
+    }
+    if (strokeStyle) {
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth = lineWidth;
+      ctx.stroke(path);
+    }
+  }
+
+  function updateHoveredBuilding(event) {
+    if (workspace.dataset.mode !== 'map' || !mapGeoContext) {
+      clearHoveredBuilding();
+      return;
+    }
+    const bounds = graphContainer.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const y = event.clientY - bounds.top;
+    let actorId = null;
+    for (let index = mapFootprintHitTargets.length - 1; index >= 0; index -= 1) {
+      const target = mapFootprintHitTargets[index];
+      if (target.actorId && mapGeoContext.isPointInPath(target.path, x, y)) {
+        actorId = target.actorId;
+        break;
+      }
+    }
+    if (actorId === hoveredBuildingActorId) return;
+    hoveredBuildingActorId = actorId;
+    refresh();
+  }
+
+  function clearHoveredBuilding() {
+    if (!hoveredBuildingActorId) return;
+    hoveredBuildingActorId = null;
+    refresh();
   }
 
   function drawMapGeoLayer() {
     if (!mapGeoContext || !mapModeApplied || !mapGeography || !mapProjection) return;
     const { width, height } = renderer.getDimensions();
     mapGeoContext.clearRect(0, 0, width, height);
-    mapGeography.buildingFootprints.forEach((footprint) => {
-      drawRings(
-        mapGeoContext,
-        footprint.rings,
-        footprint.actorId ? 'rgba(255, 255, 255, 0.28)' : 'rgba(255, 255, 255, 0.1)',
-        'rgba(255, 255, 255, 0.6)',
-      );
+    mapFootprintHitTargets = mapGeography.buildingFootprints.map((footprint) => {
+      const actorId = footprint.actorId && graph.hasNode(footprint.actorId) ? footprint.actorId : null;
+      const path = createProjectedPath(footprint.rings);
+      const color = actorId ? graph.getNodeAttribute(actorId, 'color') : '#ffffff';
+      const opacity = actorId && state.focusOpacityActive && !state.focusNodeIds.has(actorId)
+        ? FOCUS_DIM_OPACITY
+        : 1;
+      mapGeoContext.globalAlpha = opacity;
+      mapGeoContext.fillStyle = color;
+      mapGeoContext.fill(path);
+      mapGeoContext.strokeStyle = color;
+      mapGeoContext.lineWidth = 1;
+      mapGeoContext.stroke(path);
+      return { actorId, path };
     });
+    mapGeoContext.globalAlpha = 1;
 
     if (!mapGeoFrontContext) return;
     mapGeoFrontContext.clearRect(0, 0, width, height);
     drawRings(mapGeoFrontContext, mapGeography.islandRings, null, 'rgba(160, 200, 255, 0.9)');
+    mapFootprintHitTargets.forEach(({ actorId, path }) => {
+      if (!actorId || !state.emphasizedNodeIds.has(actorId)) return;
+      mapGeoFrontContext.beginPath();
+      mapGeoFrontContext.strokeStyle = '#ffffff';
+      mapGeoFrontContext.lineWidth = 2;
+      mapGeoFrontContext.stroke(path);
+    });
   }
 
   // Pins actors tied to a building at that building's projected location and
