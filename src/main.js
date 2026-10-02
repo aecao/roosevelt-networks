@@ -166,6 +166,32 @@ function createSvgElement(name, attributes = {}, text = null) {
   return element;
 }
 
+function parseParcelArea(raw) {
+  const match = /^\s*([\d,]+(?:\.\d+)?)\s*(?:sq\s*ft|sq\.?\s*feet|ft2)?\s*$/i.exec(String(raw || ''));
+  if (!match) return null;
+  const area = Number(match[1].replaceAll(',', ''));
+  return Number.isFinite(area) && area > 0 ? area : null;
+}
+
+function applyOwnerTenantWidths(graph) {
+  const areas = [];
+  graph.forEachEdge((edge, attributes) => {
+    if (attributes.adjacencyType === 'own' && Number.isFinite(attributes.parcelArea)) {
+      areas.push(attributes.parcelArea);
+    }
+  });
+  if (!areas.length) return;
+  const minimum = Math.sqrt(Math.min(...areas));
+  const maximum = Math.sqrt(Math.max(...areas));
+  graph.forEachEdge((edge, attributes) => {
+    if (attributes.adjacencyType !== 'own' || !Number.isFinite(attributes.parcelArea)) return;
+    const proportion = maximum > minimum
+      ? (Math.sqrt(attributes.parcelArea) - minimum) / (maximum - minimum)
+      : 0;
+    graph.setEdgeAttribute(edge, 'size', 1 + Math.max(0, Math.min(1, proportion)) * 4);
+  });
+}
+
 function sizeForActorScale(scale) {
   const scaleRank = { MICRO: 0, MESO: 1, MACRO: 2 }[scale];
   if (scaleRank === undefined) return (MIN_SIZE + MAX_SIZE) / 2;
@@ -287,6 +313,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       label: entry.label,
       weight: 1,
       size: 1,
+      parcelArea: type === 'own' ? parseParcelArea(row['parameter 0']) : null,
       color: state.edgeTypeColors.get(type),
     };
     if (directed) graph.addDirectedEdge(source, target, attrs);
@@ -294,6 +321,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   });
   onProgress(2, totalSteps);
 
+  applyOwnerTenantWidths(graph);
   assignParallelEdgeCurves(graph);
 
   state.activeEdgeTypes = new Set(edgeTypes);
