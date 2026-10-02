@@ -70,7 +70,7 @@ export async function loadActors(fromGoogleSheets = false) {
   return actors;
 }
 
-export async function loadActorSentiments() {
+export async function loadActorNewsMetrics() {
   try {
     const text = await fetchText(DATA.sentimentFile);
     const { data } = Papa.parse(text, { header: true, skipEmptyLines: true });
@@ -78,12 +78,21 @@ export async function loadActorSentiments() {
       const actorId = (row[DATA.nodeIdField] || '').trim().toLowerCase();
       if (!actorId) return [];
       const sentiment = Number.parseFloat(row.sentiment);
-      return [[actorId, Number.isFinite(sentiment) ? sentiment : null]];
+      const hits = Number.parseFloat(row.hits);
+      return [[actorId, {
+        sentiment: Number.isFinite(sentiment) ? sentiment : null,
+        hits: Number.isFinite(hits) && hits >= 0 ? hits : null,
+      }]];
     }));
   } catch (error) {
-    console.warn('Unable to load local actor sentiment data.', error);
+    console.warn('Unable to load local actor news metrics.', error);
     return new Map();
   }
+}
+
+export async function loadActorSentiments() {
+  const metrics = await loadActorNewsMetrics();
+  return new Map([...metrics].map(([actor, values]) => [actor, values.sentiment]));
 }
 
 export async function loadAdjacencyRows(fromGoogleSheets = false) {

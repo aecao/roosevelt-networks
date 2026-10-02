@@ -9,7 +9,7 @@ import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
 import { DATA, PALETTE, SHEET_ADJACENCY_TYPES } from './config.js';
-import { dataLoadState, loadActors, loadActorSentiments, loadAdjacencyRows, loadEdgeManifest } from './data.js';
+import { dataLoadState, loadActors, loadActorNewsMetrics, loadAdjacencyRows, loadEdgeManifest } from './data.js';
 
 const mapGeoModule = import('./map-mode.js');
 
@@ -23,6 +23,27 @@ const REFERENCE_SIZE_RATIO = Math.sqrt(REFERENCE_CAMERA_RATIO);
 function nodeSizeDisplayToScale(display) {
   if (display <= 50) return 1 + ((display - 1) / 49) * 0.5;
   return 1.5 + ((display - 50) / 50) * 0.5;
+}
+
+function haloSizeForScore(scale, value, minimum, maximum) {
+  const ratio = !Number.isFinite(value) || maximum <= minimum
+    ? 0
+    : Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)));
+  const nodeRadius = coreNodeSize(scale);
+  return nodeRadius + ratio * (50 - nodeRadius);
+}
+
+function hitTestHaloBoundary(targets, x, y, tolerance = 2) {
+  let closest = null;
+  let closestDistance = tolerance;
+  targets.forEach((target) => {
+    const distance = Math.abs(Math.hypot(x - target.x, y - target.y) - target.radius);
+    if (distance <= closestDistance) {
+      closest = target.node;
+      closestDistance = distance;
+    }
+  });
+  return closest;
 }
 
 function coreNodeSize(scale) {
@@ -82,7 +103,7 @@ const state = {
   nodeSizeScale: 1,
   sizeNodesByScale: true,
   showLabels: true,
-  sizeMode: 'scale-of-actor',
+  sizeMode: 'public-interest',
   centralityFilterType: 'degree-centrality',
   centralityThreshold: 0,
   edgeCurvatureScale: 1,
@@ -359,12 +380,12 @@ function applyEdgeCurvatureScale(graph) {
 async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   const graph = new Graph({ multi: true });
 
-  const [actors, sentimentByActor] = await Promise.all([
+  const [actors, newsMetricsByActor] = await Promise.all([
     loadActors(fromGoogleSheets),
-    loadActorSentiments(),
+    loadActorNewsMetrics(),
   ]);
   const sentimentValues = actors
-    .map((actor) => sentimentByActor.get((actor[DATA.nodeIdField] || '').trim().toLowerCase()))
+    .map((actor) => newsMetricsByActor.get((actor[DATA.nodeIdField] || '').trim().toLowerCase())?.sentiment)
     .filter(Number.isFinite);
   state.sentimentMaxAbs = Math.max(0, ...sentimentValues.map(Math.abs)) || 1;
   const categories = [...new Set(actors.map((a) => a[DATA.nodeCategoryField] || 'Unknown'))].sort();
@@ -393,7 +414,8 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       label: abbreviation || fullName,
       size: sizeForActorScale(parseScale(actor[DATA.nodeScaleField])),
       color: state.categoryColors.get(category),
-      sentiment: sentimentByActor.get(id.trim().toLowerCase()) ?? null,
+      sentiment: newsMetricsByActor.get(id.trim().toLowerCase())?.sentiment ?? null,
+      hits: newsMetricsByActor.get(id.trim().toLowerCase())?.hits ?? null,
       category,
       newFromSheet: dataLoadState.sheetOnlyActorIds.has(id),
       topics: actorTopics,
@@ -864,6 +886,7 @@ async function main() {
   // the centrality type currently selected in the CENTRALITY panel.
   let labelTierByNode = new Map();
   let hoveredLabelNode = null;
+  let hoveredHaloNode = null;
   // Bounding boxes of labels already drawn this frame, used to nudge/fade new labels
   // that would otherwise overlap them. Reset at the start of each render.
   let placedLabelBoxes = [];
@@ -974,6 +997,7 @@ async function main() {
 
   function setMode(mode) {
     const isMap = mode === 'map';
+    hoveredHaloNode = null;
     const leavingRelationships = workspace.dataset.mode === 'relationships' && mode !== 'relationships';
     if (!isMap) hoveredBuildingActorId = null;
     if (leavingRelationships && state.renderer) {
@@ -1389,7 +1413,7 @@ async function main() {
     state.pinnedGraphNodeIds = pinnedGraphNodeIds;
     state.pinnedGraphEdgeIds = pinnedGraphEdgeIds;
 
-    const hoveredNodeIds = [hoveredLabelNode, hoveredBuildingActorId, state.hoveredSearchNodeId]
+    const hoveredNodeIds = [hoveredLabelNode, hoveredHaloNode, hoveredBuildingActorId, state.hoveredSearchNodeId]
       .filter((node) => node && graph.hasNode(node));
     const hoveredEdgeIds = [...state.hoveredEdgeIds];
     const hoveredEdgeSelection = hoveredEdgeIds.length
@@ -1878,26 +1902,22 @@ async function main() {
     state.sizeMode = mode;
     const scores = mode.endsWith('-centrality') ? centralityScores(mode) : {};
     const visibleScores = new Map(graph.nodes().filter(isNodeVisible).map((node) => {
-      if (mode === 'scale-of-actor') {
-        const scaleRank = { MICRO: 0, MESO: 0.5, MACRO: 1 }[graph.getNodeAttribute(node, 'scale')];
-        return [node, scaleRank ?? 0.5];
-      }
       if (mode === 'public-interest') {
-        const attributes = graph.getNodeAttribute(node, 'attributes') || {};
-        const value = Number.parseFloat(attributes['public sentiment']);
-        return [node, Number.isFinite(value) ? value : 0];
+        return [node, graph.getNodeAttribute(node, 'hits')];
       }
       if (mode === 'plain') return [node, 0];
       return [node, Number.isFinite(scores[node]) ? scores[node] : 0];
     }));
-    const values = [...visibleScores.values()];
+    const values = [...visibleScores.values()].filter(Number.isFinite);
     const minimum = values.length ? Math.min(...values) : 0;
     const maximum = values.length ? Math.max(...values) : 0;
 
     graph.forEachNode((node) => {
       const value = visibleScores.get(node);
-      const ratio = value === undefined ? 0 : maximum === minimum ? 0.5 : (value - minimum) / (maximum - minimum);
-      graph.setNodeAttribute(node, 'size', MIN_SIZE + ratio * (MAX_SIZE - MIN_SIZE));
+      const ratio = !Number.isFinite(value) || maximum <= minimum
+        ? 0
+        : Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)));
+      graph.setNodeAttribute(node, 'haloRatio', mode === 'plain' ? null : ratio);
     });
   }
 
@@ -1918,10 +1938,16 @@ async function main() {
     if (financialUpfrontContext) drawFinancialUpfront(financialUpfrontContext, renderer, graph);
   });
   renderer.createCanvasContext('size-halos', {
-    beforeLayer: 'nodes',
+    beforeLayer: 'edges',
     style: { pointerEvents: 'none' },
   });
   const sizeHaloContext = renderer.getCanvases()['size-halos'].getContext('2d');
+  renderer.createCanvasContext('halo-outlines', {
+    beforeLayer: 'edges',
+    style: { pointerEvents: 'none' },
+  });
+  const haloOutlineContext = renderer.getCanvases()['halo-outlines'].getContext('2d');
+  let haloHitTargets = [];
   renderer.createCanvasContext('category-pies', {
     beforeLayer: 'labels',
     style: { pointerEvents: 'none' },
@@ -1932,18 +1958,38 @@ async function main() {
     if (!sizeHaloContext) return;
     const { width, height } = renderer.getDimensions();
     sizeHaloContext.clearRect(0, 0, width, height);
+    haloOutlineContext?.clearRect(0, 0, width, height);
+    haloHitTargets = [];
     graph.forEachNode((node, attributes) => {
-      if (!isNodeVisible(node) || attributes.size <= MIN_SIZE) return;
+      if (!isNodeVisible(node) || !Number.isFinite(attributes.haloRatio)) return;
+      const haloSize = haloSizeForScore(attributes.scale, attributes.haloRatio, 0, 1);
+      if (haloSize <= coreNodeSize(attributes.scale)) return;
       const focusAlpha = state.focusOpacityActive && !state.focusNodeIds.has(node)
         ? FOCUS_DIM_OPACITY
         : 1;
       sizeHaloContext.globalAlpha = 0.16 * focusAlpha;
       const { x, y } = renderer.graphToViewport({ x: attributes.x, y: attributes.y });
+      const radius = renderer.scaleSize(haloSize);
+      haloHitTargets.push({ node, x, y, radius });
       const isEmphasized = node === hoveredLabelNode || state.emphasizedNodeIds.has(node);
       sizeHaloContext.fillStyle = nodeColorForMode(attributes, isEmphasized);
       sizeHaloContext.beginPath();
-      sizeHaloContext.arc(x, y, renderer.scaleSize(attributes.size), 0, Math.PI * 2);
+      sizeHaloContext.arc(x, y, renderer.scaleSize(haloSize), 0, Math.PI * 2);
       sizeHaloContext.fill();
+      const directlyFocused = node === hoveredLabelNode
+        || node === hoveredHaloNode
+        || node === hoveredBuildingActorId
+        || node === state.hoveredSearchNodeId
+        || (state.currentSelection?.kind === 'node' && state.currentSelection.nodeIds.includes(node))
+        || state.pinnedSelections.some((selection) => selection.kind === 'node' && selection.nodeIds.includes(node));
+      if (haloOutlineContext) {
+        const outlinedFocus = state.focusOpacityActive && directlyFocused;
+        haloOutlineContext.strokeStyle = outlinedFocus ? '#ffffff' : `rgba(255, 255, 255, ${0.2 * focusAlpha})`;
+        haloOutlineContext.lineWidth = outlinedFocus ? 1 : 0.5;
+        haloOutlineContext.beginPath();
+        haloOutlineContext.arc(x, y, radius, 0, Math.PI * 2);
+        haloOutlineContext.stroke();
+      }
     });
     sizeHaloContext.globalAlpha = 1;
   });
@@ -2863,7 +2909,34 @@ async function main() {
 
   renderer.on('clickNode', ({ node }) => openNodeDetails(node));
   renderer.on('clickEdge', ({ edge }) => openEdgeDetails(edge));
-  renderer.on('clickStage', clearCurrentSelection);
+  function haloBoundaryNodeAt(event) {
+    if (workspace.dataset.mode === 'timeline'
+      || renderer.getNodeAtPosition(event)
+      || renderer.getEdgeAtPoint(event.x, event.y)) return null;
+    return hitTestHaloBoundary(haloHitTargets, event.x, event.y);
+  }
+
+  function setHoveredHalo(node) {
+    if (hoveredHaloNode === node) return;
+    hoveredHaloNode = node;
+    refresh();
+  }
+
+  const mouseCaptor = renderer.getMouseCaptor();
+  mouseCaptor.on('mousemove', (event) => {
+    setHoveredHalo(mouseCaptor.isMouseDown ? null : haloBoundaryNodeAt(event));
+  });
+  mouseCaptor.on('mousedown', () => setHoveredHalo(null));
+  renderer.on('leaveStage', () => setHoveredHalo(null));
+  renderer.on('clickStage', ({ event }) => {
+    const node = haloBoundaryNodeAt(event);
+    if (node) openNodeDetails(node);
+    else clearCurrentSelection();
+  });
+  renderer.on('rightClickStage', ({ event }) => {
+    const node = haloBoundaryNodeAt(event);
+    if (node) showPinContextMenu(createNodeSelection(graph, node), event);
+  });
   renderer.on('rightClickNode', ({ node, event }) => showPinContextMenu(createNodeSelection(graph, node), event));
   renderer.on('rightClickEdge', ({ edge, event }) => showPinContextMenu(createEdgeSelection(graph, edge), event));
   renderer.on('enterEdge', ({ edge }) => updateHoveredEdgePair(edge));
