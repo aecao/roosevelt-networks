@@ -244,6 +244,10 @@ h1, h2, h3, h4, h5, h6 {
 
 #sidebar {
   order: 0;
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
   width: 300px;
   flex-shrink: 0;
   display: flex;
@@ -668,6 +672,38 @@ button:hover {
   cursor: pointer;
 }
 
+.edge-curvature-control {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.edge-curvature-control label {
+  display: flex;
+  justify-content: space-between;
+}
+
+.edge-curvature-control output {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+#edge-curvature-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+#layout-gravity-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
 .details {
   border-top: 1px solid var(--border);
   padding-top: 12px;
@@ -706,22 +742,19 @@ button:hover {
 
 #details-sidebar {
   order: 2;
-  display: none;
-  flex: 0 0 var(--details-sidebar-width, 300px);
-  width: var(--details-sidebar-width, 300px);
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  display: flex;
   flex-direction: column;
+  width: var(--details-sidebar-width, 300px);
   height: 100%;
   padding: 16px;
   min-height: 0;
   overflow: hidden;
-  position: relative;
-  z-index: 2;
   background: var(--panel-bg);
   border-left: 1px solid var(--border);
-}
-
-#details-sidebar.has-selection {
-  display: flex;
 }
 
 #details-sidebar.collapsed {
@@ -934,9 +967,10 @@ button:hover {
 
 #graph-container {
   order: 1;
-  position: relative;
-  flex: 1;
-  min-width: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
   isolation: isolate;
   background: #000000;
 }

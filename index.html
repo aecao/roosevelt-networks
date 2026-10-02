@@ -164,6 +164,43 @@
             <div class="panel">
               <label class="filter-all"><input id="edge-type-select-all" type="checkbox" checked /><span>All</span></label>
               <div id="edge-type-filters" class="filter-list"></div>
+              <div class="edge-curvature-control">
+                <label for="edge-curvature-slider">Connection curvature <output id="edge-curvature-value">20%</output></label>
+                <div class="slider-with-steps">
+                  <button id="edge-curvature-decrement" class="slider-step-button" type="button" aria-label="Decrease connection curvature">−</button>
+                  <input id="edge-curvature-slider" type="range" min="0" max="100" step="1" value="20" list="edge-curvature-ticks" />
+                  <button id="edge-curvature-increment" class="slider-step-button" type="button" aria-label="Increase connection curvature">+</button>
+                </div>
+                <datalist id="edge-curvature-ticks">
+                  <option value="0"></option>
+                  <option value="10"></option>
+                  <option value="20"></option>
+                  <option value="30"></option>
+                  <option value="40"></option>
+                  <option value="50"></option>
+                  <option value="60"></option>
+                  <option value="70"></option>
+                  <option value="80"></option>
+                  <option value="90"></option>
+                  <option value="100"></option>
+                </datalist>
+              </div>
+              <div class="edge-curvature-control">
+                <label for="layout-gravity-slider">Gravity <output id="layout-gravity-value">20</output></label>
+                <div class="slider-with-steps">
+                  <button id="layout-gravity-decrement" class="slider-step-button" type="button" aria-label="Decrease gravity">−</button>
+                  <input id="layout-gravity-slider" type="range" min="0" max="25" step="1" value="20" list="layout-gravity-ticks" />
+                  <button id="layout-gravity-increment" class="slider-step-button" type="button" aria-label="Increase gravity">+</button>
+                </div>
+                <datalist id="layout-gravity-ticks">
+                  <option value="0"></option>
+                  <option value="5"></option>
+                  <option value="10"></option>
+                  <option value="15"></option>
+                  <option value="20"></option>
+                  <option value="25"></option>
+                </datalist>
+              </div>
             </div>
           </section>
 
@@ -178,10 +215,6 @@
                 <label for="year-slider">Year <output id="year-value">2026</output></label>
                 <input id="year-slider" type="range" min="1920" max="2026" step="1" value="2026" />
               </div>
-              <label class="toggle-row">
-                <input id="position-filter-toggle" type="checkbox" />
-                <span>Position–Incumbent</span>
-              </label>
             </div>
           </section>
         </div>
@@ -198,13 +231,13 @@
         </div>
       </div>
       </aside>
-        <aside id="details-sidebar" aria-label="Details">
+        <aside id="details-sidebar" class="collapsed" aria-label="Details">
           <div id="details-resize-handle" aria-hidden="true"></div>
           <header class="sidebar-header">
             <div class="sidebar-heading">
               <h1>Details</h1>
             </div>
-            <button id="details-toggle" class="sidebar-toggle" type="button" aria-label="Minimize details" aria-expanded="true">−</button>
+            <button id="details-toggle" class="sidebar-toggle" type="button" aria-label="Show details" aria-expanded="false">+</button>
           </header>
           <div id="details-content">
             <section id="active-selection" class="selection-section" hidden>

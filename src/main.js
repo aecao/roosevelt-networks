@@ -19,7 +19,23 @@ const CORE_NODE_SIZE = 2;
 const REFERENCE_CAMERA_RATIO = 0.3;
 const REFERENCE_SIZE_RATIO = Math.sqrt(REFERENCE_CAMERA_RATIO);
 const POSITION_EDGE_TYPE = 'pos';
-const LAYOUT_SETTINGS = { iterations: 150, settings: { gravity: 1, scalingRatio: 10 } };
+// The gravity slider's displayed value is intentionally inverted (higher slider value
+// = looser/more spread out), since that reads more intuitively than raw ForceAtlas2
+// gravity (where higher actually pulls tighter). state.layoutGravity holds the
+// displayed slider value; this converts it to the real gravity fed to ForceAtlas2.
+const LAYOUT_GRAVITY_MAX = 25;
+function actualGravityFromDisplayValue(displayValue) {
+  return LAYOUT_GRAVITY_MAX - displayValue;
+}
+function buildLayoutSettings() {
+  return { iterations: 150, settings: { gravity: actualGravityFromDisplayValue(state.layoutGravity), scalingRatio: 10 } };
+}
+// Maps the 0-100% curvature slider onto the actual curvature scale: 20% reproduces
+// today's default look (scale 1), 100% is far more curved (scale 5).
+const EDGE_CURVATURE_MAX_SCALE = 5;
+function edgeCurvaturePercentToScale(percent) {
+  return (percent / 100) * EDGE_CURVATURE_MAX_SCALE;
+}
 
 const state = {
   graph: null,
@@ -37,9 +53,11 @@ const state = {
   sizeMode: 'scale-of-actor',
   centralityFilterType: 'degree-centrality',
   centralityThreshold: 0,
+  edgeCurvatureScale: 1,
+  layoutGravity: 20,
   yearFilterEnabled: false,
   selectedYear: 2026,
-  detailsManuallyCollapsed: false,
+  detailsManuallyCollapsed: true,
   selectedEdgeIds: new Set(),
   hoveredEdgeIds: new Set(),
   currentSelection: null,
@@ -88,8 +106,19 @@ function assignParallelEdgeCurves(graph) {
       const side = index % 2 === 0 ? 1 : -1;
       const direction = source === pair[0] ? 1 : -1;
       graph.setEdgeAttribute(edge, 'type', attrs.type === 'arrow' ? 'curvedArrow' : 'curve');
+      // 'baseCurvature' is the un-scaled value; the rendered 'curvature' is this scaled by state.edgeCurvatureScale.
+      graph.setEdgeAttribute(edge, 'baseCurvature', side * direction * magnitude);
       graph.setEdgeAttribute(edge, 'curvature', side * direction * magnitude);
     });
+  });
+}
+
+// Rescales every curved edge's rendered 'curvature' from its unscaled 'baseCurvature',
+// so the slider can flatten (0) or exaggerate (>1) curves without recomputing offsets.
+function applyEdgeCurvatureScale(graph) {
+  graph.forEachEdge((edge, attrs) => {
+    if (!Number.isFinite(attrs.baseCurvature)) return;
+    graph.setEdgeAttribute(edge, 'curvature', attrs.baseCurvature * state.edgeCurvatureScale);
   });
 }
 
@@ -173,7 +202,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
 
   assignParallelEdgeCurves(graph);
 
-  state.activeEdgeTypes = new Set(edgeTypes.filter((type) => type !== POSITION_EDGE_TYPE));
+  state.activeEdgeTypes = new Set(edgeTypes);
   state.activeNodeTypes = new Set(categories);
   state.activeTopics = new Set(topics);
   state.activeScales = new Set(scales);
@@ -201,7 +230,7 @@ function computeFilteredLayout(graph, activeEdgeTypes, includeNode = () => true)
   });
   if (temp.order === 0) return {};
   circular.assign(temp);
-  forceAtlas2.assign(temp, LAYOUT_SETTINGS);
+  forceAtlas2.assign(temp, buildLayoutSettings());
 
   const positions = {};
   temp.forEachNode((node, attrs) => {
@@ -508,6 +537,16 @@ async function main() {
   const centralityThresholdIncrement = document.getElementById('centrality-threshold-increment');
   state.centralityFilterType = centralityTypeSelect.value;
   state.centralityThreshold = Number(centralityThresholdSlider.value);
+  const edgeCurvatureSlider = document.getElementById('edge-curvature-slider');
+  const edgeCurvatureValue = document.getElementById('edge-curvature-value');
+  const edgeCurvatureDecrement = document.getElementById('edge-curvature-decrement');
+  const edgeCurvatureIncrement = document.getElementById('edge-curvature-increment');
+  state.edgeCurvatureScale = edgeCurvaturePercentToScale(Number(edgeCurvatureSlider.value));
+  const layoutGravitySlider = document.getElementById('layout-gravity-slider');
+  const layoutGravityValue = document.getElementById('layout-gravity-value');
+  const layoutGravityDecrement = document.getElementById('layout-gravity-decrement');
+  const layoutGravityIncrement = document.getElementById('layout-gravity-increment');
+  state.layoutGravity = Number(layoutGravitySlider.value);
   const sidebar = document.getElementById('sidebar');
   const panelDock = document.getElementById('panel-dock');
   const detailsSidebar = document.getElementById('details-sidebar');
@@ -534,6 +573,8 @@ async function main() {
   let mapGeoFrontCanvas = null;
   let mapGeoFrontContext = null;
   let mapProjection = null;
+  let mapCenterX = 0;
+  let mapCenterY = 0;
   let mapCancelAnimation = null;
   const mapOriginalPositions = new Map();
   let frozenRelationshipsPositions = null;
@@ -720,6 +761,8 @@ async function main() {
     },
   });
   state.renderer = renderer;
+  // Starts the relationship diagram ~2x as zoomed in as Sigma's default full-extent fit.
+  renderer.getCamera().setState({ ...renderer.getCamera().getState(), ratio: 0.5 });
 
   function refresh() {
     renderer.refresh();
@@ -736,6 +779,10 @@ async function main() {
     centralityFilterScoreCache = null;
     if (workspace.dataset.mode === 'timeline') {
       renderTimeline();
+      return;
+    }
+    if (workspace.dataset.mode === 'map') {
+      if (mapModeApplied) runMapForceLayout();
       return;
     }
     if (workspace.dataset.mode !== 'relationships') return;
@@ -1280,6 +1327,78 @@ async function main() {
     sizeHaloContext.globalAlpha = 1;
   });
 
+  // Hints that there are more actors off-screen, by drawing small triangles pointing
+  // toward them at the viewport edge. Dismissed for good (this browser session) the
+  // first time the user zooms/pans out far enough to see every filtered node at once.
+  const OFFSCREEN_HINT_SESSION_KEY = 'roosevelt-networks:offscreen-hint-dismissed';
+  let offscreenHintDismissed = sessionStorage.getItem(OFFSCREEN_HINT_SESSION_KEY) === '1';
+  renderer.createCanvasContext('offscreen-indicators', {
+    style: { pointerEvents: 'none' },
+  });
+  // Resize again: this canvas was created after the renderer's own resize() call above,
+  // so without this it would stay at its unset default size instead of the container's.
+  renderer.resize(true);
+  const offscreenIndicatorContext = renderer.getCanvases()['offscreen-indicators'].getContext('2d');
+  renderer.on('afterRender', () => {
+    if (!offscreenIndicatorContext) return;
+    const { width, height } = renderer.getDimensions();
+    offscreenIndicatorContext.clearRect(0, 0, width, height);
+    if (offscreenHintDismissed || workspace.dataset.mode !== 'relationships') return;
+
+    const margin = 12;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const octantDirections = new Set();
+    let sawAnyNode = false;
+    let sawOffscreenNode = false;
+    graph.forEachNode((node, attributes) => {
+      if (!isNodeVisible(node)) return;
+      sawAnyNode = true;
+      const { x, y } = renderer.graphToViewport({ x: attributes.x, y: attributes.y });
+      if (x >= -margin && x <= width + margin && y >= -margin && y <= height + margin) return;
+      sawOffscreenNode = true;
+      const angle = Math.atan2(y - centerY, x - centerX);
+      octantDirections.add((Math.round(angle / (Math.PI / 4)) + 8) % 8);
+    });
+
+    if (sawAnyNode && !sawOffscreenNode) {
+      offscreenHintDismissed = true;
+      sessionStorage.setItem(OFFSCREEN_HINT_SESSION_KEY, '1');
+      return;
+    }
+
+    // Index order must match atan2's angle convention (0 = East, increasing clockwise
+    // in screen space), so each bucketed direction points at the correct edge anchor.
+    const anchorPoints = [
+      { x: width - margin, y: centerY }, // E
+      { x: width - margin, y: height - margin }, // SE
+      { x: centerX, y: height - margin }, // S
+      { x: margin, y: height - margin }, // SW
+      { x: margin, y: centerY }, // W
+      { x: margin, y: margin }, // NW
+      { x: centerX, y: margin }, // N
+      { x: width - margin, y: margin }, // NE
+    ];
+    const triangleSize = 9;
+    offscreenIndicatorContext.fillStyle = '#ffffff';
+    offscreenIndicatorContext.globalAlpha = 0.85;
+    octantDirections.forEach((octant) => {
+      const anchor = anchorPoints[octant];
+      const pointAngle = (octant * Math.PI) / 4;
+      const tipX = anchor.x + Math.cos(pointAngle) * triangleSize;
+      const tipY = anchor.y + Math.sin(pointAngle) * triangleSize;
+      const baseAngleA = pointAngle + (Math.PI * 2) / 3;
+      const baseAngleB = pointAngle - (Math.PI * 2) / 3;
+      offscreenIndicatorContext.beginPath();
+      offscreenIndicatorContext.moveTo(tipX, tipY);
+      offscreenIndicatorContext.lineTo(anchor.x + Math.cos(baseAngleA) * triangleSize, anchor.y + Math.sin(baseAngleA) * triangleSize);
+      offscreenIndicatorContext.lineTo(anchor.x + Math.cos(baseAngleB) * triangleSize, anchor.y + Math.sin(baseAngleB) * triangleSize);
+      offscreenIndicatorContext.closePath();
+      offscreenIndicatorContext.fill();
+    });
+    offscreenIndicatorContext.globalAlpha = 1;
+  });
+
   async function ensureMapGeography() {
     if (mapGeography) return mapGeography;
     const { loadMapGeography } = await mapGeoModule;
@@ -1380,44 +1499,28 @@ async function main() {
     const graphBounds = computeGraphBounds();
     const graphWidth = (graphBounds.maxX - graphBounds.minX) || 1;
     const graphHeight = (graphBounds.maxY - graphBounds.minY) || 1;
+    mapCenterX = (graphBounds.minX + graphBounds.maxX) / 2;
+    mapCenterY = (graphBounds.minY + graphBounds.maxY) / 2;
     mapProjection = createGeoProjection(geo.bounds, {
-      centerX: (graphBounds.minX + graphBounds.maxX) / 2,
-      centerY: (graphBounds.minY + graphBounds.maxY) / 2,
+      centerX: mapCenterX,
+      centerY: mapCenterY,
       width: graphWidth * 0.6,
       height: graphHeight * 0.6,
     });
 
-    // Compute the target layout on a throwaway copy of the graph so the live
-    // graph's positions aren't touched until animateNodes interpolates them.
-    const temp = new Graph({ multi: true });
-    graph.forEachNode((node, attrs) => temp.addNode(node, { x: attrs.x, y: attrs.y }));
-    graph.forEachEdge((edge, attrs, source, target) => {
-      if (graph.isDirected(edge)) temp.addDirectedEdge(source, target);
-      else temp.addUndirectedEdge(source, target);
-    });
-
-    geo.actorCentroids.forEach((centroid, actorId) => {
-      if (!graph.hasNode(actorId)) return;
-      if (!mapOriginalPositions.has(actorId)) {
-        const attrs = graph.getNodeAttributes(actorId);
-        mapOriginalPositions.set(actorId, { x: attrs.x, y: attrs.y });
-      }
-      const projected = mapProjection(centroid.lng, centroid.lat);
-      temp.setNodeAttribute(actorId, 'x', projected.x);
-      temp.setNodeAttribute(actorId, 'y', projected.y);
-      temp.setNodeAttribute(actorId, 'fixed', true);
-      graph.setNodeAttribute(actorId, 'fixed', true);
-    });
-
-    forceAtlas2.assign(temp, LAYOUT_SETTINGS);
-    const positions = {};
-    temp.forEachNode((node, attrs) => {
-      positions[node] = { x: attrs.x, y: attrs.y };
-    });
+    // Sigma normally rescales its view to fit the live extent of all nodes, which would
+    // make the (otherwise static) island/building overlay drift as free nodes move under
+    // gravity. Locking it to the island's own footprint keeps the overlay fixed on screen.
+    const islandBBoxPoints = geo.islandRings.flat().map((point) => mapProjection(point.lng, point.lat));
+    if (islandBBoxPoints.length) {
+      renderer.setCustomBBox({
+        x: [Math.min(...islandBBoxPoints.map((point) => point.x)), Math.max(...islandBBoxPoints.map((point) => point.x))],
+        y: [Math.min(...islandBBoxPoints.map((point) => point.y)), Math.max(...islandBBoxPoints.map((point) => point.y))],
+      });
+    }
 
     ensureMapGeoLayer();
-    if (mapCancelAnimation) mapCancelAnimation();
-    mapCancelAnimation = animateNodes(graph, positions, { duration: 700, easing: 'quadraticInOut' });
+    runMapForceLayout();
     drawMapGeoLayer();
 
     // Defaults to framing the whole island boundary (not just the actor
@@ -1450,8 +1553,53 @@ async function main() {
     if (state.zoomToSelected) zoomToCurrentAndPinned();
   }
 
+  // Re-runs just the force layout pass (anchored nodes stay fixed; everything else
+  // responds to the current gravity/curvature settings), without resetting the camera.
+  function runMapForceLayout() {
+    if (!mapGeography || !mapProjection) return;
+
+    // Compute the target layout on a throwaway copy of the graph so the live
+    // graph's positions aren't touched until animateNodes interpolates them.
+    const temp = new Graph({ multi: true });
+    graph.forEachNode((node, attrs) => temp.addNode(node, { x: attrs.x, y: attrs.y }));
+    graph.forEachEdge((edge, attrs, source, target) => {
+      if (graph.isDirected(edge)) temp.addDirectedEdge(source, target);
+      else temp.addUndirectedEdge(source, target);
+    });
+
+    mapGeography.actorCentroids.forEach((centroid, actorId) => {
+      if (!graph.hasNode(actorId)) return;
+      if (!mapOriginalPositions.has(actorId)) {
+        const attrs = graph.getNodeAttributes(actorId);
+        mapOriginalPositions.set(actorId, { x: attrs.x, y: attrs.y });
+      }
+      const projected = mapProjection(centroid.lng, centroid.lat);
+      temp.setNodeAttribute(actorId, 'x', projected.x);
+      temp.setNodeAttribute(actorId, 'y', projected.y);
+      temp.setNodeAttribute(actorId, 'fixed', true);
+      graph.setNodeAttribute(actorId, 'fixed', true);
+    });
+
+    // Gravity always pulls toward (0,0), so temporarily recenter the layout on the
+    // anchored cluster's center; otherwise free-floating (non-fixed) nodes would
+    // drift toward the absolute origin instead of settling around the map anchors.
+    temp.forEachNode((node, attrs) => {
+      temp.setNodeAttribute(node, 'x', attrs.x - mapCenterX);
+      temp.setNodeAttribute(node, 'y', attrs.y - mapCenterY);
+    });
+    forceAtlas2.assign(temp, buildLayoutSettings());
+    const positions = {};
+    temp.forEachNode((node, attrs) => {
+      positions[node] = { x: attrs.x + mapCenterX, y: attrs.y + mapCenterY };
+    });
+
+    if (mapCancelAnimation) mapCancelAnimation();
+    mapCancelAnimation = animateNodes(graph, positions, { duration: 700, easing: 'quadraticInOut' });
+  }
+
   function restoreRelationshipsLayout() {
     if (!mapModeApplied) return;
+    renderer.setCustomBBox(null);
     mapOriginalPositions.forEach((pos, actorId) => {
       if (!graph.hasNode(actorId)) return;
       graph.setNodeAttribute(actorId, 'x', pos.x);
@@ -1579,6 +1727,68 @@ async function main() {
     'edge-type-select-all',
   );
 
+  // Position–Incumbent isn't part of the select-all set, but still reads as one of
+  // the relationship toggles, so it's nested in the same list.
+  const positionFilterRow = document.createElement('label');
+  const positionFilterCheckbox = document.createElement('input');
+  positionFilterCheckbox.type = 'checkbox';
+  positionFilterCheckbox.id = 'position-filter-toggle';
+  positionFilterCheckbox.checked = true;
+  const positionFilterSwatch = document.createElement('span');
+  positionFilterSwatch.className = 'swatch';
+  positionFilterSwatch.style.background = state.edgeTypeColors.get(POSITION_EDGE_TYPE);
+  positionFilterRow.append(positionFilterCheckbox, positionFilterSwatch, document.createTextNode('Position–Incumbent'));
+  document.getElementById('edge-type-filters').appendChild(positionFilterRow);
+
+  function applyEdgeCurvaturePercent(percent) {
+    const clamped = Math.max(0, Math.min(100, percent));
+    edgeCurvatureSlider.value = String(clamped);
+    state.edgeCurvatureScale = edgeCurvaturePercentToScale(clamped);
+    edgeCurvatureValue.textContent = `${Math.round(clamped)}%`;
+    applyEdgeCurvatureScale(graph);
+    refresh();
+  }
+
+  edgeCurvatureSlider.addEventListener('input', () => {
+    applyEdgeCurvaturePercent(Number(edgeCurvatureSlider.value));
+  });
+
+  edgeCurvatureDecrement.addEventListener('click', () => {
+    applyEdgeCurvaturePercent(Number(edgeCurvatureSlider.value) - 10);
+  });
+
+  edgeCurvatureIncrement.addEventListener('click', () => {
+    applyEdgeCurvaturePercent(Number(edgeCurvatureSlider.value) + 10);
+  });
+
+  // Rerunning forceAtlas2 is too expensive to do on every 'input' tick while dragging,
+  // so only the readout updates live; the layout only recomputes once the drag ends.
+  function setLayoutGravityDisplay(value) {
+    layoutGravitySlider.value = String(value);
+    layoutGravityValue.textContent = String(value);
+  }
+  layoutGravitySlider.addEventListener('input', () => {
+    setLayoutGravityDisplay(Number(layoutGravitySlider.value));
+  });
+  layoutGravitySlider.addEventListener('change', () => {
+    state.layoutGravity = Number(layoutGravitySlider.value);
+    relayout();
+  });
+
+  layoutGravityDecrement.addEventListener('click', () => {
+    const clamped = Math.max(0, Number(layoutGravitySlider.value) - 5);
+    setLayoutGravityDisplay(clamped);
+    state.layoutGravity = clamped;
+    relayout();
+  });
+
+  layoutGravityIncrement.addEventListener('click', () => {
+    const clamped = Math.min(25, Number(layoutGravitySlider.value) + 5);
+    setLayoutGravityDisplay(clamped);
+    state.layoutGravity = clamped;
+    relayout();
+  });
+
   document.getElementById('freeze-positions').addEventListener('change', (e) => {
     state.freezePositions = e.target.checked;
     if (!state.freezePositions) frozenRelationshipsPositions = null;
@@ -1701,6 +1911,9 @@ async function main() {
     if (next !== undefined) applyCentralityThresholdIndex(next);
   });
 
+  // #sidebar and #details-sidebar are absolute-positioned overlays on top of
+  // #graph-container (which always fills the workspace), so toggling them never
+  // resizes the renderer's container and content never needs to be re-centered.
   const sidebarToggle = document.getElementById('sidebar-toggle');
   sidebarToggle.addEventListener('click', () => {
     const collapsed = sidebar.classList.toggle('collapsed');
@@ -1751,7 +1964,6 @@ async function main() {
       const maximumWidth = window.innerWidth / 2;
       const width = Math.max(minimumWidth, Math.min(maximumWidth, startWidth + startX - moveEvent.clientX));
       detailsSidebar.style.setProperty('--details-sidebar-width', `${width}px`);
-      renderer.resize(true);
     };
 
     document.addEventListener('pointermove', resize);
@@ -1839,7 +2051,9 @@ async function main() {
   renderer.on('enterEdge', ({ edge }) => updateHoveredEdgePair(edge));
   renderer.on('leaveEdge', clearHoveredEdges);
 
-  // Zoom controls
+  // Zoom controls — appended to #workspace (not #graph-container) so their z-index
+  // is compared directly against the overlay sidebars instead of being trapped inside
+  // the canvas's own isolated stacking context (where it would always lose).
   const zoomWrapper = document.createElement('div');
   zoomWrapper.className = 'zoom-controls';
   zoomWrapper.innerHTML = `
@@ -1847,7 +2061,7 @@ async function main() {
     <button id="zoom-out" title="Zoom out">−</button>
     <button id="zoom-fit" title="Reset zoom">⤢</button>
   `;
-  container.appendChild(zoomWrapper);
+  workspace.appendChild(zoomWrapper);
 
   document.getElementById('zoom-in').addEventListener('click', () => renderer.getCamera().animatedZoom({ duration: 300 }));
   document.getElementById('zoom-out').addEventListener('click', () => renderer.getCamera().animatedUnzoom({ duration: 300 }));
