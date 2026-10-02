@@ -218,6 +218,25 @@
                   <option value="25"></option>
                 </datalist>
               </div>
+              <label class="toggle-row">
+                <input id="variable-line-weight-toggle" type="checkbox" checked />
+                <span>Variable line weight</span>
+              </label>
+              <div class="edge-curvature-control">
+                <label for="general-line-weight-slider">General line weight <output id="general-line-weight-value">1</output></label>
+                <div class="slider-with-steps">
+                  <button id="general-line-weight-decrement" class="slider-step-button" type="button" aria-label="Decrease general line weight">−</button>
+                  <input id="general-line-weight-slider" type="range" min="1" max="5" step="1" value="1" list="general-line-weight-ticks" />
+                  <button id="general-line-weight-increment" class="slider-step-button" type="button" aria-label="Increase general line weight">+</button>
+                </div>
+                <datalist id="general-line-weight-ticks">
+                  <option value="1"></option>
+                  <option value="2"></option>
+                  <option value="3"></option>
+                  <option value="4"></option>
+                  <option value="5"></option>
+                </datalist>
+              </div>
             </div>
           </section>
 

@@ -1,0 +1,420 @@
+source-target relationship,source,target,parameter 0,parameter 1,parameter 2,Item missing from the actor_working
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Cornell Tech,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,NYC Health + Hospitals/Coler,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,The Related Company,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Urban Intervention Group,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Roosevelt Island Associates,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Becker + Becker,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,The Hudson Company,,,,
+ADMINISTRATOR-ADMINISTRATED,Cornell University,Cornell Tech,,,,
+ADMINISTRATOR-ADMINISTRATED,Cohen Brothers Associates,Roosevelt Island Associates,,,,
+ADMINISTRATOR-ADMINISTRATED,Starrett Housing Corporation,Roosevelt Island Associates,,,,
+ADMINISTRATOR-ADMINISTRATED,C&C Apartment Management,The Landings,,,,
+ADMINISTRATOR-ADMINISTRATED,Metropolitan Transit Authority,Roosevelt Island Subway Station,,,,
+ADMINISTRATOR-ADMINISTRATED,New York State Government,Metropolitan Transit Authority,,,,
+ADMINISTRATOR-ADMINISTRATED,Leitner-Poma of America,Roosevelt Island Tramway,,,,
+ADMINISTRATOR-ADMINISTRATED,President of the United States,Federal Government,,,,
+ADMINISTRATOR-ADMINISTRATED,RIOC President & CEO,Roosevelt Island Operating Corporation,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC City Council,New York Police Department,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC City Council,The Related Company,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC City Council,The Hudson Company,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC City Council,Fire Department of New York,,,,
+ADMINISTRATOR-ADMINISTRATED,Governer of New York,New York State Government,,,,
+ADMINISTRATOR-ADMINISTRATED,Mayor of New York City,New York City Government,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC Department of Housing Preservation and Development,Manhattan Park,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Red Bus,,,,
+ADMINISTRATOR-ADMINISTRATED,Lyft,Citibike,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC Department of Transportation,Roosevelt Island Bridge ,,,,
+ADMINISTRATOR-ADMINISTRATED,Hornblower,Astoria Ferry,,,,
+ADMINISTRATOR-ADMINISTRATED,Wildlife freedom foundation ,Cat Sanctuary,,,,
+ADMINISTRATOR-ADMINISTRATED,Economic Development Committee,Coler Coastal Resiliency Program ,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Roosevelt Island Green Spaces,,,,
+ADMINISTRATOR-ADMINISTRATED,Neil Weissman,Federal Emergency Management Agency,,,,
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Garden Club,Roosevelt Island Community Garden,,,,
+ADMINISTRATOR-ADMINISTRATED,New York City Emergency Management Department,NYCEM Interim Flood Protection Measures,,,,
+ADMINISTRATOR-ADMINISTRATED,Federal Emergency Management Agency,Coler Coastal Resiliency Program ,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC Health + Hospitals,NYC Health + Hospitals/Coler,,,,
+ADMINISTRATOR-ADMINISTRATED,Island Cats,Cat Sanctuary,,,,
+ADMINISTRATOR-ADMINISTRATED,Four Freedoms Park Conservancy ,FDR Four Freedoms State Park,,,,
+ADMINISTRATOR-ADMINISTRATED,NY State Parks,FDR Four Freedoms State Park,,,,
+ADMINISTRATOR-ADMINISTRATED,RIOC Board of Directors,RIOC President & CEO,,,,
+ADMINISTRATOR-ADMINISTRATED,RIOC Board of Directors,Roosevelt Island Operating Corporation,,,,
+ADMINISTRATOR-ADMINISTRATED,NYS Division of Budget Director,Roosevelt Island Operating Corporation,,,,
+ADMINISTRATOR-ADMINISTRATED,NYS Division of Budget Director,New York State Housing Finance Agency,,,,
+ADMINISTRATOR-ADMINISTRATED,President & CEO of the Urban Development Corporation,Urban Development Corporation,,,,
+ADMINISTRATOR-ADMINISTRATED,"President, CEO & Commissioner of Empire State Development",Empire State Development,,,,
+COLLABORATION,Cornell Tech,Roosevelt Island Operating Corporation,On-going,3,,
+COLLABORATION,The Related Company,The Hudson Company,On-going,4,,
+COLLABORATION,"Skidmore, Owings & Merrill",Cornell Tech,On-going,2,,
+COLLABORATION,Morphosis,"Skidmore, Owings & Merrill",One-time,1,,
+COLLABORATION,Weiss/Manfredi,"Skidmore, Owings & Merrill",One-time,1,,
+COLLABORATION,Handel Architects,"Skidmore, Owings & Merrill",One-time,1,,
+COLLABORATION,Snohetta,"Skidmore, Owings & Merrill",One-time,1,,
+COLLABORATION,NYC City Council,Roosevelt Island Operating Corporation,On-going,3,,
+COLLABORATION,The Roosevelt Island School PS/IS 217,The Child School / Legacy High School,On-going,2,,
+COLLABORATION,NYC Department of Transportation,Lyft,On-going,4,,
+COLLABORATION,Four Freedoms Park Conservancy ,NY State Parks,On-going,4,,
+COLLABORATION,Becker + Becker,Roosevelt Island Operating Corporation,On-going,3,,
+COLLABORATION,NYS Division of Budget Director,NYS Homes and Community Renewal Chair,On-going,4,,
+COLLABORATION,The Atlantic Philantrophies,Bloomberg Philanthropies,One-time,1,,
+COLLABORATION,The Atlantic Philantrophies,Cornell University,One-time,1,,
+COLLABORATION,Sportspark,The Child School / Legacy High School,On-going,2,,
+COLLABORATION,Roosevelt Island Racquet Club,Roosevelt Island Operating Corporation,On-going,3,,
+COLLABORATION,Roosevelt Island Racquet Club,Sportspark,On-going,2,,
+COLLABORATION,Roosevelt Island Steam Plant,NYC Health + Hospitals/Coler,On-going,4,,
+COLLABORATION,Roosevelt Island Steam Plant,Roosevelt Island Operating Corporation,On-going,3,,
+COLLABORATION,Blackwell House,Roosevelt Island Operating Corporation,On-going,4,,
+CREATOR-CREATION,Morphosis,The Bloomberg Center,,,,
+CREATOR-CREATION,Weiss/Manfredi,Tata Innovation Center,,,,
+CREATOR-CREATION,Handel Architects,The House,,,,
+CREATOR-CREATION,Snohetta,Graduate Hotel,,,,
+CREATOR-CREATION,Lyndon B. Johnson,Department of Housing and Urban Development,,,,
+CREATOR-CREATION,Franklin D. Roosevelt,New Deal,,,,
+CREATOR-CREATION,Nelson Rockefeller,New York State Housing Finance Agency,,,,
+CREATOR-CREATION,Nelson Rockefeller,Urban Development Corporation,,,,
+CREATOR-CREATION,John Lindsay,Housing and Development Administration,,,,
+CREATOR-CREATION,John Lindsay,"NYC Parks, Recreation, and Cultural Affairs Administration",,,,
+CREATOR-CREATION,John Lindsay,NYC Human Resources Administration,,,,
+CREATOR-CREATION,John Lindsay,NYC Health Services Administration,,,,
+CREATOR-CREATION,John Lindsay,NYC Transportation Administration,,,,
+CREATOR-CREATION,John Lindsay,NYC Municipal Service Administration,,,,
+CREATOR-CREATION,John Lindsay,NYC Finance Administration,,,,
+CREATOR-CREATION,John Lindsay,NYC Economic Development Administration,,,,
+CREATOR-CREATION,Becker + Becker,The Octagon,,,,
+CREATOR-CREATION,The Atlantic Philantrophies,Cornell Tech,,,,
+CREATOR-CREATION,Jamsetji Tata,Tata Group,,,,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,New York State Government,"$170,000,000","$41,095,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,Cornell Tech,"$2,000,000,000","$900,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,NYC Health + Hospitals/Coler,"$32,000","$300,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,The Related Company,"$500,000,000","$1,200,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,Urban Intervention Group,"$100,000",,,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,Roosevelt Island Associates,"$176,000,000","$2,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,Becker + Becker,"$115,000,000","$1,500,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,The Hudson Company,"$185,000,000","$700,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Cornell University,Cornell Tech,"$350,000,000","$20,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Northtown,Urban Development Corporation,"$400,000,000",,Yearly,
+FINANCIAL (RECIPIENT-SENDER),New York City Housing Authority,New York City Government,"$700,000,000","$150,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Housing and Development Administration,New York City Government,"$100,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),"NYC Parks, Recreation, and Cultural Affairs Administration",New York City Government,"$50,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Environmental Protection Administration,New York City Government,"$200,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Human Resources Administration,New York City Government,"$50,000,000","$3,800,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),NYC Health Services Administration,New York City Government,"$100,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Transportation Administration,New York City Government,"$150,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Municipal Service Administration,New York City Government,"$50,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Finance Administration,New York City Government,"$20,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Economic Development Administration,New York City Government,"$100,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Department of Housing Preservation and Development,New York City Government,"$1,300,000,000","$250,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),NYC Parks,New York City Government,"$500,000,000","$640,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),NYC Department of Cultural Affairs,New York City Government,"$200,000,000","$230,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),NYC Sanitation Department,New York City Government,"$300,000,000","$1,856,640,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),NYC Department of Health and Mental Hygiene,New York City Government,"$150,000,000","$800,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),NYC Department of General Services,New York City Government,"$200,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),NYC Department of Finance,New York City Government,"$40,000,000","$360,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),NYC Department of Environmental Protection,New York City Government,"$1,500,000,000","$1,600,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,Roosevelt Island Tramway,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Tramway,Roosevelt Island Operating Corporation,"$25,000,000","$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Hudson Company,Riverwalk Crossing,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Hudson Company,Riverwalk Heights,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Hudson Company,Riverwalk Park,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Hudson Company,Riverwalk Point,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Related Company,Riverwalk Crossing,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Related Company,Riverwalk Heights,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Related Company,Riverwalk Park,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),The Related Company,Riverwalk Point,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),"Skidmore, Owings & Merrill",Cornell Tech,"$10,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Morphosis,The Bloomberg Center,"$10,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Weiss/Manfredi,Tata Innovation Center,"$10,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Handel Architects,The House,"$10,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Snohetta,Graduate Hotel,"$10,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Riverwalk Crossing,Weil Cornell Medicine,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Riverwalk Point,Weil Cornell Medicine,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Riverwalk Heights,Weil Cornell Medicine,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Riverwalk Park,Weil Cornell Medicine,,"$5,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Manhattan Park,New York State Housing Finance Agency,"$176,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,Motorgate Parking,,"$2,700,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Coler Coastal Resiliency Program ,Federal Emergency Management Agency,"$119,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Cornell Tech,The Atlantic Philantrophies,"$350,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Sportspark,Roosevelt Island Operating Corporation,"$122,000,000","$2,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Sportspark,NYC Residents,,"$200,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Racquet Club,NYC Residents,,"$2,000,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Roosevelt Island Operating Corporation,Roosevelt Island Racquet Club,,"$300,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Blackwell House,Roosevelt Island Operating Corporation,"$29,000,000","$300,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),St. Frances Xavier Cabrini Church,NYC Residents,$0,"$400,000",Yearly,
+FINANCIAL (RECIPIENT-SENDER),Welfare Island Development Corporation,Department of Housing and Urban Development,"$30,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),Welfare Island Development Corporation,Urban Development Corporation,"$400,000,000",,,
+OWNER-TENANT,New York City Government,Roosevelt Island Operating Corporation,"6,403,320 sq ft",99-years,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,Cornell Tech,"522,720 sq ft",99-years,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,NYC Health + Hospitals/Coler,"479,160 sq ft",99-years,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,The Related Company,"653,400 sq ft",99-years,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,Urban Intervention Group,/,Short-term,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,Roosevelt Island Associates,"370,260 sq ft",99-years,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,The Octagon,"130,680 sq ft",99-years,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,The Hudson Company,"653,400 sq ft",99-years,,
+OWNER-TENANT,The Landings,Roosevelt Island Senior Center,"1,000 sq ft",Long-term,,
+OWNER-TENANT,The Landings,The Child School / Legacy High School,"40,000 sq ft",Long-term,,
+OWNER-TENANT,The Landings,Roosevelt Island Youth Center,"10,000 sq ft",Long-term,,
+OWNER-TENANT,Roosevelt Island Operating Corporation,Roosevelt Island Tramway,"5,000 sq ft",Long-term,,
+OWNER-TENANT,The Hudson Company,Riverwalk Crossing,"30,000 sq ft",Short-term,,
+OWNER-TENANT,The Hudson Company,Riverwalk Heights,"30,000 sq ft",Short-term,retail/commercial/,
+OWNER-TENANT,The Hudson Company,Riverwalk Park,"30,000 sq ft",Short-term,,
+OWNER-TENANT,The Hudson Company,Riverwalk Point,"30,000 sq ft",Short-term,,
+OWNER-TENANT,The Related Company,Riverwalk Crossing,"30,000 sq ft",Short-term,,
+OWNER-TENANT,The Related Company,Riverwalk Heights,"30,000 sq ft",Short-term,,
+OWNER-TENANT,The Related Company,Riverwalk Park,"30,000 sq ft",Short-term,,
+OWNER-TENANT,The Related Company,Riverwalk Point,"30,000 sq ft",Short-term,,
+OWNER-TENANT,Economic Development Committee,Astoria Ferry,"2,000 sq ft",Long-term,,
+PARENT-CHILD,Cornell University,Cornell Tech,,,,
+PARENT-CHILD,Northtown,Rivercross,,,,
+PARENT-CHILD,Northtown,Island House,,,,
+PARENT-CHILD,Northtown,Westview,,,,
+PARENT-CHILD,Northtown,The Landings,,,,
+PARENT-CHILD,Urban Development Corporation,Roosevelt Island Operating Corporation,,,,
+PARENT-CHILD,New York State Government,Urban Development Corporation,,,,
+PARENT-CHILD,New York City Government,New York City Housing Authority,,,,
+PARENT-CHILD,New York City Government,Housing and Development Administration,,,,
+PARENT-CHILD,New York City Government,"NYC Parks, Recreation, and Cultural Affairs Administration",,,,
+PARENT-CHILD,New York City Government,NYC Environmental Protection Administration,,,,
+PARENT-CHILD,New York City Government,NYC Human Resources Administration,,,,
+PARENT-CHILD,New York City Government,NYC Health Services Administration,,,,
+PARENT-CHILD,New York City Government,NYC Transportation Administration,,,,
+PARENT-CHILD,New York City Government,NYC Municipal Service Administration,,,,
+PARENT-CHILD,New York City Government,NYC Finance Administration,,,,
+PARENT-CHILD,New York City Government,NYC Economic Development Administration,,,,
+PARENT-CHILD,New York City Government,NYC Department of Housing Preservation and Development,,,,
+PARENT-CHILD,New York City Government,NYC Parks,,,,
+PARENT-CHILD,New York City Government,NYC Department of Cultural Affairs,,,,
+PARENT-CHILD,New York City Government,NYC Sanitation Department,,,,
+PARENT-CHILD,New York City Government,NYC Department of Health and Mental Hygiene,,,,
+PARENT-CHILD,New York City Government,NYC Department of General Services,,,,
+PARENT-CHILD,New York City Government,NYC Department of Finance,,,,
+PARENT-CHILD,New York City Government,NYC Department of Environmental Protection,,,,
+PARENT-CHILD,Empire State Development,Urban Development Corporation,,,,
+PARENT-CHILD,Empire State Development,Job Development Authority,,,,
+PARENT-CHILD,Southtown,Riverwalk Crossing,,,,
+PARENT-CHILD,Southtown,Riverwalk Heights,,,,
+PARENT-CHILD,Southtown,Riverwalk Park,,,,
+PARENT-CHILD,Southtown,Riverwalk Point,,,,
+PARENT-CHILD,Cornell Tech,The Bloomberg Center,,,,
+PARENT-CHILD,Cornell Tech,Tata Innovation Center,,,,
+PARENT-CHILD,Cornell Tech,Verizon Executive Education Center,,,,
+PARENT-CHILD,Cornell Tech,Graduate Hotel,,,,
+PARENT-CHILD,Cornell Tech,The House,,,,
+PARENT-CHILD,New York City Government,NYC City Council,,,,
+PARENT-CHILD,New York State Residents,NYC Residents,,,,
+PARENT-CHILD,New York State Government,Urban Development Corporation,,,,
+PARENT-CHILD,Urban Development Corporation,Roosevelt Island Operating Corporation,,,,
+PARENT-CHILD,Cornell University,Cornell Tech,,,,
+PARENT-CHILD,Cornell University,Cornell AAP,,,,
+PARENT-CHILD,Cornell University,Cornell AAP,,,,
+PARENT-CHILD,New Deal,Fannie Mae (Federal National Mortgage Association),,,,
+PARENT-CHILD,New Deal,Federal Housing Administration,,,,
+PARENT-CHILD,New Deal,Federal Works Agency,,,,
+PARENT-CHILD,New Deal,National Housing Agency,,,,
+PARENT-CHILD,New Deal,Federal Public Housing Authority,,,,
+PARENT-CHILD,Federal Government,New Deal,,,,
+POSITION-INCUMBENT,President of the United States,Woodrow Wilson,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Warren G. Harding,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Calvin Coolidge,Successional,,,
+POSITION-INCUMBENT,President of the United States,Herbert Hoover,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Franklin D. Roosevelt,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Harry S. Truman,Successional,,,
+POSITION-INCUMBENT,President of the United States,Dwight D. Eisenhower,Electoral,,,
+POSITION-INCUMBENT,President of the United States,John F. Kennedy,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Lyndon B. Johnson,Successional,,,
+POSITION-INCUMBENT,President of the United States,Richard Nixon,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Gerald Ford,Successional,,,
+POSITION-INCUMBENT,President of the United States,Jimmy Carter,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Ronald Reagan,Electoral,,,
+POSITION-INCUMBENT,President of the United States,George H. W. Bush,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Bill Clinton,Electoral,,,
+POSITION-INCUMBENT,President of the United States,George W. Bush,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Barack Obama,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Donald Trump,Electoral,,,
+POSITION-INCUMBENT,President of the United States,Joe Biden,Electoral,,,
+POSITION-INCUMBENT,B.J. Jones,RIOC President & CEO,Appointive,,,
+POSITION-INCUMBENT,Governer of New York,Kathy Hochul,Successional,,,
+POSITION-INCUMBENT,Governer of New York,Andrew Cuomo,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,David Paterson,Successional,,,
+POSITION-INCUMBENT,Governer of New York,Eliot Spitzer,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,George Pataki,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,Mario Cuomo,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,Hugh Carey,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,Malcolm Wilson,Successional,,,
+POSITION-INCUMBENT,Governer of New York,Nelson Rockefeller,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,W. Averell Harriman,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,Thomas E. Dewey,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,Charles Poletti,Successional,,,
+POSITION-INCUMBENT,Governer of New York,Herbert H. Lehman,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,Alfred E. Smith,Electoral,,,
+POSITION-INCUMBENT,Governer of New York,Nathan L. Miller,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Zohran Mamdani,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Eric Adams,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Bill de Blasio,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Michael Bloomberg,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Rudy Giuliani,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,David Dinkins,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Ed Koch,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Abraham Beame,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,John Lindsay,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Robert F. Wagner Jr.,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Vincent R. Impellitteri,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,William O'Dwyer,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Fiorello La Guardia,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,John P. O'Brien,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,Joseph V. McKee,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,James J. Walker,Electoral,,,
+POSITION-INCUMBENT,Mayor of New York City,John Francis Hylan,Electoral,,,
+POSITION-INCUMBENT,President & CEO of the Urban Development Corporation,Edward Logue,Electoral,,,
+PREDECESSOR-SUCCESSOR,Welfare Island Development Corporation,Welfare Island Operating Corporation,,,,Federal Government
+PREDECESSOR-SUCCESSOR,Welfare Island Operating Corporation,Roosevelt Island Operating Corporation,,,,New York State Government
+PREDECESSOR-SUCCESSOR,Housing and Development Administration,NYC Department of Housing Preservation and Development,,,,B.J. Jones
+PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Department of Cultural Affairs,,,,NYC City Council
+PREDECESSOR-SUCCESSOR,NYC Environmental Protection Administration,NYC Parks,,,,RIOC Board of Directors
+PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Parks,,,,RIOC President & CEO
+PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Department of Cultural Affairs,,,,NYS Division of Budget Director
+PREDECESSOR-SUCCESSOR,NYC Health Services Administration,NYC Department of Health and Mental Hygiene,,,,NYS Homes and Community Renewal Chair
+PREDECESSOR-SUCCESSOR,NYC Health Services Administration,NYC Health + Hospitals,,,,New York Police Department
+PREDECESSOR-SUCCESSOR,NYC Finance Administration,NYC Department of Finance,,,,Fire Department of New York
+PREDECESSOR-SUCCESSOR,Urban Development Corporation,Empire State Development,,,,Metropolitan Transit Authority
+PREDECESSOR-SUCCESSOR,Island Cats,Wildlife freedom foundation ,,,,Economic Development Committee
+PREDECESSOR-SUCCESSOR,Welfare Island Bridge,Roosevelt Island Bridge ,,,,The Atlantic Philantrophies
+REPRESENTATIVE-ELECTOR,Governer of New York,New York State Residents,,,,Bloomberg Philanthropies
+REPRESENTATIVE-ELECTOR,Mayor of New York City,NYC Residents,,,,Jamsetji Tata
+,Roosevelt Island Library,,,,,The Related Company
+PARENT-CHILD,New York Public Library ,Roosevelt Island Library,,,,
+PARENT-CHILD,New York City Government,New York Public Library ,,,,Roosevelt Island Associates
+PARENT-CHILD,New York City Government,NYC Department of Public Works,,,,Becker + Becker
+FINANCIAL (RECIPIENT-SENDER),Cornell University,Tata Group,,,,The Hudson Company
+FINANCIAL (RECIPIENT-SENDER),Tata Innovation Center,Tata Group,,,,NYC Health + Hospitals/Coler
+COLLABORATION,Tata Group,Cornell University,,,,The Octagon
+,Foodtown,,,,,Manhattan Park
+,NYC Department of Public Works,,,,,Northtown
+,Roosevelt Island Public Safety Department,,,,,Southtown
+,Urban Renewal Administration,,,,,The Bloomberg Center
+,Public Housing Administration,,,,,Graduate Hotel
+,NYC Department of City Planning,,,,,Verizon Executive Education Center
+,Roosevelt Island Historical Society,,,,,The House
+,New York Public Library ,,,,,Sportspark
+,Archdiocese of New York,,,,,Roosevelt Island Racquet Club
+,Donald Trump 00,,,,,Roosevelt Island Tramway
+,Franklin D. Roosevelt 00,,,,,Roosevelt Island Steam Plant
+,Alfred E. Smith 00,,,,,Riverwalk Crossing
+POSITION-INCUMBENT,Gensler Family Sesquicentennial Executive Director of AAP NYC,Bob (Robert W. Balder),,,,Roosevelt Island Subway Station
+POSITION-INCUMBENT,Deputy Director of Gensler Family AAP NYC Center,Cathy Lang Ho,,,,Riverwalk Heights
+POSITION-INCUMBENT,Director of goverment and Community relationship,Jane Swanson,,,,Riverwalk Park
+REPRESENTATIVE-ELECTOR,Gensler Family Sesquicentennial Executive Director of AAP NYC,Cornell Tech,,,,Riverwalk Point
+REPRESENTATIVE-ELECTOR,Deputy Director of Gensler Family AAP NYC Center,Cornell Tech,,,,Blackwell House
+REPRESENTATIVE-ELECTOR,Director of goverment and Community relationship,Cornell Tech,,,,Roosevelt Island Youth Center
+,,,,,,St. Frances Xavier Cabrini Church
+,,,,,,Rivercross
+,,,,,,Island House
+,,,,,,Westview
+,,,,,,Roosevelt Island Senior Center
+,,,,,,The Landings
+,,,,,,The Child School / Legacy High School
+,,,,,,The Roosevelt Island School PS/IS 217
+,,,,,,Roosevelt Island Garden Club
+,,,,,,Edward Logue
+,,,,,,New York State Housing Finance Agency
+,,,,,,New York City Housing Authority
+,,,,,,NYC Department of Transportation
+,,,,,,C&C Apartment Management
+,,,,,,Starrett Housing Corporation
+,,,,,,Cohen Brothers Associates
+,,,,,,NYC Human Resources Administration
+,,,,,,NYC Transportation Administration
+,,,,,,NYC Municipal Service Administration
+,,,,,,NYC Economic Development Administration
+,,,,,,NYC Sanitation Department
+,,,,,,NYC Department of General Services
+,,,,,,NYC Department of Environmental Protection
+,,,,,,Job Development Authority
+,,,,,,Leitner-Poma of America
+,,,,,,"Skidmore, Owings & Merrill"
+,,,,,,Morphosis
+,,,,,,Weiss/Manfredi
+,,,,,,Handel Architects
+,,,,,,Snohetta
+,,,,,,Cornell AAP
+,,,,,,Department of Housing and Urban Development
+,,,,,,Federal Housing Administration
+,,,,,,Fannie Mae (Federal National Mortgage Association)
+,,,,,,National Housing Agency
+,,,,,,Federal Public Housing Authority
+,,,,,,Federal Works Agency
+,,,,,,New Deal
+,,,,,,Lyft
+,,,,,,Hornblower
+,,,,,,New York City Emergency Management Department
+,,,,,,Roosevelt Island Community Garden
+,,,,,,Coler Coastal Resiliency Program 
+,,,,,,Motorgate Parking
+,,,,,,Red Bus
+,,,,,,Citibike
+,,,,,,Astoria Ferry
+,,,,,,Cat Sanctuary
+,,,,,,Roosevelt Island Green Spaces
+,,,,,,Four Freedoms Park Conservancy 
+,,,,,,NY State Parks
+,,,,,,FDR Four Freedoms State Park
+,,,,,,Neil Weissman
+,,,,,,NYCEM Interim Flood Protection Measures
+,,,,,,Federal Emergency Management Agency
+,,,,,,
+,,,,,,
+,,,,,,President of the United States
+,,,,,,Woodrow Wilson
+,,,,,,Warren G. Harding
+,,,,,,Calvin Coolidge
+,,,,,,Herbert Hoover
+,,,,,,Franklin D. Roosevelt
+,,,,,,Harry S. Truman
+,,,,,,Dwight D. Eisenhower
+,,,,,,John F. Kennedy
+,,,,,,Lyndon B. Johnson
+,,,,,,Richard Nixon
+,,,,,,Gerald Ford
+,,,,,,Jimmy Carter
+,,,,,,Ronald Reagan
+,,,,,,George H. W. Bush
+,,,,,,Bill Clinton
+,,,,,,George W. Bush
+,,,,,,Barack Obama
+,,,,,,Donald Trump
+,,,,,,Joe Biden
+,,,,,,Kathy Hochul
+,,,,,,Andrew Cuomo
+,,,,,,David Paterson
+,,,,,,Eliot Spitzer
+,,,,,,George Pataki
+,,,,,,Mario Cuomo
+,,,,,,Hugh Carey
+,,,,,,Malcolm Wilson
+,,,,,,Nelson Rockefeller
+,,,,,,W. Averell Harriman
+,,,,,,Thomas E. Dewey
+,,,,,,Charles Poletti
+,,,,,,Herbert H. Lehman
+,,,,,,Alfred E. Smith
+,,,,,,Nathan L. Miller
+,,,,,,Zohran Mamdani
+,,,,,,Eric Adams
+,,,,,,Bill de Blasio
+,,,,,,Michael Bloomberg
+,,,,,,Rudy Giuliani
+,,,,,,David Dinkins
+,,,,,,Ed Koch
+,,,,,,Abraham Beame
+,,,,,,John Lindsay
+,,,,,,Robert F. Wagner Jr.
+,,,,,,Vincent R. Impellitteri
+,,,,,,William O'Dwyer
+,,,,,,Fiorello La Guardia
+,,,,,,John P. O'Brien
+,,,,,,Joseph V. McKee
+,,,,,,James J. Walker
+,,,,,,John Francis Hylan
+,,,,,,Weil Cornell Medicine
+,,,,,,
+,,,,,,President & CEO of the Urban Development Corporation
+,,,,,,"President, CEO & Commissioner of Empire State Development"

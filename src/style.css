@@ -745,7 +745,8 @@ button:hover {
   font-variant-numeric: tabular-nums;
 }
 
-#edge-curvature-slider {
+#edge-curvature-slider,
+#general-line-weight-slider {
   width: 100%;
   margin: 0;
   accent-color: var(--accent);

@@ -49,11 +49,11 @@ Current relationships:
 | `matrix_pre.csv` | Predecessor–Successor |
 | `matrix_rep.csv` | Representative–Elector |
 
-To add another adjacency matrix, drop the CSV in `public/data/edges/` and add an entry to `manifest.json` — no code changes needed.
+The imported `adjacency.csv` is the local source for these matrices. After updating it, run `node scripts/build-adjacency-matrices.mjs` to regenerate the matrix snapshots.
 
 ### Refresh from Google Sheets
 
-Use **Refresh from Google Sheets** in the sidebar to fetch the published `actor_working` tab and the nine `matrix_*` tabs, then rebuild the graph. Other workbook tabs are ignored. The workbook must remain published to the web. Normal startup uses the bundled CSV snapshot; after refresh, the page stays in sheet mode on subsequent reloads. Published tab IDs are configured in `src/config.js`.
+Use **Refresh from Google Sheets** in the sidebar to fetch the published `actor_working` tab, the `adjacency` tab, and the nine `matrix_*` tabs, then rebuild the graph. The adjacency tab's parameter columns are attached to matching graph edges and shown in connection details. Financial frequency is read from the sheet's `parameter 2` column (the third parameter column). Normal startup uses the bundled CSV snapshots; after refresh, the page stays in sheet mode on subsequent reloads. Published tab IDs are configured in `src/config.js`.
 
 ## Local development
 
