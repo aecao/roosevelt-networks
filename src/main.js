@@ -192,6 +192,120 @@ function applyOwnerTenantWidths(graph) {
   });
 }
 
+function parseFinancialAmount(raw) {
+  const match = /^\s*\$?\s*([\d,]+(?:\.\d+)?)\s*$/i.exec(String(raw ?? ''));
+  if (!match) return null;
+  const amount = Number(match[1].replaceAll(',', ''));
+  return Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+function applyFinancialWidths(graph) {
+  const financialEdges = graph.edges().filter((edge) => graph.getEdgeAttribute(edge, 'adjacencyType') === 'fin');
+  const widthFor = (field) => {
+    const amounts = financialEdges.map((edge) => graph.getEdgeAttribute(edge, field)).filter(Number.isFinite);
+    const minimum = amounts.length ? Math.min(...amounts) : 0;
+    const maximum = amounts.length ? Math.max(...amounts) : 0;
+    return (amount) => {
+      const proportion = maximum > minimum ? (amount - minimum) / (maximum - minimum) : 0;
+      return 1 + Math.max(0, Math.min(1, proportion)) * 4;
+    };
+  };
+  const ongoingWidth = widthFor('ongoingFunds');
+  const upfrontWidth = widthFor('upfrontInvestment');
+  financialEdges.forEach((edge) => {
+    const attributes = graph.getEdgeAttributes(edge);
+    if (Number.isFinite(attributes.ongoingFunds)) {
+      graph.setEdgeAttribute(edge, 'size', ongoingWidth(attributes.ongoingFunds));
+      if (Number.isFinite(attributes.upfrontInvestment)) {
+        graph.setEdgeAttribute(edge, 'upfrontSize', upfrontWidth(attributes.upfrontInvestment));
+      }
+    }
+  });
+}
+
+function reverseFinancialProgram(Program) {
+  return class extends Program {
+    process(edgeIndex, offset, sourceData, targetData, data) {
+      if (data.adjacencyType !== 'fin') {
+        return super.process(edgeIndex, offset, sourceData, targetData, data);
+      }
+      return super.process(edgeIndex, offset, targetData, sourceData, {
+        ...data,
+        curvature: Number.isFinite(data.curvature) ? -data.curvature : data.curvature,
+      });
+    }
+  };
+}
+
+function drawFinancialUpfront(context, renderer, graph) {
+  const { width, height } = renderer.getDimensions();
+  context.clearRect(0, 0, width, height);
+  graph.forEachEdge((edge, attributes, source, target) => {
+    if (attributes.adjacencyType !== 'fin' || !Number.isFinite(attributes.upfrontSize)) return;
+    const displayData = renderer.getEdgeDisplayData(edge);
+    const sourceData = renderer.getNodeDisplayData(source);
+    const targetData = renderer.getNodeDisplayData(target);
+    if (!displayData || displayData.hidden || !sourceData || sourceData.hidden || !targetData || targetData.hidden) return;
+    const start = renderer.framedGraphToViewport(sourceData);
+    const end = renderer.framedGraphToViewport(targetData);
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
+    const length = Math.hypot(deltaX, deltaY);
+    if (!length) return;
+    const selected = state.selectedEdgeIds.has(edge);
+    const hovered = state.hoveredEdgeIds.has(edge);
+    const size = Math.max(attributes.upfrontSize, selected ? 3 : hovered ? 2.5 : 1);
+    const lineWidth = Math.max(1, renderer.scaleSize(size));
+    const offset = (renderer.scaleSize(displayData.size) + lineWidth) / 2 + 2;
+    const normalX = -deltaY / length;
+    const normalY = deltaX / length;
+    const curvature = Number.isFinite(displayData.curvature) ? displayData.curvature : 0;
+    const control = {
+      x: (start.x + end.x) / 2 - deltaY * curvature + normalX * offset,
+      y: (start.y + end.y) / 2 + deltaX * curvature + normalY * offset,
+    };
+    start.x += normalX * offset;
+    start.y += normalY * offset;
+    end.x += normalX * offset;
+    end.y += normalY * offset;
+    const tangentX = curvature ? start.x - control.x : -deltaX;
+    const tangentY = curvature ? start.y - control.y : -deltaY;
+    const tangentLength = Math.hypot(tangentX, tangentY) || 1;
+    const unitX = tangentX / tangentLength;
+    const unitY = tangentY / tangentLength;
+    const sourceRadius = renderer.scaleSize(sourceData.size);
+    const tipX = start.x - unitX * sourceRadius;
+    const tipY = start.y - unitY * sourceRadius;
+    const headLength = Math.max(5, lineWidth * 3.5);
+    const halfWidth = Math.max(3, lineWidth * 2);
+    const baseX = tipX - unitX * headLength;
+    const baseY = tipY - unitY * headLength;
+    const color = selected ? '#ffffff' : hovered ? '#ffd166' : attributes.color;
+    context.save();
+    context.globalAlpha = !selected && !hovered && state.focusOpacityActive && !state.focusEdgeIds.has(edge)
+      ? FOCUS_DIM_OPACITY
+      : 1;
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineWidth = lineWidth;
+    context.lineCap = 'round';
+    context.setLineDash([lineWidth * 3, lineWidth * 2]);
+    context.beginPath();
+    context.moveTo(end.x, end.y);
+    if (curvature) context.quadraticCurveTo(control.x, control.y, baseX, baseY);
+    else context.lineTo(baseX, baseY);
+    context.stroke();
+    context.setLineDash([]);
+    context.beginPath();
+    context.moveTo(tipX, tipY);
+    context.lineTo(baseX - unitY * halfWidth, baseY + unitX * halfWidth);
+    context.lineTo(baseX + unitY * halfWidth, baseY - unitX * halfWidth);
+    context.closePath();
+    context.fill();
+    context.restore();
+  });
+}
+
 function sizeForActorScale(scale) {
   const scaleRank = { MICRO: 0, MESO: 1, MACRO: 2 }[scale];
   if (scaleRank === undefined) return (MIN_SIZE + MAX_SIZE) / 2;
@@ -314,6 +428,8 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       weight: 1,
       size: 1,
       parcelArea: type === 'own' ? parseParcelArea(row['parameter 0']) : null,
+      upfrontInvestment: type === 'fin' ? parseFinancialAmount(row['parameter 0']) : null,
+      ongoingFunds: type === 'fin' ? parseFinancialAmount(row['parameter 1']) : null,
       color: state.edgeTypeColors.get(type),
     };
     if (directed) graph.addDirectedEdge(source, target, attrs);
@@ -322,6 +438,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   onProgress(2, totalSteps);
 
   applyOwnerTenantWidths(graph);
+  applyFinancialWidths(graph);
   assignParallelEdgeCurves(graph);
 
   state.activeEdgeTypes = new Set(edgeTypes);
@@ -1062,9 +1179,9 @@ async function main() {
     defaultEdgeType: 'line',
     edgeProgramClasses: {
       line: EdgeLineProgram,
-      arrow: EdgeArrowProgram,
+      arrow: reverseFinancialProgram(EdgeArrowProgram),
       curve: EdgeCurveProgram,
-      curvedArrow: EdgeCurvedArrowProgram,
+      curvedArrow: reverseFinancialProgram(EdgeCurvedArrowProgram),
     },
   });
   state.renderer = renderer;
@@ -1773,6 +1890,14 @@ async function main() {
     placedLabelBoxes = [];
   });
 
+  renderer.createCanvasContext('financial-upfront', {
+    beforeLayer: 'nodes',
+    style: { pointerEvents: 'none' },
+  });
+  const financialUpfrontContext = renderer.getCanvases()['financial-upfront'].getContext('2d');
+  renderer.on('afterRender', () => {
+    if (financialUpfrontContext) drawFinancialUpfront(financialUpfrontContext, renderer, graph);
+  });
   renderer.createCanvasContext('size-halos', {
     beforeLayer: 'nodes',
     style: { pointerEvents: 'none' },
