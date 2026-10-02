@@ -8,8 +8,8 @@ import { drawDiscNodeHover, EdgeArrowProgram, EdgeLineProgram } from 'sigma/rend
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
-import { DATA, PALETTE } from './config.js';
-import { dataLoadState, loadActors, loadEdgeManifest, loadAdjacencyMatrix } from './data.js';
+import { DATA, PALETTE, SHEET_ADJACENCY_TYPES } from './config.js';
+import { dataLoadState, loadActors, loadAdjacencyRows, loadEdgeManifest } from './data.js';
 
 const mapGeoModule = import('./map-mode.js');
 
@@ -211,41 +211,44 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   });
 
   const manifest = await loadEdgeManifest();
-  const edgeTypes = [];
+  const typeDetails = new Map(manifest.map((entry) => [entry.type, entry]));
+  const edgeTypes = [...typeDetails.keys()];
   manifest.forEach((entry, i) => state.edgeTypeColors.set(entry.type, PALETTE[i % PALETTE.length]));
 
-  const totalSteps = manifest.length + 1;
-  let completedSteps = 1;
-  onProgress(completedSteps, totalSteps);
+  const totalSteps = 2;
+  onProgress(1, totalSteps);
+  const adjacencyRows = await loadAdjacencyRows(fromGoogleSheets);
+  const seenPairs = new Set();
+  adjacencyRows.forEach((row) => {
+    const relationship = String(row['source-target relationship'] || '').trim().toUpperCase();
+    const type = SHEET_ADJACENCY_TYPES[relationship];
+    const entry = typeDetails.get(type);
+    const source = String(row.source || '').trim();
+    const target = String(row.target || '').trim();
+    if (!entry || !source || !target || source === target) return;
 
-  const adjacencyMatrices = await Promise.all(manifest.map(async (entry) => {
-    const edges = await loadAdjacencyMatrix(entry.file, fromGoogleSheets);
-    completedSteps += 1;
-    onProgress(completedSteps, totalSteps);
-    return { entry, edges };
-  }));
+    const directed = !DATA.undirectedEdgeTypes.includes(type);
+    const pair = directed ? [source, target] : [source, target].sort();
+    const key = JSON.stringify([type, ...pair]);
+    if (seenPairs.has(key)) return;
+    seenPairs.add(key);
+    if (!graph.hasNode(source) || !graph.hasNode(target)) {
+      console.warn(`Skipping adjacency ${source} -> ${target}: unknown actor id (check "${DATA.nodeIdField}" matches actors.csv)`);
+      return;
+    }
 
-  for (const { entry, edges } of adjacencyMatrices) {
-    edgeTypes.push(entry.type);
-    const directed = !DATA.undirectedEdgeTypes.includes(entry.type);
-    const color = state.edgeTypeColors.get(entry.type);
-    edges.forEach(({ source, target, weight }) => {
-      if (!graph.hasNode(source) || !graph.hasNode(target)) {
-        console.warn(`Skipping edge ${source} -> ${target}: unknown actor id (check "${DATA.nodeIdField}" matches matrix headers)`);
-        return;
-      }
-      const attrs = {
-        type: directed ? 'arrow' : 'line',
-        adjacencyType: entry.type,
-        label: entry.label,
-        weight,
-        size: 1,
-        color,
-      };
-      if (directed) graph.addDirectedEdge(source, target, attrs);
-      else graph.addUndirectedEdge(source, target, attrs);
-    });
-  }
+    const attrs = {
+      type: directed ? 'arrow' : 'line',
+      adjacencyType: type,
+      label: entry.label,
+      weight: 1,
+      size: 1,
+      color: state.edgeTypeColors.get(type),
+    };
+    if (directed) graph.addDirectedEdge(source, target, attrs);
+    else graph.addUndirectedEdge(source, target, attrs);
+  });
+  onProgress(2, totalSteps);
 
   assignParallelEdgeCurves(graph);
 

@@ -55,50 +55,34 @@ export async function loadActors(fromGoogleSheets = false) {
   return actors;
 }
 
+export async function loadAdjacencyRows(fromGoogleSheets = false) {
+  const text = fromGoogleSheets
+    ? await fetchSheetOrLocal(DATA.googleSheets.adjacencyGid, DATA.adjacencyFile)
+    : await fetchText(DATA.adjacencyFile);
+  const { data, meta } = Papa.parse(text, { header: true, skipEmptyLines: true });
+  const requiredHeaders = [
+    'source-target relationship',
+    'source',
+    'target',
+    'parameter 0',
+    'parameter 1',
+    'parameter 2',
+  ];
+  const missingHeaders = requiredHeaders.filter((header) => !meta.fields?.includes(header));
+  if (missingHeaders.length) {
+    throw new Error(`Adjacency tab is missing columns: ${missingHeaders.join(', ')}`);
+  }
+  const rows = data
+    .map((row) => Object.fromEntries(Object.entries(row).map(([key, value]) => [
+      key.trim(), typeof value === 'string' ? value.trim() : value,
+    ])))
+    .filter((row) => row['source-target relationship'] && row.source && row.target);
+  if (!rows.length) throw new Error('Adjacency tab contains no populated relationships');
+  return rows;
+}
+
 export async function loadEdgeManifest() {
   const res = await fetch(DATA.edgesManifest);
   if (!res.ok) throw new Error(`Failed to fetch ${DATA.edgesManifest}: ${res.status}`);
   return res.json();
-}
-
-// Parses a square adjacency matrix CSV (actor ids as both the header row and
-// the first column) into a flat list of { source, target, weight } edges.
-// A cell counts as an edge when it is non-empty and not "0".
-export async function loadAdjacencyMatrix(file, fromGoogleSheets = false) {
-  let text;
-  if (fromGoogleSheets) {
-    const gid = DATA.googleSheets.matrixGids[file];
-    if (!gid) throw new Error(`No published Google Sheets tab configured for ${file}`);
-    text = await fetchSheetOrLocal(gid, `${DATA.edgesDir}${file}`);
-  } else {
-    text = await fetchText(`${DATA.edgesDir}${file}`);
-  }
-  const { data: rows } = Papa.parse(text, { skipEmptyLines: true });
-  if (rows.length < 2) return [];
-
-  const header = rows[0].map((cell) => (cell || '').trim());
-  const edges = [];
-
-  for (let i = 1; i < rows.length; i++) {
-    const row = rows[i];
-    const sourceId = (row[0] || '').trim();
-    if (!sourceId) continue;
-
-    for (let j = 1; j < row.length; j++) {
-      const targetId = header[j];
-      if (!targetId || sourceId === targetId) continue;
-
-      const raw = (row[j] || '').trim();
-      if (!raw || raw === '0') continue;
-
-      const weight = Number(raw);
-      edges.push({
-        source: sourceId,
-        target: targetId,
-        weight: Number.isFinite(weight) && weight > 0 ? weight : 1,
-      });
-    }
-  }
-
-  return edges;
 }

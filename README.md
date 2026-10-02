@@ -12,7 +12,7 @@ One row per actor:
 
 | column | meaning |
 |---|---|
-| `actor` | full name / label shown in the graph — **must match the row/column headers in the adjacency matrix CSVs**, and must be unique |
+| `actor` | full name / label shown in the graph — **must match the `source` and `target` values in `adjacency.csv`**, and must be unique |
 | `abbrev` | short id, shown in the details panel (optional) |
 | `topic` | topic tag(s), comma-separated |
 | `type` | category used for the "Actor category" filter and node color |
@@ -23,37 +23,15 @@ Blank cells are fine — the loader trims whitespace on every field and skips ro
 
 The optional year filter uses an inclusive `year_start`/`year_end` range from 1920 through 2026. A missing start or end is treated as open-ended; actors with neither year set remain visible for every selected year.
 
-### Edges — `public/data/edges/*.csv` + `manifest.json`
+### Edges — `public/data/edges/adjacency.csv` + `manifest.json`
 
-Each relationship is one **square adjacency matrix** CSV: the first row and first column both list actor names (matching `actor` in actors.csv exactly), and a non-empty/non-zero cell `[row, col]` means an edge from `row` to `col`. Numeric values >1 are used as edge weight.
+The graph is built from the edge-list columns `source-target relationship`, `source`, and `target` in `adjacency.csv`. Actor names must match `actor` in `actors.csv`. Duplicate pairs are collapsed, and Collaboration pairs are deduplicated regardless of endpoint order. `manifest.json` maps relationship types to graph filters, labels, and colors. The `matrix_*.csv` files are legacy snapshots and are not read at runtime.
 
-`public/data/edges/manifest.json` lists which matrix files to load and what label/filter each one gets:
-
-```json
-[
-  { "file": "matrix_par.csv", "type": "par", "label": "Parent–Child" }
-]
-```
-
-Current relationships:
-
-| file | label |
-|---|---|
-| `matrix_adm.csv` | Administrator–Administrated |
-| `matrix_col.csv` | Collaboration |
-| `matrix_cre.csv` | Creator–Creation |
-| `matrix_fin.csv` | Financial |
-| `matrix_own.csv` | Owner–Tenant |
-| `matrix_par.csv` | Parent–Child |
-| `matrix_pos.csv` | Position–Incumbent |
-| `matrix_pre.csv` | Predecessor–Successor |
-| `matrix_rep.csv` | Representative–Elector |
-
-To add another adjacency matrix, drop the CSV in `public/data/edges/` and add an entry to `manifest.json` — no code changes needed.
+To add a relationship type, add its label and code to `manifest.json` and add the sheet relationship name-to-code mapping in `src/config.js`.
 
 ### Refresh from Google Sheets
 
-Use **Refresh from Google Sheets** in the sidebar to fetch the published `actor_working` tab and the nine `matrix_*` tabs, then rebuild the graph. Other workbook tabs are ignored. The workbook must remain published to the web. Normal startup uses the bundled CSV snapshot; after refresh, the page stays in sheet mode on subsequent reloads. Published tab IDs are configured in `src/config.js`.
+Use **Refresh from Google Sheets** in the sidebar to fetch the published `actor_working` and `adjacency` tabs, then rebuild the graph directly from those actors and edge rows. If a sheet request fails, its bundled CSV snapshot is used and the refresh is marked incomplete. The workbook must remain published to the web. Normal startup uses the bundled CSV snapshots; after refresh, the page stays in sheet mode on subsequent reloads. Published tab IDs are configured in `src/config.js`.
 
 ## Local development
 

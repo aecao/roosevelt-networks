@@ -3,25 +3,14 @@ const base = import.meta.env.BASE_URL;
 
 export const DATA = {
   actorsFile: `${base}data/actors.csv`,
+  adjacencyFile: `${base}data/edges/adjacency.csv`,
   edgesManifest: `${base}data/edges/manifest.json`,
-  edgesDir: `${base}data/edges/`,
   googleSheets: {
     publishedUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pub',
     actorGid: '1300872278',
-    matrixGids: {
-      'matrix_adm.csv': '119384752',
-      'matrix_col.csv': '368522815',
-      'matrix_cre.csv': '615922550',
-      'matrix_fin.csv': '899745488',
-      'matrix_own.csv': '816708796',
-      'matrix_par.csv': '721788304',
-      'matrix_pos.csv': '1399262735',
-      'matrix_pre.csv': '1972359226',
-      'matrix_rep.csv': '923473874',
-    },
+    adjacencyGid: '548852791',
   },
-  // Column in actors.csv used as the graph node id. Must match the row/column
-  // headers used in the adjacency matrix CSVs.
+  // Column in actors.csv used as the graph node id. Must match adjacency endpoints.
   nodeIdField: 'actor',
   nodeLabelField: 'actor',
   nodeAbbreviationField: 'abbrev',
@@ -33,6 +22,18 @@ export const DATA = {
   // Adjacency types that are symmetric (rendered as plain undirected lines).
   // Every other type is treated as directional and rendered with an arrow.
   undirectedEdgeTypes: ['col'],
+};
+
+export const SHEET_ADJACENCY_TYPES = {
+  'ADMINISTRATOR-ADMINISTRATED': 'adm',
+  COLLABORATION: 'col',
+  'CREATOR-CREATION': 'cre',
+  'FINANCIAL (RECIPIENT-SENDER)': 'fin',
+  'OWNER-TENANT': 'own',
+  'PARENT-CHILD': 'par',
+  'POSITION-INCUMBENT': 'pos',
+  'PREDECESSOR-SUCCESSOR': 'pre',
+  'REPRESENTATIVE-ELECTOR': 'rep',
 };
 
 export const PALETTE = [
