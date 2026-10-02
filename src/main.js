@@ -24,6 +24,17 @@ function nodeSizeDisplayToScale(display) {
   if (display <= 50) return 1 + ((display - 1) / 49) * 0.5;
   return 1.5 + ((display - 50) / 50) * 0.5;
 }
+
+function coreNodeSize(scale) {
+  if (!state.sizeNodesByScale) return CORE_NODE_SIZE * state.nodeSizeScale;
+  const defaultSizes = {
+    MICRO: CORE_NODE_SIZE * nodeSizeDisplayToScale(1) * 0.5,
+    MESO: CORE_NODE_SIZE * nodeSizeDisplayToScale(50),
+    MACRO: CORE_NODE_SIZE * nodeSizeDisplayToScale(100) * 2,
+  };
+  const defaultSize = defaultSizes[scale] ?? defaultSizes.MESO;
+  return defaultSize * state.nodeSizeScale / nodeSizeDisplayToScale(50);
+}
 // Label text sizes for the bottom/middle/top thirds of nodes by centrality rank
 // (the current/old label-size formula topped out at 15, so the top two tiers exceed it).
 const LABEL_TIER_SIZES = [11, 19, 26];
@@ -69,6 +80,7 @@ const state = {
   freezePositions: false,
   zoomToSelected: true,
   nodeSizeScale: 1,
+  sizeNodesByScale: true,
   showLabels: true,
   sizeMode: 'scale-of-actor',
   centralityFilterType: 'degree-centrality',
@@ -280,7 +292,7 @@ function drawFinancialUpfront(context, renderer, graph) {
     const halfWidth = Math.max(3, lineWidth * 2);
     const baseX = tipX - unitX * headLength;
     const baseY = tipY - unitY * headLength;
-    const color = selected ? '#ffffff' : hovered ? '#ffd166' : attributes.color;
+    const color = attributes.color;
     context.save();
     context.globalAlpha = !selected && !hovered && state.focusOpacityActive && !state.focusEdgeIds.has(edge)
       ? FOCUS_DIM_OPACITY
@@ -884,6 +896,8 @@ async function main() {
   const nodeSizeDecrement = document.getElementById('node-size-decrement');
   const nodeSizeIncrement = document.getElementById('node-size-increment');
   state.nodeSizeScale = nodeSizeDisplayToScale(Number(nodeSizeSlider.value));
+  const sizeNodesByScaleToggle = document.getElementById('size-nodes-by-scale');
+  state.sizeNodesByScale = sizeNodesByScaleToggle.checked;
   const centralityTypeSelect = document.getElementById('centrality-type');
   const centralityThresholdSlider = document.getElementById('centrality-threshold-slider');
   const centralityThresholdValue = document.getElementById('centrality-threshold-value');
@@ -1196,6 +1210,11 @@ async function main() {
 
   colorModeSelect.addEventListener('change', () => {
     state.colorMode = colorModeSelect.value;
+    refresh();
+  });
+
+  sizeNodesByScaleToggle.addEventListener('change', () => {
+    state.sizeNodesByScale = sizeNodesByScaleToggle.checked;
     refresh();
   });
 
@@ -2426,7 +2445,7 @@ async function main() {
     const labelVisible = isEmphasized || isFocusLabel || isNewFromSheet || (state.showLabels && zoomEligible);
     return {
       ...data,
-      size: CORE_NODE_SIZE * state.nodeSizeScale,
+      size: coreNodeSize(data.scale),
       color: isDimmed ? colorWithOpacity(nodeColor, FOCUS_DIM_OPACITY) : nodeColor,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
@@ -2443,10 +2462,10 @@ async function main() {
       || !nodesVisible;
     if (hidden) return { ...data, hidden: true };
     if (state.selectedEdgeIds.has(edge)) {
-      return { ...data, color: '#ffffff', size: Math.max(data.size || 1, 3) };
+      return { ...data, size: Math.max(data.size || 1, 3) };
     }
     return state.hoveredEdgeIds.has(edge)
-      ? { ...data, color: '#ffd166', size: Math.max(data.size || 1, 2.5) }
+      ? { ...data, size: Math.max(data.size || 1, 2.5) }
       : state.focusOpacityActive && !state.focusEdgeIds.has(edge)
         ? { ...data, color: colorWithOpacity(data.color, FOCUS_DIM_OPACITY) }
         : data;
