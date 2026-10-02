@@ -99,6 +99,10 @@
               </div>
               <div id="appearance-group" class="filter-group-content" hidden>
                 <div class="appearance-controls">
+                  <label class="toggle-row">
+                    <input id="labels-toggle" type="checkbox" checked />
+                    <span>Labels</span>
+                  </label>
                   <label for="node-size-slider">Node size <output id="node-size-value">50</output></label>
                   <div class="slider-with-steps">
                     <button id="node-size-decrement" class="slider-step-button" type="button" aria-label="Decrease node size">−</button>
@@ -226,7 +230,11 @@
               </label>
               <div id="year-controls" class="year-controls" hidden>
                 <label for="year-slider">Year <output id="year-value">2026</output></label>
-                <input id="year-slider" type="range" min="1920" max="2026" step="1" value="2026" />
+                <div class="slider-with-steps">
+                  <button id="year-decrement" class="slider-step-button" type="button" aria-label="Decrease year by 5">−</button>
+                  <input id="year-slider" type="range" min="1920" max="2026" step="1" value="2026" />
+                  <button id="year-increment" class="slider-step-button" type="button" aria-label="Increase year by 5">+</button>
+                </div>
               </div>
             </div>
           </section>
@@ -253,12 +261,13 @@
             <button id="details-toggle" class="sidebar-toggle" type="button" aria-label="Show details" aria-expanded="false">+</button>
           </header>
           <div id="details-content">
-            <section id="active-selection" class="selection-section" hidden>
-              <header class="selection-heading">
+            <section id="active-selection" class="selection-section">
+              <p id="no-selection-message" class="no-selection-message">No active selection</p>
+              <header class="selection-heading" hidden>
                 <h2 id="current-selection-title"></h2>
                 <button id="pin-selection" class="pin-selection" type="button">Pin</button>
               </header>
-              <div id="node-details" class="details"></div>
+              <div id="node-details" class="details" hidden></div>
             </section>
             <section id="pinned-section" class="pinned-section" aria-label="Pinned selections" hidden>
               <header class="pinned-section-heading">

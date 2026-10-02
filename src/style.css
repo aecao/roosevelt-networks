@@ -461,6 +461,15 @@ h1, h2, h3, h4, h5, h6 {
   font-variant-numeric: tabular-nums;
 }
 
+output.slider-value-editable {
+  text-decoration: underline dotted rgba(255, 255, 255, 0.45);
+  text-underline-offset: 3px;
+}
+
+output.slider-value-editable:hover {
+  text-decoration-color: var(--text);
+}
+
 #centrality-threshold-slider {
   width: 100%;
   margin: 0;
@@ -497,6 +506,18 @@ h1, h2, h3, h4, h5, h6 {
   font-size: 0.85rem;
   line-height: 1;
   cursor: pointer;
+}
+
+.slider-value-input {
+  width: 46px;
+  padding: 0 2px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #000000;
+  color: var(--text);
+  font-size: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 .slider-step-button:hover {
@@ -594,8 +615,8 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-left: 12px;
-  padding-left: 10px;
+  margin-left: 0;
+  padding-left: 22px;
   max-height: 260px;
   overflow-y: auto;
 }
@@ -603,15 +624,16 @@ h1, h2, h3, h4, h5, h6 {
 .filter-list::before {
   position: absolute;
   z-index: 0;
-  top: -12px;
-  bottom: 6px;
-  left: -6px;
-  border-left: 1px solid var(--muted);
+  top: -15.5px;
+  bottom: 15.5px;
+  left: 6.5px;
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
   content: '';
   pointer-events: none;
 }
 
 .filter-list label {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -619,11 +641,32 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
 }
 
+.filter-list label::before {
+  position: absolute;
+  top: calc(50% - 6px);
+  left: -15.5px;
+  width: 15.5px;
+  height: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.24);
+  border-left: 1px solid rgba(255, 255, 255, 0.24);
+  border-bottom-left-radius: 6px;
+  content: '';
+  pointer-events: none;
+}
+
 .filter-list .swatch {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+}
+
+/* Relationships are rendered as lines in the graph, so represent them as short
+   colored lines here too, instead of the dots used for node-category swatches. */
+#edge-type-filters .swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1.5px;
 }
 
 button {
@@ -679,7 +722,7 @@ button:hover {
 
 #year-slider {
   width: 100%;
-  margin: 4px 0 0;
+  margin: 0;
   accent-color: var(--accent);
   cursor: pointer;
 }
@@ -723,7 +766,8 @@ button:hover {
   line-height: 1.5;
 }
 
-.details.hidden {
+.details.hidden,
+.details[hidden] {
   display: none;
 }
 
@@ -835,6 +879,12 @@ button:hover {
   display: none;
 }
 
+.no-selection-message {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 #details-sidebar:not(.has-pinned) #active-selection {
   flex: 1;
   max-height: none;
@@ -846,6 +896,10 @@ button:hover {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
+}
+
+.selection-heading[hidden] {
+  display: none;
 }
 
 .selection-heading h2 {
@@ -957,10 +1011,22 @@ button:hover {
 }
 
 .pinned-title {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   overflow: hidden;
   font-size: 0.82rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: left;
+}
+
+.pinned-title:hover {
+  color: var(--text);
 }
 
 .pinned-content {

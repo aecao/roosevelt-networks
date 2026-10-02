@@ -29,7 +29,11 @@ function nodeSizeDisplayToScale(display) {
 const LABEL_TIER_SIZES = [11, 19, 26];
 // Max camera ratio (how zoomed OUT the view can be) at which each tier's label still
 // shows; more central nodes (higher tier) keep their label visible from further away.
-const LABEL_TIER_MAX_RATIO = [0.35, 0.8, Infinity];
+// The top tier still disappears once zoomed out somewhat past the starting ratio (0.5),
+// so panning/zooming far out doesn't leave the view cluttered with large labels.
+const LABEL_TIER_MAX_RATIO = [0.35, 0.8, 1];
+const FIRST_VISIBLE_LABEL_TIER = LABEL_TIER_MAX_RATIO.indexOf(Math.max(...LABEL_TIER_MAX_RATIO));
+const FOCUS_DIM_OPACITY = 0.2;
 const POSITION_EDGE_TYPE = 'pos';
 // The gravity slider's displayed value is intentionally inverted (higher slider value
 // = looser/more spread out), since that reads more intuitively than raw ForceAtlas2
@@ -63,6 +67,7 @@ const state = {
   freezePositions: false,
   zoomToSelected: true,
   nodeSizeScale: 1,
+  showLabels: true,
   sizeMode: 'scale-of-actor',
   centralityFilterType: 'degree-centrality',
   centralityThreshold: 0,
@@ -74,9 +79,37 @@ const state = {
   hasAutoExpandedDetails: false,
   selectedEdgeIds: new Set(),
   hoveredEdgeIds: new Set(),
+  hoveredSearchNodeId: null,
+  emphasizedNodeIds: new Set(),
+  focusOpacityActive: false,
+  focusNodeIds: new Set(),
+  focusEdgeIds: new Set(),
+  pinnedGraphNodeIds: new Set(),
+  pinnedGraphEdgeIds: new Set(),
+  updateFocusOpacity: null,
   currentSelection: null,
   pinnedSelections: [],
 };
+
+function syncEmphasizedNodes() {
+  state.emphasizedNodeIds = new Set([
+    ...(state.currentSelection?.nodeIds || []),
+    ...state.pinnedSelections.flatMap(({ nodeIds }) => nodeIds || []),
+    ...(state.hoveredSearchNodeId ? [state.hoveredSearchNodeId] : []),
+  ]);
+  state.updateFocusOpacity?.();
+  state.renderer?.refresh();
+}
+
+function colorWithOpacity(color, opacity) {
+  const match = /^#([\da-f]{6})$/i.exec(color);
+  if (!match) return color;
+  const value = Number.parseInt(match[1], 16);
+  const red = value >> 16;
+  const green = (value >> 8) & 0xff;
+  const blue = value & 0xff;
+  return `rgba(${Math.round(red * opacity)}, ${Math.round(green * opacity)}, ${Math.round(blue * opacity)}, ${opacity})`;
+}
 
 // Turns "1 - MESO" into "MESO"; falls back to the raw value or "Unknown".
 function parseScale(raw) {
@@ -300,6 +333,46 @@ function buildFilterCheckboxes(container, items, activeSet, colorFor, onChange, 
   syncSelectAll();
 }
 
+// Lets a slider's <output> readout be clicked to type an exact value directly;
+// out-of-range entries clamp to the nearest bound instead of being rejected.
+function makeSliderOutputEditable(output, getBounds, onCommit) {
+  output.classList.add('slider-value-editable');
+  output.style.cursor = 'text';
+  output.title = 'Click to enter a value';
+  output.addEventListener('click', () => {
+    if (output.querySelector('input')) return;
+    const currentText = output.textContent;
+    const { min, max } = getBounds();
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.className = 'slider-value-input';
+    input.min = String(min);
+    input.max = String(max);
+    input.value = (currentText.match(/-?\d+(\.\d+)?/) || [''])[0];
+    output.textContent = '';
+    output.appendChild(input);
+    input.focus();
+    input.select();
+
+    const commit = () => {
+      const raw = Number(input.value);
+      const clamped = Number.isFinite(raw) ? Math.max(min, Math.min(max, raw)) : min;
+      onCommit(clamped);
+    };
+    input.addEventListener('blur', commit, { once: true });
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        input.blur();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        input.removeEventListener('blur', commit);
+        output.textContent = currentText;
+      }
+    });
+  });
+}
+
 function syncDetailsSidebar() {
   const detailsSidebar = document.getElementById('details-sidebar');
   const hasContent = Boolean(state.currentSelection) || state.pinnedSelections.length > 0;
@@ -409,15 +482,24 @@ function renderCurrentSelection() {
   const section = document.getElementById('active-selection');
   const title = document.getElementById('current-selection-title');
   const pinButton = document.getElementById('pin-selection');
-  section.hidden = !state.currentSelection;
-  if (state.currentSelection) {
+  const heading = section.querySelector('.selection-heading');
+  const noSelectionMessage = document.getElementById('no-selection-message');
+  const details = document.getElementById('node-details');
+  const hasSelection = Boolean(state.currentSelection);
+  noSelectionMessage.hidden = hasSelection;
+  heading.hidden = !hasSelection;
+  details.hidden = !hasSelection;
+  if (hasSelection) {
     title.textContent = state.currentSelection.title;
     const alreadyPinned = state.pinnedSelections.some(({ key }) => key === state.currentSelection.key);
     pinButton.disabled = false;
     pinButton.textContent = alreadyPinned ? 'Unpin' : 'Pin';
     pinButton.setAttribute('aria-pressed', String(alreadyPinned));
-    renderSelectionDetails(state.currentSelection, document.getElementById('node-details'));
+    renderSelectionDetails(state.currentSelection, details);
+  } else {
+    details.replaceChildren();
   }
+  syncEmphasizedNodes();
   syncDetailsSidebar();
 }
 
@@ -497,9 +579,19 @@ function renderPinnedSelections() {
       renderPinnedSelections();
     });
 
-    const title = document.createElement('span');
+    const title = document.createElement('button');
     title.className = 'pinned-title';
+    title.type = 'button';
     title.textContent = selection.title;
+    title.setAttribute('aria-label', `Zoom to ${selection.title}`);
+    title.title = 'Zoom to this selection';
+    title.addEventListener('click', () => {
+      state.currentSelection = selection;
+      state.selectedEdgeIds = new Set(selection.edgeIds || []);
+      state.renderer?.refresh();
+      renderCurrentSelection();
+      state.zoomToSelection?.(selection);
+    });
 
     const unpin = document.createElement('button');
     unpin.className = 'unpin-selection';
@@ -541,8 +633,8 @@ function renderPinnedSelections() {
 
 function showNodeDetails(graph, nodeId) {
   state.selectedEdgeIds.clear();
-  state.renderer?.refresh();
   state.currentSelection = createNodeSelection(graph, nodeId);
+  state.renderer?.refresh();
   renderCurrentSelection();
 }
 
@@ -553,17 +645,46 @@ function showEdgeDetails(graph, edge) {
   renderCurrentSelection();
 }
 
+// Clears the active selection when clicking empty canvas; pinned entries remain listed.
+function clearCurrentSelection() {
+  if (!state.currentSelection) return;
+  state.currentSelection = null;
+  state.selectedEdgeIds.clear();
+  state.renderer?.refresh();
+  renderCurrentSelection();
+}
+
 async function main() {
   const workspace = document.getElementById('workspace');
   // Node -> tier (0 small/close-only, 1 medium, 2 large/visible-from-far), keyed by
   // the centrality type currently selected in the CENTRALITY panel.
   let labelTierByNode = new Map();
+  let hoveredLabelNode = null;
   // Bounding boxes of labels already drawn this frame, used to nudge/fade new labels
   // that would otherwise overlap them. Reset at the start of each render.
   let placedLabelBoxes = [];
   const rectsOverlap = (a, b) => !(a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2);
+  const getHoveredLabelSize = (tier, cameraRatio) => {
+    if (cameraRatio <= LABEL_TIER_MAX_RATIO[tier]) return LABEL_TIER_SIZES[tier];
+    const visibleSizes = LABEL_TIER_MAX_RATIO
+      .map((maxRatio, visibleTier) => cameraRatio <= maxRatio ? LABEL_TIER_SIZES[visibleTier] : null)
+      .filter((size) => size !== null);
+    return visibleSizes.length
+      ? Math.min(...visibleSizes)
+      : LABEL_TIER_SIZES[FIRST_VISIBLE_LABEL_TIER];
+  };
+  const getSmallestVisibleLabelSize = (cameraRatio) => {
+    const visibleSizes = LABEL_TIER_MAX_RATIO
+      .map((maxRatio, tier) => cameraRatio <= maxRatio ? LABEL_TIER_SIZES[tier] : null)
+      .filter((size) => size !== null);
+    return visibleSizes.length
+      ? Math.min(...visibleSizes)
+      : LABEL_TIER_SIZES[FIRST_VISIBLE_LABEL_TIER];
+  };
   const sizeModeSelect = document.getElementById('size-mode');
   state.sizeMode = sizeModeSelect.value;
+  const labelsToggle = document.getElementById('labels-toggle');
+  state.showLabels = labelsToggle.checked;
   const nodeSizeSlider = document.getElementById('node-size-slider');
   const nodeSizeValue = document.getElementById('node-size-value');
   const nodeSizeDecrement = document.getElementById('node-size-decrement');
@@ -608,6 +729,8 @@ async function main() {
   let contextSelection = null;
   let mapGeography = null;
   let mapModeApplied = false;
+  let mapLayoutGeneration = 0;
+  let relationshipsCameraState = null;
   let mapGeoCanvas = null;
   let mapGeoContext = null;
   let mapGeoFrontCanvas = null;
@@ -642,6 +765,9 @@ async function main() {
   function setMode(mode) {
     const isMap = mode === 'map';
     const leavingRelationships = workspace.dataset.mode === 'relationships' && mode !== 'relationships';
+    if (leavingRelationships && state.renderer) {
+      relationshipsCameraState = state.renderer.getCamera().getState();
+    }
     if (leavingRelationships && state.freezePositions) {
       frozenRelationshipsPositions = new Map();
       graph.forEachNode((node, attrs) => frozenRelationshipsPositions.set(node, { x: attrs.x, y: attrs.y }));
@@ -657,6 +783,9 @@ async function main() {
     if (mode === 'relationships' && state.renderer) {
       refresh();
       relayout();
+      if (relationshipsCameraState) {
+        state.renderer.getCamera().animate(relationshipsCameraState, { duration: 500, easing: 'quadraticInOut' });
+      }
     }
     if (isMap) applyMapLayout();
   }
@@ -771,21 +900,45 @@ async function main() {
     labelSize: 10,
     defaultDrawNodeLabel: (context, data, settings) => {
       const tier = labelTierByNode.get(data.key) ?? 1;
-      const size = LABEL_TIER_SIZES[tier];
-      context.font = `${settings.labelWeight} ${size}px ${settings.labelFont}`;
+      const isHovered = data.key === hoveredLabelNode;
+      const isEmphasized = isHovered || state.emphasizedNodeIds.has(data.key);
+      const isFocusLabel = state.focusNodeIds.has(data.key);
+      const cameraRatio = state.renderer?.getCamera().getState().ratio ?? REFERENCE_CAMERA_RATIO;
+      const size = isEmphasized
+        ? getHoveredLabelSize(tier, cameraRatio)
+        : isFocusLabel
+          ? getSmallestVisibleLabelSize(cameraRatio)
+          : LABEL_TIER_SIZES[tier];
+      const labelWeight = isEmphasized ? '700' : settings.labelWeight;
+      const labelFont = isEmphasized ? '"Helvetica Neue", Helvetica, Arial, sans-serif' : settings.labelFont;
+      context.font = `${labelWeight} ${size}px ${labelFont}`;
       const textWidth = context.measureText(data.label).width;
+      const attributes = graph.getNodeAttribute(data.key, 'attributes') || {};
+      const fullName = attributes[DATA.nodeLabelField] || data.label;
+      const secondarySize = Math.max(7, Math.min(9, size * 0.4));
+      const hasSecondaryLabel = fullName !== data.label && tier !== 0;
+      let boxWidth = textWidth;
+      if (hasSecondaryLabel) {
+        context.font = `${labelWeight} ${secondarySize}px ${labelFont}`;
+        boxWidth = Math.max(boxWidth, context.measureText(fullName).width);
+        context.font = `${labelWeight} ${size}px ${labelFont}`;
+      }
 
       // Try the usual spot (right of the node) first, then nudge up/down, then try
       // the opposite side, before giving up and fading out in favor of whatever
       // more-central label is already occupying that space.
       const lineStep = size * 0.95;
-      const candidates = [
-        { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 1, dy: -1 },
-        { dx: -1, dy: 0 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 },
-      ].map(({ dx, dy }) => {
-        const x = dx > 0 ? data.x + data.size + 3 : data.x - data.size - 3 - textWidth;
+      const positions = isFocusLabel
+        ? [1, -1].flatMap((dx) => [0, 1, -1, 2, -2, 3, -3, 4, -4].map((dy) => ({ dx, dy })))
+        : [
+          { dx: 1, dy: 0 }, { dx: 1, dy: 1 }, { dx: 1, dy: -1 },
+          { dx: -1, dy: 0 }, { dx: -1, dy: 1 }, { dx: -1, dy: -1 },
+        ];
+      const candidates = positions.map(({ dx, dy }) => {
+        const x = dx > 0 ? data.x + data.size + 3 : data.x - data.size - 3 - boxWidth;
         const y = data.y + size / 3 + dy * lineStep;
-        return { x, y, box: { x1: x, y1: y - size * 0.8, x2: x + textWidth, y2: y + size * 0.3 } };
+        const boxBottom = hasSecondaryLabel ? secondarySize + secondarySize * 0.3 : size * 0.3;
+        return { x, y, box: { x1: x, y1: y - size * 0.8, x2: x + boxWidth, y2: y + boxBottom } };
       });
 
       let chosen = candidates[0];
@@ -800,35 +953,30 @@ async function main() {
       }
       const nearMoreCentralLabel = chosenOverlaps.some((placed) => placed.tier > tier);
       const alpha = nearMoreCentralLabel ? 0.4 : 1;
+      const focusAlpha = state.focusOpacityActive && !state.focusNodeIds.has(data.key)
+        ? FOCUS_DIM_OPACITY
+        : 1;
       placedLabelBoxes.push({ box: chosen.box, tier });
 
       const textColor = settings.labelColor.attribute
         ? graph.getNodeAttribute(data.key, settings.labelColor.attribute) || settings.labelColor.color || '#000000'
         : settings.labelColor.color;
       context.save();
-      context.globalAlpha = alpha;
+      context.globalAlpha = alpha * focusAlpha;
       context.fillStyle = textColor;
       context.fillText(data.label, chosen.x, chosen.y);
       context.restore();
 
-      const attributes = graph.getNodeAttribute(data.key, 'attributes') || {};
-      const fullName = attributes[DATA.nodeLabelField] || data.label;
-      if (fullName === data.label || tier === 0) return;
-      const secondarySize = Math.max(7, Math.min(9, size * 0.4));
-      context.font = `${settings.labelWeight} ${secondarySize}px ${settings.labelFont}`;
+      if (!hasSecondaryLabel) return;
+      context.font = `${labelWeight} ${secondarySize}px ${labelFont}`;
       context.save();
-      context.globalAlpha = alpha;
+      context.globalAlpha = alpha * focusAlpha;
       context.fillStyle = textColor;
       context.fillText(fullName, chosen.x, chosen.y + secondarySize);
       context.restore();
     },
     defaultDrawNodeHover: (context, data, settings) => {
-      const size = Math.max(10, Math.min(16, 9 + data.size * 0.3));
-      drawDiscNodeHover(context, data, {
-        ...settings,
-        labelSize: size,
-        labelColor: { color: '#171717' },
-      });
+      drawDiscNodeHover(context, { ...data, label: null }, settings);
     },
     enableEdgeEvents: true,
     defaultEdgeType: 'line',
@@ -842,8 +990,10 @@ async function main() {
   state.renderer = renderer;
   // Starts the relationship diagram ~2x as zoomed in as Sigma's default full-extent fit.
   renderer.getCamera().setState({ ...renderer.getCamera().getState(), ratio: 0.5 });
+  relationshipsCameraState = renderer.getCamera().getState();
 
   function refresh() {
+    updateFocusOpacity();
     renderer.refresh();
   }
 
@@ -901,6 +1051,13 @@ async function main() {
 
   nodeSizeIncrement.addEventListener('click', () => {
     applyNodeSizeDisplay(Number(nodeSizeSlider.value) + 25);
+  });
+
+  makeSliderOutputEditable(nodeSizeValue, () => ({ min: 1, max: 100 }), applyNodeSizeDisplay);
+
+  labelsToggle.addEventListener('change', () => {
+    state.showLabels = labelsToggle.checked;
+    refresh();
   });
 
   function isNodeVisibleBase(node) {
@@ -981,8 +1138,110 @@ async function main() {
   }
 
   function isNodeVisible(node) {
-    return isNodeVisibleBase(node) && passesCentralityThreshold(node);
+    return state.pinnedGraphNodeIds.has(node)
+      || (isNodeVisibleBase(node) && passesCentralityThreshold(node));
   }
+
+  function updateFocusOpacity() {
+    const pinnedGraphNodeIds = new Set();
+    const pinnedGraphEdgeIds = new Set();
+    state.pinnedSelections.forEach((selection) => {
+      const nodeIds = selection.nodeIds || [];
+      nodeIds.forEach((node) => {
+        if (graph.hasNode(node)) pinnedGraphNodeIds.add(node);
+      });
+      if (selection.kind === 'node') {
+        const pinnedActors = new Set(nodeIds);
+        graph.forEachEdge((edge, attributes, source, target) => {
+          if (!pinnedActors.has(source) && !pinnedActors.has(target)) return;
+          pinnedGraphEdgeIds.add(edge);
+          pinnedGraphNodeIds.add(source);
+          pinnedGraphNodeIds.add(target);
+        });
+      }
+      (selection.edgeIds || []).forEach((edge) => {
+        if (!graph.hasEdge(edge)) return;
+        pinnedGraphEdgeIds.add(edge);
+        graph.extremities(edge).forEach((node) => pinnedGraphNodeIds.add(node));
+      });
+    });
+    state.pinnedGraphNodeIds = pinnedGraphNodeIds;
+    state.pinnedGraphEdgeIds = pinnedGraphEdgeIds;
+
+    const hoveredNodeIds = [hoveredLabelNode, state.hoveredSearchNodeId]
+      .filter((node) => node && graph.hasNode(node));
+    const hoveredEdgeIds = [...state.hoveredEdgeIds];
+    const hoveredEdgeSelection = hoveredEdgeIds.length
+      ? {
+        kind: 'edge',
+        nodeIds: [...new Set(hoveredEdgeIds.flatMap((edge) => graph.extremities(edge)))],
+        edgeIds: hoveredEdgeIds,
+      }
+      : null;
+    const currentSelection = state.currentSelection;
+    const isPinnedNode = (node) => state.pinnedSelections.some((selection) =>
+      selection.kind === 'node' && selection.nodeIds.includes(node));
+    const isPinnedEdge = (edge) => state.pinnedSelections.some((selection) =>
+      selection.kind === 'edge' && selection.edgeIds.includes(edge));
+    const focusIsPinned = Boolean(currentSelection
+      && state.pinnedSelections.some(({ key }) => key === currentSelection.key))
+      || hoveredNodeIds.some(isPinnedNode)
+      || hoveredEdgeIds.some(isPinnedEdge);
+    const focusSelections = focusIsPinned
+      ? state.pinnedSelections
+      : [
+        ...(currentSelection ? [currentSelection] : []),
+        ...hoveredNodeIds.map((node) => ({ kind: 'node', nodeIds: [node] })),
+        ...(hoveredEdgeSelection ? [hoveredEdgeSelection] : []),
+      ];
+    const focusNodeIds = new Set();
+    const focusEdgeIds = new Set();
+
+    const addNodeFocus = (node) => {
+      if (!graph.hasNode(node) || !isNodeVisible(node)) return;
+      focusNodeIds.add(node);
+      graph.forEachEdge((edge, attributes, source, target) => {
+        if (!state.activeEdgeTypes.has(attributes.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge)
+          || !isNodeVisible(source)
+          || !isNodeVisible(target)
+          || (source !== node && target !== node)) return;
+        focusEdgeIds.add(edge);
+        focusNodeIds.add(source === node ? target : source);
+      });
+    };
+
+    focusSelections.forEach((selection) => {
+      if (selection.kind === 'node') {
+        (selection.nodeIds || []).forEach(addNodeFocus);
+        return;
+      }
+      (selection.nodeIds || []).forEach((node) => {
+        if (graph.hasNode(node) && isNodeVisible(node)) focusNodeIds.add(node);
+      });
+      (selection.edgeIds || []).forEach((edge) => {
+        if (!graph.hasEdge(edge)) return;
+        const attributes = graph.getEdgeAttributes(edge);
+        const [source, target] = graph.extremities(edge);
+        if ((state.activeEdgeTypes.has(attributes.adjacencyType) || state.pinnedGraphEdgeIds.has(edge))
+          && isNodeVisible(source)
+          && isNodeVisible(target)) focusEdgeIds.add(edge);
+      });
+    });
+
+    state.focusOpacityActive = focusSelections.length > 0;
+    state.focusNodeIds = focusNodeIds;
+    state.focusEdgeIds = focusEdgeIds;
+    state.emphasizedNodeIds = new Set([
+      ...state.pinnedSelections.flatMap(({ nodeIds }) => nodeIds || []),
+      ...(currentSelection?.nodeIds || []),
+      ...hoveredNodeIds,
+      ...(hoveredEdgeSelection?.nodeIds || []),
+      ...focusSelections
+        .filter((selection) => selection.kind === 'edge')
+        .flatMap(({ nodeIds }) => nodeIds || []),
+    ]);
+  }
+  state.updateFocusOpacity = updateFocusOpacity;
 
   function isTimelineActorVisible(node) {
     const attrs = graph.getNodeAttributes(node);
@@ -1439,9 +1698,12 @@ async function main() {
     if (!sizeHaloContext) return;
     const { width, height } = renderer.getDimensions();
     sizeHaloContext.clearRect(0, 0, width, height);
-    sizeHaloContext.globalAlpha = 0.16;
     graph.forEachNode((node, attributes) => {
       if (!isNodeVisible(node) || attributes.size <= MIN_SIZE) return;
+      const focusAlpha = state.focusOpacityActive && !state.focusNodeIds.has(node)
+        ? FOCUS_DIM_OPACITY
+        : 1;
+      sizeHaloContext.globalAlpha = 0.16 * focusAlpha;
       const { x, y } = renderer.graphToViewport({ x: attributes.x, y: attributes.y });
       sizeHaloContext.fillStyle = attributes.color;
       sizeHaloContext.beginPath();
@@ -1528,6 +1790,37 @@ async function main() {
     const { loadMapGeography } = await mapGeoModule;
     mapGeography = await loadMapGeography();
     return mapGeography;
+  }
+
+  function setCustomBBoxPreservingCamera(customBBox) {
+    const camera = renderer.getCamera();
+    const cameraState = camera.getState();
+    const getNormalization = (bbox) => {
+      const minX = bbox.x[0];
+      const maxX = bbox.x[1];
+      const minY = bbox.y[0];
+      const maxY = bbox.y[1];
+      const scale = Math.max(maxX - minX, maxY - minY);
+      return {
+        centerX: Number.isFinite(minX + maxX) ? (minX + maxX) / 2 : 0,
+        centerY: Number.isFinite(minY + maxY) ? (minY + maxY) / 2 : 0,
+        scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
+      };
+    };
+    const previousNormalization = getNormalization(renderer.getCustomBBox() || renderer.getBBox());
+    renderer.setCustomBBox(customBBox);
+    const nextNormalization = getNormalization(customBBox || renderer.getBBox());
+    const worldCenterX = previousNormalization.centerX
+      + (cameraState.x - 0.5) * previousNormalization.scale;
+    const worldCenterY = previousNormalization.centerY
+      + (cameraState.y - 0.5) * previousNormalization.scale;
+
+    camera.setState({
+      ...cameraState,
+      x: 0.5 + (worldCenterX - nextNormalization.centerX) / nextNormalization.scale,
+      y: 0.5 + (worldCenterY - nextNormalization.centerY) / nextNormalization.scale,
+      ratio: camera.getBoundedRatio(cameraState.ratio * previousNormalization.scale / nextNormalization.scale),
+    });
   }
 
   function computeGraphBounds() {
@@ -1619,7 +1912,9 @@ async function main() {
   async function applyMapLayout() {
     if (mapModeApplied || !state.graph || !state.renderer) return;
     mapModeApplied = true;
+    const generation = ++mapLayoutGeneration;
     const geo = await ensureMapGeography();
+    if (generation !== mapLayoutGeneration || workspace.dataset.mode !== 'map') return;
     const graphBounds = computeGraphBounds();
     const graphWidth = (graphBounds.maxX - graphBounds.minX) || 1;
     const graphHeight = (graphBounds.maxY - graphBounds.minY) || 1;
@@ -1637,7 +1932,7 @@ async function main() {
     // gravity. Locking it to the island's own footprint keeps the overlay fixed on screen.
     const islandBBoxPoints = geo.islandRings.flat().map((point) => mapProjection(point.lng, point.lat));
     if (islandBBoxPoints.length) {
-      renderer.setCustomBBox({
+      setCustomBBoxPreservingCamera({
         x: [Math.min(...islandBBoxPoints.map((point) => point.x)), Math.max(...islandBBoxPoints.map((point) => point.x))],
         y: [Math.min(...islandBBoxPoints.map((point) => point.y)), Math.max(...islandBBoxPoints.map((point) => point.y))],
       });
@@ -1723,7 +2018,8 @@ async function main() {
 
   function restoreRelationshipsLayout() {
     if (!mapModeApplied) return;
-    renderer.setCustomBBox(null);
+    mapLayoutGeneration += 1;
+    setCustomBBoxPreservingCamera(null);
     mapOriginalPositions.forEach((pos, actorId) => {
       if (!graph.hasNode(actorId)) return;
       graph.setNodeAttribute(actorId, 'x', pos.x);
@@ -1748,12 +2044,15 @@ async function main() {
     refresh();
   }
 
-  function zoomToCurrentAndPinned() {
+  function zoomToCurrentAndPinned(selectionToZoom = null) {
     if (!state.zoomToSelected) return;
-    const selectedNodeIds = new Set([
-      ...(state.currentSelection?.nodeIds || []),
-      ...state.pinnedSelections.flatMap((selection) => selection.nodeIds || []),
-    ].filter((node) => graph.hasNode(node) && isNodeVisible(node)));
+    const nodeIds = selectionToZoom
+      ? selectionToZoom.nodeIds || []
+      : [
+        ...(state.currentSelection?.nodeIds || []),
+        ...state.pinnedSelections.flatMap((selection) => selection.nodeIds || []),
+      ];
+    const selectedNodeIds = new Set(nodeIds.filter((node) => graph.hasNode(node) && isNodeVisible(node)));
     if (!selectedNodeIds.size) return;
 
     const framingNodeIds = new Set(selectedNodeIds);
@@ -1818,17 +2117,34 @@ async function main() {
     camera.animate({ x: center.x, y: center.y, ratio }, { duration: 500, easing: 'quadraticInOut' });
   }
 
+  state.zoomToSelection = zoomToCurrentAndPinned;
+
+  renderer.on('enterNode', ({ node }) => {
+    hoveredLabelNode = node;
+    refresh();
+  });
+  renderer.on('leaveNode', () => {
+    hoveredLabelNode = null;
+    refresh();
+  });
+
   renderer.setSetting('nodeReducer', (node, data) => {
     const hidden = !isNodeVisible(node);
     if (hidden) return { ...data, hidden: true };
     const tier = labelTierByNode.get(node) ?? 1;
-    const labelVisible = renderer.getCamera().getState().ratio <= LABEL_TIER_MAX_RATIO[tier];
+    const isEmphasized = node === hoveredLabelNode || state.emphasizedNodeIds.has(node);
+    const isFocusLabel = state.focusNodeIds.has(node);
+    const isDimmed = state.focusOpacityActive && !state.focusNodeIds.has(node);
+    const zoomEligible = renderer.getCamera().getState().ratio <= LABEL_TIER_MAX_RATIO[tier];
+    const labelVisible = isEmphasized || isFocusLabel || (state.showLabels && zoomEligible);
     return {
       ...data,
       size: CORE_NODE_SIZE * state.nodeSizeScale,
+      color: isDimmed ? colorWithOpacity(data.color, FOCUS_DIM_OPACITY) : data.color,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
-      forceLabel: tier === 2 && labelVisible,
+      forceLabel: isEmphasized || isFocusLabel || (tier === 2 && state.showLabels && zoomEligible),
+      highlighted: isEmphasized,
       label: labelVisible ? data.label : null,
     };
   });
@@ -1836,14 +2152,17 @@ async function main() {
   renderer.setSetting('edgeReducer', (edge, data) => {
     const [source, target] = graph.extremities(edge);
     const nodesVisible = isNodeVisible(source) && isNodeVisible(target);
-    const hidden = !state.activeEdgeTypes.has(data.adjacencyType) || !nodesVisible;
+    const hidden = (!state.activeEdgeTypes.has(data.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge))
+      || !nodesVisible;
     if (hidden) return { ...data, hidden: true };
     if (state.selectedEdgeIds.has(edge)) {
       return { ...data, color: '#ffffff', size: Math.max(data.size || 1, 3) };
     }
     return state.hoveredEdgeIds.has(edge)
       ? { ...data, color: '#ffd166', size: Math.max(data.size || 1, 2.5) }
-      : data;
+      : state.focusOpacityActive && !state.focusEdgeIds.has(edge)
+        ? { ...data, color: colorWithOpacity(data.color, FOCUS_DIM_OPACITY) }
+        : data;
   });
 
   // Edge type filters
@@ -1895,6 +2214,8 @@ async function main() {
     applyEdgeCurvaturePercent(Number(edgeCurvatureSlider.value) + 10);
   });
 
+  makeSliderOutputEditable(edgeCurvatureValue, () => ({ min: 0, max: 100 }), applyEdgeCurvaturePercent);
+
   // Rerunning forceAtlas2 is too expensive to do on every 'input' tick while dragging,
   // so only the readout updates live; the layout only recomputes once the drag ends.
   function setLayoutGravityDisplay(value) {
@@ -1920,6 +2241,12 @@ async function main() {
     const clamped = Math.min(25, Number(layoutGravitySlider.value) + 5);
     setLayoutGravityDisplay(clamped);
     state.layoutGravity = clamped;
+    relayout();
+  });
+
+  makeSliderOutputEditable(layoutGravityValue, () => ({ min: 0, max: 25 }), (value) => {
+    setLayoutGravityDisplay(value);
+    state.layoutGravity = value;
     relayout();
   });
 
@@ -1989,18 +2316,32 @@ async function main() {
   const yearControls = document.getElementById('year-controls');
   const yearSlider = document.getElementById('year-slider');
   const yearValue = document.getElementById('year-value');
+  const yearDecrement = document.getElementById('year-decrement');
+  const yearIncrement = document.getElementById('year-increment');
   yearToggle.addEventListener('change', () => {
     state.yearFilterEnabled = yearToggle.checked;
     yearControls.hidden = !state.yearFilterEnabled;
     refresh();
     relayout();
   });
-  yearSlider.addEventListener('input', () => {
-    state.selectedYear = Number(yearSlider.value);
-    yearValue.textContent = String(state.selectedYear);
+  function applyYear(year) {
+    const clamped = Math.max(1920, Math.min(2026, year));
+    yearSlider.value = String(clamped);
+    state.selectedYear = clamped;
+    yearValue.textContent = String(clamped);
     refresh();
     relayout();
+  }
+  yearSlider.addEventListener('input', () => {
+    applyYear(Number(yearSlider.value));
   });
+  yearDecrement.addEventListener('click', () => {
+    applyYear(Number(yearSlider.value) - 5);
+  });
+  yearIncrement.addEventListener('click', () => {
+    applyYear(Number(yearSlider.value) + 5);
+  });
+  makeSliderOutputEditable(yearValue, () => ({ min: 1920, max: 2026 }), applyYear);
 
   const positionToggle = document.getElementById('position-filter-toggle');
   positionToggle.addEventListener('change', () => {
@@ -2044,6 +2385,23 @@ async function main() {
     const next = centralityThresholdTickIndices.find((tickIndex) => tickIndex > current);
     if (next !== undefined) applyCentralityThresholdIndex(next);
   });
+
+  makeSliderOutputEditable(
+    centralityThresholdValue,
+    () => ({
+      min: centralityThresholdSteps[0] ?? 0,
+      max: centralityThresholdSteps[centralityThresholdSteps.length - 1] ?? 0,
+    }),
+    (value) => {
+      // Snap the typed connection count to whichever achievable tick is closest.
+      const closestIndex = centralityThresholdTickIndices.reduce((closest, candidate) => (
+        Math.abs(centralityThresholdSteps[candidate] - value) < Math.abs(centralityThresholdSteps[closest] - value)
+          ? candidate
+          : closest
+      ), centralityThresholdTickIndices[0] ?? 0);
+      applyCentralityThresholdIndex(closestIndex);
+    },
+  );
 
   // #sidebar and #details-sidebar are absolute-positioned overlays on top of
   // #graph-container (which always fills the workspace), so toggling them never
@@ -2128,7 +2486,7 @@ async function main() {
       return;
     }
     showNodeDetails(graph, nodeId);
-    zoomToCurrentAndPinned();
+    zoomToCurrentAndPinned(state.currentSelection);
     if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
       setPanel('details');
     }
@@ -2136,7 +2494,7 @@ async function main() {
 
   function openEdgeDetails(edge) {
     showEdgeDetails(graph, edge);
-    zoomToCurrentAndPinned();
+    zoomToCurrentAndPinned(state.currentSelection);
     if (window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
       setPanel('details');
     }
@@ -2144,6 +2502,8 @@ async function main() {
 
   searchInput.addEventListener('input', () => {
     const q = searchInput.value.trim().toLowerCase();
+    state.hoveredSearchNodeId = null;
+    syncEmphasizedNodes();
     searchResults.innerHTML = '';
     if (!q) return;
     const matches = graph.nodes()
@@ -2159,6 +2519,15 @@ async function main() {
       const actorName = attrs[DATA.nodeLabelField] || graph.getNodeAttribute(n, 'label');
       const row = document.createElement('div');
       row.className = 'search-result-row';
+      row.addEventListener('pointerenter', () => {
+        state.hoveredSearchNodeId = n;
+        syncEmphasizedNodes();
+      });
+      row.addEventListener('pointerleave', () => {
+        if (state.hoveredSearchNodeId !== n) return;
+        state.hoveredSearchNodeId = null;
+        syncEmphasizedNodes();
+      });
 
       const selectButton = document.createElement('button');
       selectButton.className = 'search-result-name';
@@ -2188,6 +2557,7 @@ async function main() {
 
   renderer.on('clickNode', ({ node }) => openNodeDetails(node));
   renderer.on('clickEdge', ({ edge }) => openEdgeDetails(edge));
+  renderer.on('clickStage', clearCurrentSelection);
   renderer.on('rightClickNode', ({ node, event }) => showPinContextMenu(createNodeSelection(graph, node), event));
   renderer.on('rightClickEdge', ({ edge, event }) => showPinContextMenu(createEdgeSelection(graph, edge), event));
   renderer.on('enterEdge', ({ edge }) => updateHoveredEdgePair(edge));
