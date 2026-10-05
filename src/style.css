@@ -64,9 +64,35 @@ h1, h2, h3, h4, h5, h6 {
   white-space: nowrap;
 }
 
+.header-brand-link {
+  display: block;
+  flex: 0 0 0.72em;
+  width: 0.72em;
+  height: 0.72em;
+  font-family: var(--font-bold);
+  font-size: 0.9rem;
+  font-weight: 600;
+  line-height: 1;
+  background: #0035ff;
+  transform: scale(1.1);
+}
+
+@supports (height: 1cap) {
+  .header-brand-link {
+    flex-basis: 1cap;
+    width: 1cap;
+    height: 1cap;
+  }
+}
+
+.header-brand-link:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
 .header-brand-group {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 8px;
   min-width: 0;
 }
@@ -1277,6 +1303,10 @@ button:hover {
     font-size: 0.74rem;
     line-height: 0.95;
     white-space: normal;
+  }
+
+  .header-brand-link {
+    font-size: 0.74rem;
   }
 
   .header-refresh,
