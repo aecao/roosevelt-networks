@@ -119,7 +119,8 @@ const state = {
   activeScales: new Set(),
   categoryColors: new Map(),
   topicColors: new Map(),
-  colorMode: 'sector',
+  colorMode: 'category',
+  theme: 'dark',
   sentimentMaxAbs: 1,
   edgeTypeColors: new Map(),
   freezePositions: false,
@@ -127,6 +128,8 @@ const state = {
   nodeSizeScale: 1,
   sizeNodesByScale: true,
   showLabels: true,
+  labelThresholdEnabled: false,
+  labelThresholdPercent: 0,
   sizeMode: 'public-interest',
   centralityFilterType: 'degree-centrality',
   centralityThreshold: 0,
@@ -170,14 +173,22 @@ function colorWithOpacity(color, opacity) {
   return `rgba(${Math.round(red * opacity)}, ${Math.round(green * opacity)}, ${Math.round(blue * opacity)}, ${opacity})`;
 }
 
+function edgeColorForTheme(adjacencyType, color) {
+  return state.theme === 'light' && adjacencyType === 'fin' ? '#519C00' : color;
+}
+
 function nodeColorForMode(attributes, isEmphasized = false) {
-  if (state.colorMode === 'plain') return isEmphasized ? '#d0d0d0' : '#ffffff';
+  if (state.colorMode === 'plain') {
+    if (state.theme === 'light') return isEmphasized ? '#1f2933' : '#59636e';
+    return isEmphasized ? '#d0d0d0' : '#ffffff';
+  }
   if (state.colorMode === 'public-sentiment') {
     const sentiment = attributes.sentiment;
     if (!Number.isFinite(sentiment)) return '#8a8a8a';
     const intensity = Math.pow(Math.min(1, Math.abs(sentiment) / state.sentimentMaxAbs), 0.7);
     const endpoint = sentiment < 0 ? [220, 28, 42] : [0, 154, 70];
-    const channels = endpoint.map((channel) => Math.round(255 + (channel - 255) * intensity));
+    const midpoint = 255;
+    const channels = endpoint.map((channel) => Math.round(midpoint + (channel - midpoint) * intensity));
     return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
   }
   if (state.colorMode === 'category') {
@@ -388,7 +399,7 @@ function drawFinancialUpfront(context, renderer, graph) {
     const halfWidth = Math.max(3, lineWidth * 2);
     const baseX = tipX - unitX * headLength;
     const baseY = tipY - unitY * headLength;
-    const color = attributes.color;
+    const color = edgeColorForTheme(attributes.adjacencyType, attributes.color);
     context.save();
     context.globalAlpha = !selected && !hovered && state.focusOpacityActive && !state.focusEdgeIds.has(edge)
       ? FOCUS_DIM_OPACITY
@@ -1062,6 +1073,7 @@ async function main() {
   // Node -> tier (0 small/close-only, 1 medium, 2 large/visible-from-far), keyed by
   // the centrality type currently selected in the CENTRALITY panel.
   let labelTierByNode = new Map();
+  let labelPercentileByNode = new Map();
   let hoveredLabelNode = null;
   let hoveredHaloNode = null;
   // Bounding boxes of labels already drawn this frame, used to nudge/fade new labels
@@ -1089,6 +1101,7 @@ async function main() {
   state.sizeMode = sizeModeSelect.value;
   const colorModeSelect = document.getElementById('color-mode');
   state.colorMode = colorModeSelect.value;
+  const themeToggle = document.getElementById('theme-toggle');
   const labelsToggle = document.getElementById('labels-toggle');
   state.showLabels = labelsToggle.checked;
   const nodeSizeSlider = document.getElementById('node-size-slider');
@@ -1099,9 +1112,12 @@ async function main() {
   const textSizeSlider = document.getElementById('text-size-slider');
   const textSizeValue = document.getElementById('text-size-value');
   state.textSizeScale = Number(textSizeSlider.value) / 100;
+  const labelThresholdToggle = document.getElementById('label-threshold-toggle');
+  state.labelThresholdEnabled = labelThresholdToggle.checked;
   const textThresholdSlider = document.getElementById('text-threshold-slider');
   const textThresholdValue = document.getElementById('text-threshold-value');
   state.labelThresholdPercent = Number(textThresholdSlider.value);
+  textThresholdSlider.disabled = !state.labelThresholdEnabled;
   const sizeNodesByScaleToggle = document.getElementById('size-nodes-by-scale');
   state.sizeNodesByScale = sizeNodesByScaleToggle.checked;
   const centralityTypeSelect = document.getElementById('centrality-type');
@@ -1178,6 +1194,21 @@ async function main() {
     if (state.currentSelection) togglePinnedSelectionAndZoom(state.currentSelection);
   });
 
+  function applyRelationshipTheme(enableLight) {
+    const isLight = enableLight && workspace.dataset.mode === 'relationships';
+    state.theme = isLight ? 'light' : 'dark';
+    document.documentElement.dataset.theme = state.theme;
+    themeToggle.disabled = workspace.dataset.mode !== 'relationships';
+    themeToggle.title = `Switch to ${isLight ? 'dark' : 'light'} mode`;
+    themeToggle.setAttribute('aria-checked', String(isLight));
+    if (state.renderer) {
+      state.renderer.setSetting('labelColor', { color: isLight ? '#1f2933' : '#ffffff' });
+      state.renderer.refresh();
+    }
+  }
+
+  themeToggle.addEventListener('click', () => applyRelationshipTheme(state.theme !== 'light'));
+
   function setMode(mode) {
     const isMap = mode === 'map';
     hoveredHaloNode = null;
@@ -1191,6 +1222,7 @@ async function main() {
       graph.forEachNode((node, attrs) => frozenRelationshipsPositions.set(node, { x: attrs.x, y: attrs.y }));
     }
     workspace.dataset.mode = mode;
+    applyRelationshipTheme(mode === 'relationships' && state.theme === 'light');
     timelineView.setAttribute('aria-hidden', String(mode !== 'timeline'));
     mapCaption.hidden = !isMap;
     modeTabs.forEach((tab) => {
@@ -1313,7 +1345,7 @@ async function main() {
     zoomToSizeRatioFunction: (ratio) => (ratio / REFERENCE_CAMERA_RATIO) * REFERENCE_SIZE_RATIO,
     labelDensity: 0.35,
     labelRenderedSizeThreshold: 10,
-    labelColor: { color: '#ffffff' },
+    labelColor: { color: state.theme === 'light' ? '#1f2933' : '#ffffff' },
     labelFont: '"Helvetica Neue Light", "Helvetica Neue", Helvetica, Arial, sans-serif',
     labelWeight: '300',
     labelSize: 10,
@@ -1498,6 +1530,12 @@ async function main() {
     refresh();
   });
 
+  labelThresholdToggle.addEventListener('change', () => {
+    state.labelThresholdEnabled = labelThresholdToggle.checked;
+    textThresholdSlider.disabled = !state.labelThresholdEnabled;
+    refresh();
+  });
+
   labelsToggle.addEventListener('change', () => {
     state.showLabels = labelsToggle.checked;
     refresh();
@@ -1559,8 +1597,11 @@ async function main() {
   const MAX_TOP_LABEL_TIER_NODES = 10;
   function updateLabelTiers() {
     const scores = getCentralityFilterScores();
-    const sortedEntries = Object.entries(scores).sort((first, second) => first[1] - second[1]);
+    const sortedEntries = Object.entries(scores)
+      .filter(([, score]) => Number.isFinite(score))
+      .sort((first, second) => first[1] - second[1]);
     const tiers = new Map();
+    const percentiles = new Map();
     const topCount = Math.min(MAX_TOP_LABEL_TIER_NODES, sortedEntries.length);
     const topEntries = sortedEntries.slice(sortedEntries.length - topCount);
     const remainingEntries = sortedEntries.slice(0, sortedEntries.length - topCount);
@@ -1569,7 +1610,22 @@ async function main() {
       const percentile = remainingEntries.length > 1 ? index / (remainingEntries.length - 1) : 1;
       tiers.set(node, percentile >= 0.5 ? 1 : 0);
     });
+    let groupStart = 0;
+    while (groupStart < sortedEntries.length) {
+      let groupEnd = groupStart + 1;
+      while (groupEnd < sortedEntries.length && sortedEntries[groupEnd][1] === sortedEntries[groupStart][1]) {
+        groupEnd += 1;
+      }
+      const percentile = sortedEntries.length <= 1
+        ? 1
+        : ((groupStart + groupEnd - 1) / 2) / (sortedEntries.length - 1);
+      for (let index = groupStart; index < groupEnd; index += 1) {
+        percentiles.set(sortedEntries[index][0], percentile);
+      }
+      groupStart = groupEnd;
+    }
     labelTierByNode = tiers;
+    labelPercentileByNode = percentiles;
   }
 
   function passesCentralityThreshold(node) {
@@ -2185,7 +2241,9 @@ async function main() {
         || state.pinnedSelections.some((selection) => selection.kind === 'node' && selection.nodeIds.includes(node));
       if (haloOutlineContext) {
         const outlinedFocus = state.focusOpacityActive && directlyFocused;
-        haloOutlineContext.strokeStyle = outlinedFocus ? '#ffffff' : `rgba(255, 255, 255, ${0.2 * focusAlpha})`;
+        const outlineColor = state.theme === 'light' ? '#1f2933' : '#ffffff';
+        const outlineRgba = state.theme === 'light' ? '31, 41, 51' : '255, 255, 255';
+        haloOutlineContext.strokeStyle = outlinedFocus ? outlineColor : `rgba(${outlineRgba}, ${0.2 * focusAlpha})`;
         haloOutlineContext.lineWidth = outlinedFocus ? 1 : 0.5;
         haloOutlineContext.beginPath();
         haloOutlineContext.arc(x, y, radius, 0, Math.PI * 2);
@@ -2198,7 +2256,9 @@ async function main() {
     if (!categoryPieContext) return;
     const { width, height } = renderer.getDimensions();
     categoryPieContext.clearRect(0, 0, width, height);
-    if (state.colorMode !== 'category') return;
+    const drawCategoryPies = state.colorMode === 'category';
+    const outlineSentimentNodes = state.theme === 'light' && state.colorMode === 'public-sentiment';
+    if (!drawCategoryPies && !outlineSentimentNodes) return;
     graph.forEachNode((node, attributes) => {
       if (!isNodeVisible(node)) return;
       const displayData = renderer.getNodeDisplayData(node);
@@ -2207,8 +2267,26 @@ async function main() {
       const focusAlpha = state.focusOpacityActive && !state.focusNodeIds.has(node)
         ? FOCUS_DIM_OPACITY
         : 1;
-      categoryPieContext.globalAlpha = focusAlpha;
-      drawCategoryPie(categoryPieContext, x, y, renderer.scaleSize(displayData.size), attributes.topics);
+      const radius = renderer.scaleSize(displayData.size);
+      if (drawCategoryPies) {
+        categoryPieContext.globalAlpha = focusAlpha;
+        drawCategoryPie(categoryPieContext, x, y, radius, attributes.topics);
+      } else {
+        const color = nodeColorForMode(attributes);
+        const match = /^#([\da-f]{6})$/i.exec(color);
+        if (!match) return;
+        const value = Number.parseInt(match[1], 16);
+        const luminance = 0.299 * (value >> 16)
+          + 0.587 * ((value >> 8) & 0xff)
+          + 0.114 * (value & 0xff);
+        if (luminance < 180) return;
+        categoryPieContext.globalAlpha = focusAlpha;
+        categoryPieContext.strokeStyle = 'rgba(31, 41, 51, 0.72)';
+        categoryPieContext.lineWidth = 0.75;
+        categoryPieContext.beginPath();
+        categoryPieContext.arc(x, y, radius, 0, Math.PI * 2);
+        categoryPieContext.stroke();
+      }
     });
     categoryPieContext.globalAlpha = 1;
   });
@@ -2266,7 +2344,7 @@ async function main() {
       { x: width - margin, y: margin }, // NE
     ];
     const triangleSize = 9;
-    offscreenIndicatorContext.fillStyle = '#ffffff';
+    offscreenIndicatorContext.fillStyle = state.theme === 'light' ? '#1f2933' : '#ffffff';
     offscreenIndicatorContext.globalAlpha = 0.85;
     octantDirections.forEach((octant) => {
       const anchor = anchorPoints[octant];
@@ -2688,19 +2766,24 @@ async function main() {
     const isDimmed = state.focusOpacityActive && !state.focusNodeIds.has(node);
     const nodeColor = nodeColorForMode(data, isEmphasized);
     const cameraRatio = renderer.getCamera().getState().ratio;
-    const tierThresholdPercent = state.labelThresholdPercent
-      * (LABEL_TIER_MAX_RATIO[1] / LABEL_TIER_MAX_RATIO[tier]);
-    const thresholdEligible = zoomPercentFromRatio(cameraRatio) >= tierThresholdPercent;
-    const labelVisible = isEmphasized || isFocusLabel
-      || (state.showLabels && thresholdEligible);
+    const thresholdPercentile = labelPercentileByNode.get(node);
+    const thresholdEligible = state.labelThresholdPercent === 0
+      || (state.labelThresholdPercent < 100
+        && Number.isFinite(thresholdPercentile)
+        && thresholdPercentile >= state.labelThresholdPercent / 100);
+    const zoomEligible = cameraRatio <= LABEL_TIER_MAX_RATIO[tier];
+    const labelVisible = state.labelThresholdEnabled
+      ? state.showLabels && thresholdEligible
+      : isEmphasized || isFocusLabel || (state.showLabels && zoomEligible);
     return {
       ...data,
       size: coreNodeSize(data.scale),
       color: isDimmed ? colorWithOpacity(nodeColor, FOCUS_DIM_OPACITY) : nodeColor,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
-      forceLabel: isEmphasized || isFocusLabel
-        || (tier === 2 && state.showLabels && thresholdEligible),
+      forceLabel: state.labelThresholdEnabled
+        ? state.showLabels && thresholdEligible
+        : isEmphasized || isFocusLabel || (tier === 2 && state.showLabels && zoomEligible),
       highlighted: isEmphasized,
       label: labelVisible ? data.label : null,
     };
@@ -2718,14 +2801,16 @@ async function main() {
       size,
       zIndex: Math.max(0, MAX_WEIGHTED_EDGE_WIDTH - size),
     });
+    const edgeColor = edgeColorForTheme(data.adjacencyType, data.color);
+    const themedData = edgeColor === data.color ? data : { ...data, color: edgeColor };
     if (state.selectedEdgeIds.has(edge)) {
-      return withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 3));
+      return withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 3), themedData);
     }
     return state.hoveredEdgeIds.has(edge)
-      ? withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 2.5))
+      ? withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 2.5), themedData)
       : state.focusOpacityActive && !state.focusEdgeIds.has(edge)
-        ? withWidthOrder(data.size || MIN_EDGE_WIDTH, { ...data, color: colorWithOpacity(data.color, FOCUS_DIM_OPACITY) })
-        : withWidthOrder(data.size || MIN_EDGE_WIDTH);
+        ? withWidthOrder(data.size || MIN_EDGE_WIDTH, { ...themedData, color: colorWithOpacity(edgeColor, FOCUS_DIM_OPACITY) })
+        : withWidthOrder(data.size || MIN_EDGE_WIDTH, themedData);
   });
 
   // Edge type filters
@@ -3159,24 +3244,32 @@ async function main() {
   const zoomWrapper = document.createElement('div');
   zoomWrapper.className = 'zoom-controls';
   zoomWrapper.innerHTML = `
-    <button id="zoom-in" title="Zoom in">+</button>
-    <button id="zoom-out" title="Zoom out">−</button>
-    <button id="zoom-fit" title="Reset zoom">⤢</button>
-    <button id="fullscreen-toggle" type="button" title="Enter fullscreen" aria-label="Enter fullscreen" aria-pressed="false">⛶</button>
+    <output id="zoom-level" class="zoom-level-indicator" tabindex="0" aria-label="Zoom level">100%</output>
+    <div class="zoom-button-stack">
+      <button id="zoom-in" title="Zoom in">+</button>
+      <button id="zoom-out" title="Zoom out">−</button>
+      <button id="zoom-fit" title="Reset zoom">⤢</button>
+      <button id="fullscreen-toggle" type="button" title="Enter fullscreen" aria-label="Enter fullscreen" aria-pressed="false">⛶</button>
+    </div>
   `;
   workspace.appendChild(zoomWrapper);
 
-  const zoomLevel = document.createElement('output');
-  zoomLevel.className = 'zoom-level-indicator';
-  zoomLevel.setAttribute('aria-label', 'Zoom level');
-  zoomLevel.title = 'Current zoom level';
-  workspace.appendChild(zoomLevel);
+  const zoomLevel = document.getElementById('zoom-level');
   const updateZoomLevel = ({ ratio }) => {
     zoomLevel.textContent = `${zoomPercentFromRatio(ratio)}%`;
   };
   const camera = renderer.getCamera();
   camera.on('updated', updateZoomLevel);
   updateZoomLevel(camera.getState());
+  makeSliderOutputEditable(zoomLevel, () => ({ min: 10, max: 2000 }), (zoomPercent) => {
+    camera.animate({ ratio: camera.getBoundedRatio(100 / zoomPercent) }, { duration: 300 });
+  });
+  zoomLevel.setAttribute('aria-label', 'Current zoom percentage. Click to enter a value.');
+  zoomLevel.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    event.preventDefault();
+    zoomLevel.click();
+  });
 
   document.getElementById('zoom-in').addEventListener('click', () => renderer.getCamera().animatedZoom({ duration: 300 }));
   document.getElementById('zoom-out').addEventListener('click', () => renderer.getCamera().animatedUnzoom({ duration: 300 }));
@@ -3201,6 +3294,39 @@ async function main() {
     if (event.key === 'Escape' && document.fullscreenElement) document.exitFullscreen();
   });
   updateFullscreenToggle();
+
+  const headerActions = document.querySelector('.header-actions');
+  const headerInfoContainer = document.querySelector('.header-info-container');
+  const headerInfoToggle = document.getElementById('header-info-toggle');
+  const headerInfoMenu = document.getElementById('header-info-menu');
+  const setHeaderInfoMenuOpen = (open) => {
+    headerInfoMenu.hidden = !open;
+    headerInfoToggle.setAttribute('aria-expanded', String(open));
+  };
+  headerInfoContainer.addEventListener('pointerenter', (event) => {
+    if (event.pointerType !== 'touch') setHeaderInfoMenuOpen(true);
+  });
+  headerInfoContainer.addEventListener('pointerleave', (event) => {
+    if (event.pointerType !== 'touch' && !headerInfoContainer.contains(document.activeElement)) {
+      setHeaderInfoMenuOpen(false);
+    }
+  });
+  headerInfoContainer.addEventListener('focusin', () => setHeaderInfoMenuOpen(true));
+  headerInfoContainer.addEventListener('focusout', (event) => {
+    if (!headerInfoContainer.contains(event.relatedTarget)) setHeaderInfoMenuOpen(false);
+  });
+  headerInfoToggle.addEventListener('click', () => {
+    setHeaderInfoMenuOpen(true);
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!headerActions.contains(event.target)) setHeaderInfoMenuOpen(false);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !headerInfoMenu.hidden) {
+      setHeaderInfoMenuOpen(false);
+      headerInfoToggle.focus();
+    }
+  });
 
 }
 

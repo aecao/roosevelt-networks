@@ -23,9 +23,34 @@
           <button class="mode-tab" type="button" data-mode="timeline" aria-pressed="false">Timeline <span class="mode-beta-badge">Beta</span></button>
         </nav>
       </div>
-      <button id="refresh-sheets" class="header-refresh" type="button" title="Relink data from Google Sheets">
-        <span aria-hidden="true">↻</span><span>Relink data</span>
-      </button>
+      <div class="header-actions">
+        <button id="theme-toggle" class="header-utility theme-toggle" type="button" role="switch" aria-label="Light mode" aria-checked="false" title="Switch to light mode">
+          <span class="theme-toggle-track" aria-hidden="true"></span>
+        </button>
+        <button class="header-utility" type="button">Export</button>
+        <button class="header-utility" type="button">Legend</button>
+        <button id="refresh-sheets" class="header-refresh" type="button" data-tooltip="Changes made to dataset may take up to 5 minutes to be published" aria-describedby="refresh-sheets-tooltip">
+          <span aria-hidden="true">↻</span><span>Relink data</span>
+        </button>
+        <span id="refresh-sheets-tooltip" class="visually-hidden">Changes made to dataset may take up to 5 minutes to be published</span>
+        <div class="header-info-container">
+          <button id="header-info-toggle" class="header-info-toggle" type="button" aria-label="More information" aria-expanded="false" aria-controls="header-info-menu">
+            <span aria-hidden="true">i</span>
+          </button>
+          <div id="header-info-menu" class="header-info-menu" role="region" aria-label="More information" hidden>
+            <div class="header-info-options" role="group" aria-label="Resources">
+              <button type="button">Tutorial</button>
+              <button type="button">Documentation</button>
+              <button type="button">Importing custom datasets...</button>
+            </div>
+            <div class="header-info-credits">
+              <p>Developed by Anna Cao.</p>
+              <p>Dataset built + populated by Anna Cao, Victoria Li, and Audrey Lau.</p>
+              <p>Created for ARCH5115, "Designing the Urban Commons", Fall 2026, instructed by Garine Boghossian and Kobi Ruthenberg.</p>
+            </div>
+          </div>
+        </div>
+      </div>
     </header>
     <div id="refresh-progress" class="refresh-progress-overlay" role="progressbar" aria-label="Relinking data" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" hidden>
       <div class="refresh-progress-track">
@@ -108,8 +133,12 @@
                   </label>
                   <label for="text-size-slider">Text size <output id="text-size-value">100%</output></label>
                   <input id="text-size-slider" type="range" min="50" max="150" step="1" value="100" />
-                  <label for="text-threshold-slider">Label threshold <output id="text-threshold-value">125%</output></label>
-                  <input id="text-threshold-slider" type="range" min="50" max="300" step="1" value="125" />
+                  <label class="toggle-row">
+                    <input id="label-threshold-toggle" type="checkbox" />
+                    <span>Label threshold</span>
+                  </label>
+                  <label for="text-threshold-slider">Threshold <output id="text-threshold-value">0%</output></label>
+                  <input id="text-threshold-slider" type="range" min="0" max="100" step="1" value="0" disabled />
                   <label for="node-size-slider">Node size <output id="node-size-value">50</output></label>
                   <div class="slider-with-steps">
                     <button id="node-size-decrement" class="slider-step-button" type="button" aria-label="Decrease node size">−</button>
@@ -126,7 +155,7 @@
                   <label for="color-mode">COLOR MODE</label>
                   <select id="color-mode">
                     <option value="sector">Sector</option>
-                    <option value="category">Category</option>
+                    <option value="category" selected>Category</option>
                     <option value="public-sentiment">Public sentiment</option>
                     <option value="plain">Plain</option>
                   </select>
