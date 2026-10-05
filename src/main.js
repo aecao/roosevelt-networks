@@ -4,7 +4,7 @@ import EdgeCurveProgram, { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import betweennessCentrality from 'graphology-metrics/centrality/betweenness';
 import closenessCentrality from 'graphology-metrics/centrality/closeness';
 import eigenvectorCentrality from 'graphology-metrics/centrality/eigenvector';
-import { drawDiscNodeHover, EdgeArrowProgram, EdgeClampedProgram, EdgeLineProgram } from 'sigma/rendering';
+import { drawDiscNodeHover, EdgeArrowProgram, EdgeLineProgram, EdgeRectangleProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
@@ -18,6 +18,17 @@ const MAX_SIZE = 8;
 const CORE_NODE_SIZE = 2;
 const MIN_EDGE_WIDTH = 1;
 const MAX_WEIGHTED_EDGE_WIDTH = 5;
+const EDGE_TYPE_COLORS = {
+  fin: '#9CFF40',
+  rep: '#3374FF',
+  own: '#40FFCC',
+  pre: '#C9C9C9',
+  par: '#FFB433',
+  col: '#FFC2F4',
+  adm: '#FF4F2E',
+  pos: '#7733FF',
+  cre: '#33DAFF',
+};
 const REFERENCE_CAMERA_RATIO = 0.3;
 const REFERENCE_SIZE_RATIO = Math.sqrt(REFERENCE_CAMERA_RATIO);
 // Maps the node size slider's abstract 1-100 display scale onto the actual size
@@ -457,7 +468,9 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   const manifest = await loadEdgeManifest();
   const typeDetails = new Map(manifest.map((entry) => [entry.type, entry]));
   const edgeTypes = [...typeDetails.keys()];
-  manifest.forEach((entry, i) => state.edgeTypeColors.set(entry.type, PALETTE[i % PALETTE.length]));
+  manifest.forEach((entry, i) => {
+    state.edgeTypeColors.set(entry.type, EDGE_TYPE_COLORS[entry.type] || PALETTE[i % PALETTE.length]);
+  });
 
   const totalSteps = 2;
   onProgress(1, totalSteps);
@@ -1332,13 +1345,16 @@ async function main() {
       context.restore();
     },
     defaultDrawNodeHover: (context, data, settings) => {
-      drawDiscNodeHover(context, { ...data, label: null }, settings);
+      const attributes = graph.hasNode(data.key) ? graph.getNodeAttributes(data.key) : {};
+      const nodeData = { ...attributes, ...data };
+      const hoverData = { ...nodeData, color: nodeColorForMode(nodeData, true), label: null };
+      drawDiscNodeHover(context, hoverData, settings);
     },
     enableEdgeEvents: true,
     defaultEdgeType: 'line',
     edgeProgramClasses: {
       line: EdgeLineProgram,
-      collaboration: EdgeClampedProgram,
+      collaboration: EdgeRectangleProgram,
       arrow: reverseFinancialProgram(EdgeArrowProgram),
       curve: EdgeCurveProgram,
       curvedArrow: reverseFinancialProgram(EdgeCurvedArrowProgram),
@@ -2075,7 +2091,7 @@ async function main() {
   const haloOutlineContext = renderer.getCanvases()['halo-outlines'].getContext('2d');
   let haloHitTargets = [];
   renderer.createCanvasContext('category-pies', {
-    beforeLayer: 'labels',
+    afterLayer: 'hoverNodes',
     style: { pointerEvents: 'none' },
   });
   const categoryPieContext = renderer.getCanvases()['category-pies'].getContext('2d');
