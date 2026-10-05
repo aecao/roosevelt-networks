@@ -39,7 +39,7 @@ h1, h2, h3, h4, h5, h6 {
 #app {
   --sidebar-width: 300px;
   display: grid;
-  grid-template-rows: 48px minmax(0, 1fr);
+  grid-template-rows: 40px minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
   width: 100vw;
@@ -212,6 +212,25 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--muted);
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+.mode-tab[data-mode="timeline"] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.mode-beta-badge {
+  padding: 1px 3px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  color: inherit;
+  font-family: var(--font-bold);
+  font-size: 0.5rem;
+  font-weight: 600;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .mode-tab:hover {
@@ -1283,7 +1302,7 @@ button:hover {
 @media (max-width: 700px) and (orientation: portrait) {
   #app {
     display: grid;
-    grid-template-rows: 48px minmax(0, 1fr);
+    grid-template-rows: 40px minmax(0, 1fr);
     width: 100vw;
     height: 100vh;
     height: 100dvh;
@@ -1329,6 +1348,15 @@ button:hover {
     min-width: 0;
     padding: 0 4px;
     font-size: 0.72rem;
+  }
+
+  .mode-tab[data-mode="timeline"] {
+    gap: 3px;
+  }
+
+  .mode-beta-badge {
+    padding: 1px 2px;
+    font-size: 0.43rem;
   }
 
   #workspace {

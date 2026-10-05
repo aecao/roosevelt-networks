@@ -3162,6 +3162,7 @@ async function main() {
     <button id="zoom-in" title="Zoom in">+</button>
     <button id="zoom-out" title="Zoom out">−</button>
     <button id="zoom-fit" title="Reset zoom">⤢</button>
+    <button id="fullscreen-toggle" type="button" title="Enter fullscreen" aria-label="Enter fullscreen" aria-pressed="false">⛶</button>
   `;
   workspace.appendChild(zoomWrapper);
 
@@ -3180,6 +3181,26 @@ async function main() {
   document.getElementById('zoom-in').addEventListener('click', () => renderer.getCamera().animatedZoom({ duration: 300 }));
   document.getElementById('zoom-out').addEventListener('click', () => renderer.getCamera().animatedUnzoom({ duration: 300 }));
   document.getElementById('zoom-fit').addEventListener('click', () => renderer.getCamera().animatedReset({ duration: 300 }));
+  const fullscreenToggle = document.getElementById('fullscreen-toggle');
+  const updateFullscreenToggle = () => {
+    const isFullscreen = Boolean(document.fullscreenElement);
+    fullscreenToggle.title = isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
+    fullscreenToggle.setAttribute('aria-label', fullscreenToggle.title);
+    fullscreenToggle.setAttribute('aria-pressed', String(isFullscreen));
+  };
+  fullscreenToggle.addEventListener('click', async () => {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch (error) {
+      console.warn('Unable to toggle fullscreen mode.', error);
+    }
+  });
+  document.addEventListener('fullscreenchange', updateFullscreenToggle);
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && document.fullscreenElement) document.exitFullscreen();
+  });
+  updateFullscreenToggle();
 
 }
 
