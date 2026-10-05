@@ -4,7 +4,7 @@ import EdgeCurveProgram, { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
 import betweennessCentrality from 'graphology-metrics/centrality/betweenness';
 import closenessCentrality from 'graphology-metrics/centrality/closeness';
 import eigenvectorCentrality from 'graphology-metrics/centrality/eigenvector';
-import { drawDiscNodeHover, EdgeArrowProgram, EdgeLineProgram } from 'sigma/rendering';
+import { drawDiscNodeHover, EdgeArrowProgram, EdgeClampedProgram, EdgeLineProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
@@ -16,6 +16,8 @@ const mapGeoModule = import('./map-mode.js');
 const MIN_SIZE = 4;
 const MAX_SIZE = 8;
 const CORE_NODE_SIZE = 2;
+const MIN_EDGE_WIDTH = 1;
+const MAX_WEIGHTED_EDGE_WIDTH = 5;
 const REFERENCE_CAMERA_RATIO = 0.3;
 const REFERENCE_SIZE_RATIO = Math.sqrt(REFERENCE_CAMERA_RATIO);
 // Maps the node size slider's abstract 1-100 display scale onto the actual size
@@ -221,7 +223,30 @@ function applyOwnerTenantWidths(graph) {
     const proportion = maximum > minimum
       ? (Math.sqrt(attributes.parcelArea) - minimum) / (maximum - minimum)
       : 0;
-    graph.setEdgeAttribute(edge, 'size', 1 + Math.max(0, Math.min(1, proportion)) * 4);
+    graph.setEdgeAttribute(edge, 'size', MIN_EDGE_WIDTH
+      + Math.max(0, Math.min(1, proportion)) * (MAX_WEIGHTED_EDGE_WIDTH - MIN_EDGE_WIDTH));
+  });
+}
+
+function parseCollaborationCloseness(raw) {
+  const value = String(raw ?? '').trim();
+  if (!/^\d+$/.test(value)) return null;
+  const closeness = Number(value);
+  return Number.isSafeInteger(closeness) && closeness > 0 ? closeness : null;
+}
+
+function applyCollaborationWidths(graph) {
+  const edges = graph.edges().filter((edge) => graph.getEdgeAttribute(edge, 'adjacencyType') === 'col');
+  const values = edges.map((edge) => graph.getEdgeAttribute(edge, 'collaborationCloseness')).filter(Number.isFinite);
+  if (!values.length) return;
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  edges.forEach((edge) => {
+    const closeness = graph.getEdgeAttribute(edge, 'collaborationCloseness');
+    if (!Number.isFinite(closeness)) return;
+    const proportion = maximum > minimum ? (closeness - minimum) / (maximum - minimum) : 0;
+    graph.setEdgeAttribute(edge, 'size', MIN_EDGE_WIDTH
+      + Math.max(0, Math.min(1, proportion)) * (MAX_WEIGHTED_EDGE_WIDTH - MIN_EDGE_WIDTH));
   });
 }
 
@@ -240,7 +265,8 @@ function applyFinancialWidths(graph) {
     const maximum = amounts.length ? Math.max(...amounts) : 0;
     return (amount) => {
       const proportion = maximum > minimum ? (amount - minimum) / (maximum - minimum) : 0;
-      return 1 + Math.max(0, Math.min(1, proportion)) * 4;
+      return MIN_EDGE_WIDTH
+        + Math.max(0, Math.min(1, proportion)) * (MAX_WEIGHTED_EDGE_WIDTH - MIN_EDGE_WIDTH);
     };
   };
   const ongoingWidth = widthFor('ongoingFunds');
@@ -456,12 +482,13 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
     }
 
     const attrs = {
-      type: directed ? 'arrow' : 'line',
+      type: type === 'col' ? 'collaboration' : directed ? 'arrow' : 'line',
       adjacencyType: type,
       label: entry.label,
       weight: 1,
-      size: 1,
+      size: MIN_EDGE_WIDTH,
       parcelArea: type === 'own' ? parseParcelArea(row['parameter 0']) : null,
+      collaborationCloseness: type === 'col' ? parseCollaborationCloseness(row['parameter 1']) : null,
       upfrontInvestment: type === 'fin' ? parseFinancialAmount(row['parameter 0']) : null,
       ongoingFunds: type === 'fin' ? parseFinancialAmount(row['parameter 1']) : null,
       color: state.edgeTypeColors.get(type),
@@ -472,6 +499,7 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   onProgress(2, totalSteps);
 
   applyOwnerTenantWidths(graph);
+  applyCollaborationWidths(graph);
   applyFinancialWidths(graph);
   assignParallelEdgeCurves(graph);
 
@@ -667,10 +695,87 @@ function createEdgeSelection(graph, edge) {
   };
 }
 
+function getNodeNetworkSummary(graph, nodeId) {
+  const isVisible = state.isNodeVisible || (() => true);
+  const relationships = new Map();
+  const connectedActors = new Set();
+  let incoming = 0;
+  let outgoing = 0;
+  let undirected = 0;
+  graph.forEachEdge((edge, attributes, source, target) => {
+    if (source !== nodeId && target !== nodeId) return;
+    if (!state.activeEdgeTypes.has(attributes.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge)) return;
+    const neighbor = source === nodeId ? target : source;
+    if (!isVisible(nodeId) || !isVisible(neighbor)) return;
+    connectedActors.add(neighbor);
+    const relationship = attributes.label || attributes.adjacencyType;
+    relationships.set(relationship, (relationships.get(relationship) || 0) + 1);
+    if (!graph.isDirected(edge)) undirected += 1;
+    else if (source === nodeId) outgoing += 1;
+    else incoming += 1;
+  });
+  const attributes = graph.getNodeAttributes(nodeId);
+  return {
+    mode: attributes.haloMode,
+    score: attributes.haloScore,
+    connectionCount: incoming + outgoing + undirected,
+    actorCount: connectedActors.size,
+    incoming,
+    outgoing,
+    undirected,
+    relationships: [...relationships].sort(([first], [second]) => first.localeCompare(second)),
+  };
+}
+
 function renderSelectionDetails(selection, container) {
   container.replaceChildren();
   const details = document.createElement('dl');
   if (selection.kind === 'node') {
+    const networkDetails = document.createElement('dl');
+    const graph = state.graph;
+    const nodeId = selection.nodeIds[0];
+    if (graph?.hasNode(nodeId)) {
+      const network = getNodeNetworkSummary(graph, nodeId);
+      const modeLabels = {
+        'public-interest': 'Public interest (hits)',
+        'degree-centrality': 'Degree centrality',
+        'closeness-centrality': 'Closeness centrality',
+        'betweenness-centrality': 'Betweenness centrality',
+        'eigenvector-centrality': 'Eigenvector centrality',
+        plain: 'Plain halo mode',
+      };
+      const centralityTerm = document.createElement('dt');
+      centralityTerm.textContent = 'Current centrality';
+      const centralityDescription = document.createElement('dd');
+      const score = Number.isFinite(network.score)
+        ? network.mode === 'public-interest' || network.mode === 'degree-centrality'
+          ? String(network.score)
+          : network.score.toPrecision(4)
+        : 'Not available';
+      centralityDescription.textContent = `${modeLabels[network.mode] || 'Current halo metric'}: ${score}`;
+      networkDetails.append(centralityTerm, centralityDescription);
+
+      const connectionsTerm = document.createElement('dt');
+      connectionsTerm.textContent = 'Current connections';
+      const connectionsDescription = document.createElement('dd');
+      connectionsDescription.textContent = `${network.connectionCount} connections to ${network.actorCount} actors (${network.outgoing} outgoing, ${network.incoming} incoming, ${network.undirected} undirected)`;
+      networkDetails.append(connectionsTerm, connectionsDescription);
+
+      if (network.relationships.length) {
+        const relationshipTerm = document.createElement('dt');
+        relationshipTerm.textContent = 'Connections by relationship';
+        const relationshipDescription = document.createElement('dd');
+        const relationshipList = document.createElement('ul');
+        relationshipList.className = 'detail-list';
+        network.relationships.forEach(([name, count]) => {
+          const item = document.createElement('li');
+          item.textContent = `${name}: ${count}`;
+          relationshipList.appendChild(item);
+        });
+        relationshipDescription.appendChild(relationshipList);
+        networkDetails.append(relationshipTerm, relationshipDescription);
+      }
+    }
     selection.fields.forEach(([name, value]) => {
       const term = document.createElement('dt');
       term.textContent = name;
@@ -678,6 +783,7 @@ function renderSelectionDetails(selection, container) {
       description.textContent = value;
       details.append(term, description);
     });
+    if (networkDetails.childElementCount) details.appendChild(networkDetails);
   } else {
     const actorsTerm = document.createElement('dt');
     actorsTerm.textContent = 'Connected actors';
@@ -702,6 +808,20 @@ function renderSelectionDetails(selection, container) {
     details.append(typesTerm, typesDescription);
   }
   container.appendChild(details);
+}
+
+function refreshVisibleNodeDetails() {
+  const currentDetails = document.getElementById('node-details');
+  if (state.currentSelection?.kind === 'node' && currentDetails && !currentDetails.hidden) {
+    renderSelectionDetails(state.currentSelection, currentDetails);
+  }
+  document.querySelectorAll('.pinned-item').forEach((item) => {
+    const selection = state.pinnedSelections.find(({ key }) => key === item.dataset.selectionKey);
+    const content = item.querySelector('.pinned-content');
+    if (selection?.kind === 'node' && !selection.collapsed && content) {
+      renderSelectionDetails(selection, content);
+    }
+  });
 }
 
 function renderCurrentSelection() {
@@ -775,6 +895,7 @@ function renderPinnedSelections() {
   state.pinnedSelections.forEach((selection) => {
     const item = document.createElement('li');
     item.className = 'pinned-item';
+    item.dataset.selectionKey = selection.key;
     item.dataset.key = selection.key;
 
     const header = document.createElement('div');
@@ -1217,6 +1338,7 @@ async function main() {
     defaultEdgeType: 'line',
     edgeProgramClasses: {
       line: EdgeLineProgram,
+      collaboration: EdgeClampedProgram,
       arrow: reverseFinancialProgram(EdgeArrowProgram),
       curve: EdgeCurveProgram,
       curvedArrow: reverseFinancialProgram(EdgeCurvedArrowProgram),
@@ -1263,6 +1385,7 @@ async function main() {
     updateNodeSizes();
     updateCentralityThresholdRange();
     updateLabelTiers();
+    refreshVisibleNodeDetails();
     if (state.freezePositions) {
       renderer.refresh();
       return;
@@ -1386,6 +1509,7 @@ async function main() {
     return state.pinnedGraphNodeIds.has(node)
       || (isNodeVisibleBase(node) && passesCentralityThreshold(node));
   }
+  state.isNodeVisible = isNodeVisible;
 
   function updateFocusOpacity() {
     const pinnedGraphNodeIds = new Set();
@@ -1918,6 +2042,8 @@ async function main() {
         ? 0
         : Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)));
       graph.setNodeAttribute(node, 'haloRatio', mode === 'plain' ? null : ratio);
+      graph.setNodeAttribute(node, 'haloMode', mode);
+      graph.setNodeAttribute(node, 'haloScore', mode !== 'plain' && Number.isFinite(value) ? value : null);
     });
   }
 
