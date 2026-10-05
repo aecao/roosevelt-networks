@@ -18,6 +18,17 @@ const MAX_SIZE = 8;
 const CORE_NODE_SIZE = 2;
 const MIN_EDGE_WIDTH = 1;
 const MAX_WEIGHTED_EDGE_WIDTH = 5;
+const EDGE_WIDTH_BUCKET_COUNT = 5;
+function zoomPercentFromRatio(ratio) {
+  return Number.isFinite(ratio) && ratio > 0 ? Math.round(100 / ratio) : 100;
+}
+
+function labelScaleAtZoom(ratio) {
+  const zoomPercent = zoomPercentFromRatio(ratio);
+  const progress = Math.max(0, Math.min(1, (zoomPercent - 86) / (146 - 86)));
+  return 0.8 - progress * 0.3;
+}
+
 const EDGE_TYPE_COLORS = {
   fin: '#9CFF40',
   rep: '#3374FF',
@@ -307,6 +318,33 @@ function reverseFinancialProgram(Program) {
   };
 }
 
+function edgeWidthBucket(size) {
+  const proportion = (Math.max(MIN_EDGE_WIDTH, Math.min(MAX_WEIGHTED_EDGE_WIDTH, size)) - MIN_EDGE_WIDTH)
+    / (MAX_WEIGHTED_EDGE_WIDTH - MIN_EDGE_WIDTH);
+  return Math.min(EDGE_WIDTH_BUCKET_COUNT - 1, Math.floor(proportion * EDGE_WIDTH_BUCKET_COUNT));
+}
+
+function edgeProgramType(baseType, size) {
+  return `edge-width-${edgeWidthBucket(size)}-${baseType}`;
+}
+
+function buildEdgeProgramClasses() {
+  const basePrograms = {
+    line: EdgeLineProgram,
+    collaboration: EdgeRectangleProgram,
+    arrow: reverseFinancialProgram(EdgeArrowProgram),
+    curve: EdgeCurveProgram,
+    curvedArrow: reverseFinancialProgram(EdgeCurvedArrowProgram),
+  };
+  const classes = {};
+  for (let bucket = EDGE_WIDTH_BUCKET_COUNT - 1; bucket >= 0; bucket -= 1) {
+    Object.entries(basePrograms).forEach(([baseType, Program]) => {
+      classes[`edge-width-${bucket}-${baseType}`] = Program;
+    });
+  }
+  return classes;
+}
+
 function drawFinancialUpfront(context, renderer, graph) {
   const { width, height } = renderer.getDimensions();
   context.clearRect(0, 0, width, height);
@@ -515,6 +553,12 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
   applyCollaborationWidths(graph);
   applyFinancialWidths(graph);
   assignParallelEdgeCurves(graph);
+  graph.forEachEdge((edge, attributes) => {
+    graph.mergeEdgeAttributes(edge, {
+      baseRenderType: attributes.type,
+      type: edgeProgramType(attributes.type, attributes.size),
+    });
+  });
 
   state.activeEdgeTypes = new Set(edgeTypes);
   state.activeNodeTypes = new Set(categories);
@@ -1258,6 +1302,7 @@ async function main() {
   const renderer = new Sigma(graph, container, {
     minCameraRatio: 0.05,
     maxCameraRatio: 10,
+    zIndex: true,
     doubleClickZoomingRatio: 1,
     doubleClickZoomingRatio: 1,
     zoomToSizeRatioFunction: (ratio) => (ratio / REFERENCE_CAMERA_RATIO) * REFERENCE_SIZE_RATIO,
@@ -1273,18 +1318,19 @@ async function main() {
       const isEmphasized = isHovered || state.emphasizedNodeIds.has(data.key);
       const isFocusLabel = state.focusNodeIds.has(data.key);
       const cameraRatio = state.renderer?.getCamera().getState().ratio ?? REFERENCE_CAMERA_RATIO;
-      const size = isEmphasized
+      const baseSize = isEmphasized
         ? getHoveredLabelSize(tier, cameraRatio)
         : isFocusLabel
           ? getSmallestVisibleLabelSize(cameraRatio)
           : LABEL_TIER_SIZES[tier];
+      const size = baseSize * labelScaleAtZoom(cameraRatio);
       const labelWeight = isEmphasized ? '700' : settings.labelWeight;
       const labelFont = isEmphasized ? '"Helvetica Neue", Helvetica, Arial, sans-serif' : settings.labelFont;
       context.font = `${labelWeight} ${size}px ${labelFont}`;
       const textWidth = context.measureText(data.label).width;
       const attributes = graph.getNodeAttribute(data.key, 'attributes') || {};
       const fullName = attributes[DATA.nodeLabelField] || data.label;
-      const secondarySize = Math.max(7, Math.min(9, size * 0.4));
+      const secondarySize = Math.max(7, Math.min(9, baseSize * 0.4)) * labelScaleAtZoom(cameraRatio);
       const hasSecondaryLabel = fullName !== data.label && tier !== 0;
       let boxWidth = textWidth;
       if (hasSecondaryLabel) {
@@ -1352,13 +1398,7 @@ async function main() {
     },
     enableEdgeEvents: true,
     defaultEdgeType: 'line',
-    edgeProgramClasses: {
-      line: EdgeLineProgram,
-      collaboration: EdgeRectangleProgram,
-      arrow: reverseFinancialProgram(EdgeArrowProgram),
-      curve: EdgeCurveProgram,
-      curvedArrow: reverseFinancialProgram(EdgeCurvedArrowProgram),
-    },
+    edgeProgramClasses: buildEdgeProgramClasses(),
   });
   state.renderer = renderer;
   // Starts the relationship diagram ~2x as zoomed in as Sigma's default full-extent fit.
@@ -2649,14 +2689,20 @@ async function main() {
     const hidden = (!state.activeEdgeTypes.has(data.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge))
       || !nodesVisible;
     if (hidden) return { ...data, hidden: true };
+    const withWidthOrder = (size, attributes = data) => ({
+      ...attributes,
+      type: edgeProgramType(data.baseRenderType, size),
+      size,
+      zIndex: Math.max(0, MAX_WEIGHTED_EDGE_WIDTH - size),
+    });
     if (state.selectedEdgeIds.has(edge)) {
-      return { ...data, size: Math.max(data.size || 1, 3) };
+      return withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 3));
     }
     return state.hoveredEdgeIds.has(edge)
-      ? { ...data, size: Math.max(data.size || 1, 2.5) }
+      ? withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 2.5))
       : state.focusOpacityActive && !state.focusEdgeIds.has(edge)
-        ? { ...data, color: colorWithOpacity(data.color, FOCUS_DIM_OPACITY) }
-        : data;
+        ? withWidthOrder(data.size || MIN_EDGE_WIDTH, { ...data, color: colorWithOpacity(data.color, FOCUS_DIM_OPACITY) })
+        : withWidthOrder(data.size || MIN_EDGE_WIDTH);
   });
 
   // Edge type filters
@@ -3095,6 +3141,18 @@ async function main() {
     <button id="zoom-fit" title="Reset zoom">⤢</button>
   `;
   workspace.appendChild(zoomWrapper);
+
+  const zoomLevel = document.createElement('output');
+  zoomLevel.className = 'zoom-level-indicator';
+  zoomLevel.setAttribute('aria-label', 'Zoom level');
+  zoomLevel.title = 'Current zoom level';
+  workspace.appendChild(zoomLevel);
+  const updateZoomLevel = ({ ratio }) => {
+    zoomLevel.textContent = `${zoomPercentFromRatio(ratio)}%`;
+  };
+  const camera = renderer.getCamera();
+  camera.on('updated', updateZoomLevel);
+  updateZoomLevel(camera.getState());
 
   document.getElementById('zoom-in').addEventListener('click', () => renderer.getCamera().animatedZoom({ duration: 300 }));
   document.getElementById('zoom-out').addEventListener('click', () => renderer.getCamera().animatedUnzoom({ duration: 300 }));

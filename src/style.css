@@ -1069,6 +1069,7 @@ button:hover {
 #workspace[data-mode="timeline"] #details-sidebar,
 #workspace[data-mode="timeline"] #panel-tabs [data-panel="details"],
 #workspace[data-mode="timeline"] .zoom-controls,
+#workspace[data-mode="timeline"] .zoom-level-indicator,
 #workspace[data-mode="timeline"] .sigma-edges,
 #workspace[data-mode="timeline"] .sigma-edgeLabels,
 #workspace[data-mode="timeline"] .sigma-size-halos,
@@ -1200,6 +1201,23 @@ button:hover {
   background: var(--panel-bg);
 }
 
+.zoom-level-indicator {
+  position: absolute;
+  right: calc(var(--zoom-controls-details-offset, 56px) + 16px);
+  bottom: 16px;
+  z-index: 10;
+  min-width: 56px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel-bg);
+  color: var(--text);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  pointer-events: none;
+}
+
 @media (min-width: 701px) and (hover: hover) and (pointer: fine) {
   #sidebar-filters-scroll {
     padding-right: 8px;
@@ -1273,6 +1291,10 @@ button:hover {
   /* On mobile the details panel is a bottom tab (not a right-edge overlay), so the
      zoom controls shouldn't track its width here. */
   .zoom-controls {
+    right: 16px;
+  }
+
+  .zoom-level-indicator {
     right: 16px;
   }
 
