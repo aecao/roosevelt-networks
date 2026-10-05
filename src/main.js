@@ -492,7 +492,6 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       sentiment: newsMetricsByActor.get(id.trim().toLowerCase())?.sentiment ?? null,
       hits: newsMetricsByActor.get(id.trim().toLowerCase())?.hits ?? null,
       category,
-      newFromSheet: dataLoadState.sheetOnlyActorIds.has(id),
       topics: actorTopics,
       scale: parseScale(actor[DATA.nodeScaleField]),
       yearStart: parseYear(actor.year_start),
@@ -1097,6 +1096,12 @@ async function main() {
   const nodeSizeDecrement = document.getElementById('node-size-decrement');
   const nodeSizeIncrement = document.getElementById('node-size-increment');
   state.nodeSizeScale = nodeSizeDisplayToScale(Number(nodeSizeSlider.value));
+  const textSizeSlider = document.getElementById('text-size-slider');
+  const textSizeValue = document.getElementById('text-size-value');
+  state.textSizeScale = Number(textSizeSlider.value) / 100;
+  const textThresholdSlider = document.getElementById('text-threshold-slider');
+  const textThresholdValue = document.getElementById('text-threshold-value');
+  state.labelThresholdPercent = Number(textThresholdSlider.value);
   const sizeNodesByScaleToggle = document.getElementById('size-nodes-by-scale');
   state.sizeNodesByScale = sizeNodesByScaleToggle.checked;
   const centralityTypeSelect = document.getElementById('centrality-type');
@@ -1323,14 +1328,16 @@ async function main() {
         : isFocusLabel
           ? getSmallestVisibleLabelSize(cameraRatio)
           : LABEL_TIER_SIZES[tier];
-      const size = baseSize * labelScaleAtZoom(cameraRatio);
+      const size = baseSize * labelScaleAtZoom(cameraRatio) * state.textSizeScale;
       const labelWeight = isEmphasized ? '700' : settings.labelWeight;
       const labelFont = isEmphasized ? '"Helvetica Neue", Helvetica, Arial, sans-serif' : settings.labelFont;
       context.font = `${labelWeight} ${size}px ${labelFont}`;
       const textWidth = context.measureText(data.label).width;
       const attributes = graph.getNodeAttribute(data.key, 'attributes') || {};
       const fullName = attributes[DATA.nodeLabelField] || data.label;
-      const secondarySize = Math.max(7, Math.min(9, baseSize * 0.4)) * labelScaleAtZoom(cameraRatio);
+      const secondarySize = Math.max(7, Math.min(9, baseSize * 0.4))
+        * labelScaleAtZoom(cameraRatio)
+        * state.textSizeScale;
       const hasSecondaryLabel = fullName !== data.label && tier !== 0;
       let boxWidth = textWidth;
       if (hasSecondaryLabel) {
@@ -1478,6 +1485,18 @@ async function main() {
   });
 
   makeSliderOutputEditable(nodeSizeValue, () => ({ min: 1, max: 100 }), applyNodeSizeDisplay);
+
+  textSizeSlider.addEventListener('input', () => {
+    state.textSizeScale = Number(textSizeSlider.value) / 100;
+    textSizeValue.textContent = `${textSizeSlider.value}%`;
+    refresh();
+  });
+
+  textThresholdSlider.addEventListener('input', () => {
+    state.labelThresholdPercent = Number(textThresholdSlider.value);
+    textThresholdValue.textContent = `${textThresholdSlider.value}%`;
+    refresh();
+  });
 
   labelsToggle.addEventListener('change', () => {
     state.showLabels = labelsToggle.checked;
@@ -2666,18 +2685,22 @@ async function main() {
     const tier = labelTierByNode.get(node) ?? 1;
     const isEmphasized = node === hoveredLabelNode || state.emphasizedNodeIds.has(node);
     const isFocusLabel = state.focusNodeIds.has(node);
-    const isNewFromSheet = data.newFromSheet === true;
     const isDimmed = state.focusOpacityActive && !state.focusNodeIds.has(node);
     const nodeColor = nodeColorForMode(data, isEmphasized);
-    const zoomEligible = renderer.getCamera().getState().ratio <= LABEL_TIER_MAX_RATIO[tier];
-    const labelVisible = isEmphasized || isFocusLabel || isNewFromSheet || (state.showLabels && zoomEligible);
+    const cameraRatio = renderer.getCamera().getState().ratio;
+    const tierThresholdPercent = state.labelThresholdPercent
+      * (LABEL_TIER_MAX_RATIO[1] / LABEL_TIER_MAX_RATIO[tier]);
+    const thresholdEligible = zoomPercentFromRatio(cameraRatio) >= tierThresholdPercent;
+    const labelVisible = isEmphasized || isFocusLabel
+      || (state.showLabels && thresholdEligible);
     return {
       ...data,
       size: coreNodeSize(data.scale),
       color: isDimmed ? colorWithOpacity(nodeColor, FOCUS_DIM_OPACITY) : nodeColor,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
-      forceLabel: isEmphasized || isFocusLabel || isNewFromSheet || (tier === 2 && state.showLabels && zoomEligible),
+      forceLabel: isEmphasized || isFocusLabel
+        || (tier === 2 && state.showLabels && thresholdEligible),
       highlighted: isEmphasized,
       label: labelVisible ? data.label : null,
     };

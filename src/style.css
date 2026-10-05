@@ -456,6 +456,16 @@ h1, h2, h3, h4, h5, h6 {
   justify-content: space-between;
 }
 
+.appearance-controls label[for="text-size-slider"] {
+  display: flex;
+  justify-content: space-between;
+}
+
+.appearance-controls label[for="text-threshold-slider"] {
+  display: flex;
+  justify-content: space-between;
+}
+
 .appearance-controls output {
   color: var(--text);
   font-variant-numeric: tabular-nums;
@@ -478,6 +488,20 @@ output.slider-value-editable:hover {
 }
 
 #node-size-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+#text-size-slider {
+  width: 100%;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+#text-threshold-slider {
   width: 100%;
   margin: 0;
   accent-color: var(--accent);
