@@ -961,6 +961,7 @@ h1, h2, h3, h4, h5, h6 {
   display: flex;
   align-items: center;
   align-self: stretch;
+  justify-self: center;
   gap: 10px;
   min-width: 0;
 }
@@ -1226,6 +1227,10 @@ h1, h2, h3, h4, h5, h6 {
   display: none;
 }
 
+.filter-group-content input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
 .filter-all {
   display: flex;
   align-items: center;
@@ -1488,6 +1493,10 @@ output.slider-value-editable:hover {
   cursor: pointer;
 }
 
+.filter-list input[type="checkbox"] {
+  accent-color: var(--accent);
+}
+
 .filter-list label::before {
   position: absolute;
   top: calc(50% - 6px);
@@ -1542,6 +1551,7 @@ button:hover {
 }
 
 .toggle-row input {
+  accent-color: var(--accent);
   cursor: pointer;
 }
 
@@ -2102,8 +2112,8 @@ button:hover {
 
   .app-brand {
     display: block;
-    max-width: 68px;
-    font-size: 0.74rem;
+    max-width: 105px;
+    font-size: 0.66rem;
     line-height: 0.95;
     white-space: normal;
   }
@@ -2134,7 +2144,7 @@ button:hover {
   .mode-switch {
     flex: 0 0 auto;
     gap: 5px;
-    margin-left: auto;
+    margin-left: 0;
     padding-left: 0;
   }
 
