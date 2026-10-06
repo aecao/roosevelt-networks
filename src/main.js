@@ -165,6 +165,8 @@ const state = {
   refreshLegend: null,
   currentSelection: null,
   pinnedSelections: [],
+  unseenPinKeys: new Set(),
+  seenSelectionKey: null,
 };
 
 function syncEmphasizedNodes() {
@@ -890,6 +892,7 @@ function syncDetailsSidebar() {
     if (detailsSidebar.classList.contains('collapsed')) {
       detailsSidebar.classList.remove('collapsed');
       state.detailsManuallyCollapsed = false;
+      state.unseenPinKeys.clear();
       const detailsToggle = document.getElementById('details-toggle');
       detailsToggle.setAttribute('aria-expanded', 'true');
       detailsToggle.setAttribute('aria-label', 'Minimize details');
@@ -897,10 +900,14 @@ function syncDetailsSidebar() {
       document.getElementById('workspace').style.setProperty('--zoom-controls-details-offset', `${detailsSidebar.offsetWidth}px`);
     }
   }
-  if (state.detailsManuallyCollapsed
-    && !window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches) {
-    detailsSidebar.classList.add('has-unread');
+  if (!detailsSidebar.classList.contains('collapsed')) {
+    state.seenSelectionKey = state.currentSelection?.key ?? null;
   }
+  const showUnread = state.detailsManuallyCollapsed
+    && !window.matchMedia('(max-width: 700px) and (orientation: portrait)').matches
+    && ((state.currentSelection && state.currentSelection.key !== state.seenSelectionKey)
+      || state.pinnedSelections.some(({ key }) => state.unseenPinKeys.has(key)));
+  detailsSidebar.classList.toggle('has-unread', showUnread);
 }
 
 function createNodeSelection(graph, nodeId) {
@@ -1403,8 +1410,10 @@ function togglePinnedSelection(selection) {
   const existingIndex = state.pinnedSelections.findIndex(({ key }) => key === selection.key);
   if (existingIndex >= 0) {
     state.pinnedSelections.splice(existingIndex, 1);
+    state.unseenPinKeys.delete(selection.key);
   } else {
     state.pinnedSelections.push({ ...selection, collapsed: true });
+    if (state.detailsManuallyCollapsed) state.unseenPinKeys.add(selection.key);
   }
   renderPinnedSelections();
   renderCurrentSelection();
@@ -3824,7 +3833,11 @@ async function main() {
   detailsToggle.addEventListener('click', () => {
     const collapsed = detailsSidebar.classList.toggle('collapsed');
     state.detailsManuallyCollapsed = collapsed;
-    if (!collapsed) detailsSidebar.classList.remove('has-unread');
+    if (!collapsed) {
+      detailsSidebar.classList.remove('has-unread');
+      state.unseenPinKeys.clear();
+    }
+    state.seenSelectionKey = state.currentSelection?.key ?? null;
     detailsToggle.setAttribute('aria-expanded', String(!collapsed));
     detailsToggle.setAttribute('aria-label', collapsed ? 'Show details' : 'Minimize details');
     detailsToggle.textContent = collapsed ? '+' : '−';
@@ -5305,10 +5318,81 @@ async function main() {
     }
   }
 
-  function setLegendOpen(open) {
-    legendPanel.hidden = !open;
+  let legendGhost = null;
+  const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Animates a fixed-position copy of the legend between its panel rect and the header
+  // Legend button, so closing visibly "collapses into" the button (and opening grows
+  // back out of it). A copy is used because the workspace clips overflow, and the real
+  // panel's open state is applied immediately so it never depends on the animation.
+  function animateLegendGhost(panelRect, closing) {
+    if (legendGhost) legendGhost.getAnimations().forEach((animation) => animation.cancel());
+    if (legendGhost) legendGhost.remove();
+    legendGhost = null;
+    const buttonRect = legendToggle.getBoundingClientRect();
+    if (prefersReducedMotion() || typeof legendPanel.animate !== 'function'
+      || !panelRect.width || !panelRect.height || !buttonRect.width) return;
+    const ghost = legendPanel.cloneNode(true);
+    ghost.removeAttribute('id');
+    ghost.querySelectorAll('[id]').forEach((el) => el.removeAttribute('id'));
+    ghost.hidden = false;
+    ghost.setAttribute('aria-hidden', 'true');
+    Object.assign(ghost.style, {
+      position: 'fixed',
+      left: `${panelRect.left}px`,
+      top: `${panelRect.top}px`,
+      right: 'auto',
+      bottom: 'auto',
+      width: `${panelRect.width}px`,
+      height: `${panelRect.height}px`,
+      margin: '0',
+      zIndex: '2000',
+      pointerEvents: 'none',
+      transformOrigin: 'center center',
+    });
+    document.body.appendChild(ghost);
+    legendGhost = ghost;
+    const dx = (buttonRect.left + buttonRect.width / 2) - (panelRect.left + panelRect.width / 2);
+    const dy = (buttonRect.top + buttonRect.height / 2) - (panelRect.top + panelRect.height / 2);
+    const atButton = `translate(${dx}px, ${dy}px) scale(${buttonRect.width / panelRect.width}, ${buttonRect.height / panelRect.height})`;
+    const frames = [{ transform: 'none', opacity: 1 }, { transform: atButton, opacity: 0.15 }];
+    const duration = 260;
+    const animation = ghost.animate(closing ? frames : frames.reverse(), {
+      duration,
+      easing: closing ? 'cubic-bezier(0.4, 0, 1, 1)' : 'cubic-bezier(0.2, 0, 0, 1)',
+    });
+    if (!closing) legendPanel.style.visibility = 'hidden';
+    let done = false;
+    const finish = (completed) => {
+      if (done) return;
+      done = true;
+      ghost.remove();
+      if (legendGhost === ghost) legendGhost = null;
+      if (!closing) legendPanel.style.visibility = '';
+      if (closing && completed) {
+        legendToggle.animate(
+          [{ transform: 'scale(1)' }, { transform: 'scale(1.18)' }, { transform: 'scale(1)' }],
+          { duration: 280, easing: 'ease-out' },
+        );
+      }
+    };
+    animation.onfinish = () => finish(true);
+    animation.oncancel = () => finish(false);
+    window.setTimeout(() => finish(true), duration + 120);
+  }
+
+  function setLegendOpen(open, { animate = true } = {}) {
+    const wasOpen = !legendPanel.hidden;
     legendToggle.setAttribute('aria-expanded', String(open));
-    if (open) renderLegend();
+    if (open) {
+      legendPanel.hidden = false;
+      renderLegend();
+      if (animate && !wasOpen) animateLegendGhost(legendPanel.getBoundingClientRect(), false);
+      return;
+    }
+    if (!wasOpen) return;
+    const panelRect = legendPanel.getBoundingClientRect();
+    legendPanel.hidden = true;
+    if (animate) animateLegendGhost(panelRect, true);
   }
   let legendRefreshTimer = null;
   state.refreshLegend = () => {
@@ -5317,9 +5401,9 @@ async function main() {
     legendRefreshTimer = window.setTimeout(renderLegend, 100);
   };
   camera.on('updated', state.refreshLegend);
-  legendToggle.addEventListener('click', () => setLegendOpen(legendPanel.hidden));
+  legendToggle.addEventListener('click', () => setLegendOpen(legendToggle.getAttribute('aria-expanded') !== 'true'));
   legendClose.addEventListener('click', () => setLegendOpen(false));
-  setLegendOpen(true);
+  setLegendOpen(true, { animate: false });
 
   document.getElementById('legend-fit').addEventListener('click', () => {
     const panelBounds = legendPanel.getBoundingClientRect();
