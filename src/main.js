@@ -1686,10 +1686,11 @@ async function main() {
   });
 
   function applyRelationshipTheme(enableLight) {
-    const isLight = enableLight && workspace.dataset.mode === 'relationships';
+    const supportsLightTheme = workspace.dataset.mode === 'relationships' || workspace.dataset.mode === 'map';
+    const isLight = enableLight && supportsLightTheme;
     state.theme = isLight ? 'light' : 'dark';
     document.documentElement.dataset.theme = state.theme;
-    themeToggle.disabled = workspace.dataset.mode !== 'relationships';
+    themeToggle.disabled = !supportsLightTheme;
     themeToggle.title = `Switch to ${isLight ? 'dark' : 'light'} mode`;
     themeToggle.setAttribute('aria-checked', String(isLight));
     if (state.renderer) {
@@ -1715,7 +1716,7 @@ async function main() {
       graph.forEachNode((node, attrs) => frozenRelationshipsPositions.set(node, { x: attrs.x, y: attrs.y }));
     }
     workspace.dataset.mode = mode;
-    applyRelationshipTheme(mode === 'relationships' && state.theme === 'light');
+    applyRelationshipTheme(mode !== 'timeline' && state.theme === 'light');
     timelineView.setAttribute('aria-hidden', String(mode !== 'timeline'));
     mapCaption.hidden = !isMap;
     modeTabs.forEach((tab) => {
@@ -3108,9 +3109,12 @@ async function main() {
         && !state.advancedExportFocus.nodeIds.has(actorId)) return { actorId, path, projectedRings, ...bounds };
       const attributes = actorId ? graph.getNodeAttributes(actorId) : null;
       const isEmphasized = actorId === hoveredBuildingActorId || state.emphasizedNodeIds.has(actorId);
-      const color = attributes ? nodeColorForMode(attributes, isEmphasized) : 'rgba(255, 255, 255, 0.45)';
+      const color = attributes
+        ? nodeColorForMode(attributes, isEmphasized)
+        : state.theme === 'light' ? 'rgba(31, 41, 51, 0.42)' : 'rgba(255, 255, 255, 0.45)';
       const actorOpacity = actorId ? 0.55 : 1;
-      const focusOpacity = actorId && state.focusOpacityActive && !state.focusNodeIds.has(actorId)
+      const focusOpacity = state.focusOpacityActive
+        && (!actorId || !state.focusNodeIds.has(actorId))
         ? FOCUS_DIM_OPACITY
         : 1;
       const opacity = actorOpacity * focusOpacity;
@@ -3128,11 +3132,12 @@ async function main() {
 
     if (!mapGeoFrontContext) return;
     mapGeoFrontContext.clearRect(0, 0, width, height);
-    drawRings(mapGeoFrontContext, mapGeography.islandRings, null, 'rgba(160, 200, 255, 0.9)');
+    drawRings(mapGeoFrontContext, mapGeography.islandRings, null,
+      state.theme === 'light' ? 'rgba(0, 53, 255, 0.62)' : 'rgba(160, 200, 255, 0.9)');
     mapFootprintHitTargets.forEach(({ actorId, path }) => {
       if (!actorId || (actorId !== hoveredBuildingActorId && !state.emphasizedNodeIds.has(actorId))) return;
       mapGeoFrontContext.beginPath();
-      mapGeoFrontContext.strokeStyle = '#ffffff';
+      mapGeoFrontContext.strokeStyle = state.theme === 'light' ? '#1f2933' : '#ffffff';
       mapGeoFrontContext.lineWidth = 2;
       mapGeoFrontContext.stroke(path);
     });
