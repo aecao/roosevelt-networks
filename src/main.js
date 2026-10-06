@@ -4054,7 +4054,7 @@ async function main() {
   renderer.on('leaveStage', () => setHoveredHalo(null));
   renderer.on('clickStage', ({ event }) => {
     if (workspace.dataset.mode === 'map') {
-      const buildingActor = buildingActorAt(event.x, event.y);
+      const buildingActor = buildingAt(event.x, event.y)?.actorId;
       if (buildingActor) {
         openNodeDetails(buildingActor);
         return;
@@ -4066,7 +4066,7 @@ async function main() {
   });
   renderer.on('rightClickStage', ({ event }) => {
     const node = workspace.dataset.mode === 'map'
-      ? buildingActorAt(event.x, event.y) || haloBoundaryNodeAt(event)
+      ? buildingAt(event.x, event.y)?.actorId || haloBoundaryNodeAt(event)
       : haloBoundaryNodeAt(event);
     if (node) showPinContextMenu(createNodeSelection(graph, node), event);
   });

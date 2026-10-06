@@ -8,6 +8,16 @@
   text-decoration: underline;
 }
 
+.back-link {
+  font-size: 1.15em;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.back-link:hover {
+  text-decoration: underline;
+}
+
 .doc-section h2 {
   margin: 0;
   font-size: 1.35rem;
