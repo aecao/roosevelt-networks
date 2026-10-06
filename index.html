@@ -94,6 +94,89 @@
           <section class="filter-section">
             <h2>ACTORS</h2>
 
+            <div class="panel relationships-only appearance-panel">
+              <div class="filter-heading">
+                <button class="filter-group-toggle" type="button" aria-expanded="true" aria-controls="appearance-group">
+                  <span class="filter-group-chevron">▾</span><span>APPEARANCE</span>
+                </button>
+              </div>
+              <div id="appearance-group" class="filter-group-content">
+                <div class="appearance-controls">
+                  <label class="toggle-row">
+                    <input id="labels-toggle" type="checkbox" checked />
+                    <span>Labels</span>
+                  </label>
+                  <div id="label-controls" class="appearance-label-controls">
+                    <label for="text-size-slider">Text size <output id="text-size-value">100%</output></label>
+                    <input id="text-size-slider" type="range" min="50" max="450" step="1" value="100" />
+                    <label class="toggle-row">
+                      <input id="label-threshold-toggle" type="checkbox" />
+                      <span>Set label threshold</span>
+                    </label>
+                    <div id="label-threshold-controls" class="appearance-label-threshold-controls" hidden>
+                      <label for="text-threshold-slider">Threshold <output id="text-threshold-value">0%</output></label>
+                      <input id="text-threshold-slider" type="range" min="0" max="100" step="1" value="0" disabled />
+                    </div>
+                  </div>
+                  <label for="node-size-slider">Node size <output id="node-size-value">50</output></label>
+                  <div class="slider-with-steps">
+                    <button id="node-size-decrement" class="slider-step-button" type="button" aria-label="Decrease node size">−</button>
+                    <input id="node-size-slider" type="range" min="1" max="100" step="1" value="50" list="node-size-ticks" />
+                    <button id="node-size-increment" class="slider-step-button" type="button" aria-label="Increase node size">+</button>
+                  </div>
+                  <datalist id="node-size-ticks">
+                    <option value="1"></option>
+                    <option value="25"></option>
+                    <option value="50"></option>
+                    <option value="75"></option>
+                    <option value="100"></option>
+                  </datalist>
+                  <label for="color-mode">COLOR MODE</label>
+                  <select id="color-mode">
+                    <option value="sector">Sector</option>
+                    <option value="category" selected>Category</option>
+                    <option value="public-sentiment">Public sentiment</option>
+                    <option value="plain">Plain</option>
+                  </select>
+                  <label for="size-mode">HALO TYPE</label>
+                  <select id="size-mode">
+                    <option value="public-interest">Public interest</option>
+                    <option value="degree-centrality">Number of connections (degree centrality)</option>
+                    <option value="closeness-centrality">Average shortest-path (closeness centrality)</option>
+                    <option value="betweenness-centrality">Bridging (betweenness centrality)</option>
+                    <option value="eigenvector-centrality">Prestige (eigenvector centrality)</option>
+                    <option value="plain">Plain</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="panel relationships-only">
+              <div class="filter-heading">
+                <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="centrality-group">
+                  <span class="filter-group-chevron">▸</span><span>CENTRALITY</span>
+                </button>
+              </div>
+              <div id="centrality-group" class="filter-group-content" hidden>
+                <div class="appearance-controls">
+                  <label for="centrality-type">TYPE</label>
+                  <select id="centrality-type">
+                    <option value="degree-centrality">Degree centrality</option>
+                    <option value="closeness-centrality">Closeness centrality</option>
+                    <option value="betweenness-centrality">Betweenness centrality</option>
+                    <option value="eigenvector-centrality">Eigenvector centrality</option>
+                  </select>
+                  <label for="centrality-threshold-slider">Minimum number of connections <output id="centrality-threshold-value">0</output></label>
+                  <div class="slider-with-steps">
+                    <button id="centrality-threshold-decrement" class="slider-step-button" type="button" aria-label="Decrease minimum connections">−</button>
+                    <input id="centrality-threshold-slider" type="range" min="0" max="1" step="1" value="0" list="centrality-threshold-ticks" />
+                    <button id="centrality-threshold-increment" class="slider-step-button" type="button" aria-label="Increase minimum connections">+</button>
+                  </div>
+                  <datalist id="centrality-threshold-ticks"></datalist>
+                </div>
+              </div>
+            </div>
+
             <div class="panel">
               <div class="filter-heading">
                 <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="node-type-group">
@@ -131,84 +214,6 @@
               </div>
             </div>
 
-            <div class="panel relationships-only">
-              <div class="filter-heading">
-                <button class="filter-group-toggle" type="button" aria-expanded="false" aria-controls="appearance-group">
-                  <span class="filter-group-chevron">▸</span><span>APPEARANCE</span>
-                </button>
-              </div>
-              <div id="appearance-group" class="filter-group-content" hidden>
-                <div class="appearance-controls">
-                  <label class="toggle-row">
-                    <input id="labels-toggle" type="checkbox" checked />
-                    <span>Labels</span>
-                  </label>
-                  <label for="text-size-slider">Text size <output id="text-size-value">100%</output></label>
-                  <input id="text-size-slider" type="range" min="50" max="150" step="1" value="100" />
-                  <label class="toggle-row">
-                    <input id="label-threshold-toggle" type="checkbox" />
-                    <span>Label threshold</span>
-                  </label>
-                  <label for="text-threshold-slider">Threshold <output id="text-threshold-value">0%</output></label>
-                  <input id="text-threshold-slider" type="range" min="0" max="100" step="1" value="0" disabled />
-                  <label for="node-size-slider">Node size <output id="node-size-value">50</output></label>
-                  <div class="slider-with-steps">
-                    <button id="node-size-decrement" class="slider-step-button" type="button" aria-label="Decrease node size">−</button>
-                    <input id="node-size-slider" type="range" min="1" max="100" step="1" value="50" list="node-size-ticks" />
-                    <button id="node-size-increment" class="slider-step-button" type="button" aria-label="Increase node size">+</button>
-                  </div>
-                  <datalist id="node-size-ticks">
-                    <option value="1"></option>
-                    <option value="25"></option>
-                    <option value="50"></option>
-                    <option value="75"></option>
-                    <option value="100"></option>
-                  </datalist>
-                  <label for="color-mode">COLOR MODE</label>
-                  <select id="color-mode">
-                    <option value="sector">Sector</option>
-                    <option value="category" selected>Category</option>
-                    <option value="public-sentiment">Public sentiment</option>
-                    <option value="plain">Plain</option>
-                  </select>
-                  <label for="size-mode">HALO TYPE</label>
-                  <select id="size-mode">
-                    <option value="public-interest">Public interest</option>
-                    <option value="degree-centrality">Number of connections (degree centrality)</option>
-                    <option value="closeness-centrality">Average shortest-path (closeness centrality)</option>
-                    <option value="betweenness-centrality">Bridging (betweenness centrality)</option>
-                    <option value="eigenvector-centrality">Prestige (eigenvector centrality)</option>
-                    <option value="plain">Plain</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
-            <div class="panel relationships-only">
-              <div class="filter-heading">
-                <button class="filter-group-toggle" type="button" aria-expanded="true" aria-controls="centrality-group">
-                  <span class="filter-group-chevron">▾</span><span>CENTRALITY</span>
-                </button>
-              </div>
-              <div id="centrality-group" class="filter-group-content">
-                <div class="appearance-controls">
-                  <label for="centrality-type">CENTRALITY TYPE</label>
-                  <select id="centrality-type">
-                    <option value="degree-centrality">Degree centrality</option>
-                    <option value="closeness-centrality">Closeness centrality</option>
-                    <option value="betweenness-centrality">Betweenness centrality</option>
-                    <option value="eigenvector-centrality">Eigenvector centrality</option>
-                  </select>
-                  <label for="centrality-threshold-slider">Minimum number of connections <output id="centrality-threshold-value">0</output></label>
-                  <div class="slider-with-steps">
-                    <button id="centrality-threshold-decrement" class="slider-step-button" type="button" aria-label="Decrease minimum connections">−</button>
-                    <input id="centrality-threshold-slider" type="range" min="0" max="1" step="1" value="0" list="centrality-threshold-ticks" />
-                    <button id="centrality-threshold-increment" class="slider-step-button" type="button" aria-label="Increase minimum connections">+</button>
-                  </div>
-                  <datalist id="centrality-threshold-ticks"></datalist>
-                </div>
-              </div>
-            </div>
           </section>
 
           <section class="filter-section timeline-only">
@@ -377,6 +382,10 @@
             <select id="advanced-export-format" disabled>
               <option value="" selected>Select Raster or Vector first</option>
             </select>
+          </label>
+          <label id="advanced-export-svg-layer-field" class="advanced-export-toggle" hidden>
+            <input id="advanced-export-svg-layers" type="checkbox" checked />
+            <span>Optimize for .ai conversion</span>
           </label>
           <label id="advanced-export-quality-field" class="advanced-export-field" for="advanced-export-quality" hidden>
             <span class="advanced-export-label">Quality</span>

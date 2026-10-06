@@ -1594,7 +1594,9 @@ async function main() {
   state.colorMode = colorModeSelect.value;
   const themeToggle = document.getElementById('theme-toggle');
   const labelsToggle = document.getElementById('labels-toggle');
+  const labelControls = document.getElementById('label-controls');
   state.showLabels = labelsToggle.checked;
+  labelControls.hidden = !state.showLabels;
   const nodeSizeSlider = document.getElementById('node-size-slider');
   const nodeSizeValue = document.getElementById('node-size-value');
   const nodeSizeDecrement = document.getElementById('node-size-decrement');
@@ -1604,7 +1606,9 @@ async function main() {
   const textSizeValue = document.getElementById('text-size-value');
   state.textSizeScale = Number(textSizeSlider.value) / 100;
   const labelThresholdToggle = document.getElementById('label-threshold-toggle');
+  const labelThresholdControls = document.getElementById('label-threshold-controls');
   state.labelThresholdEnabled = labelThresholdToggle.checked;
+  labelThresholdControls.hidden = !state.labelThresholdEnabled;
   const textThresholdSlider = document.getElementById('text-threshold-slider');
   const textThresholdValue = document.getElementById('text-threshold-value');
   state.labelThresholdPercent = Number(textThresholdSlider.value);
@@ -2028,12 +2032,14 @@ async function main() {
 
   labelThresholdToggle.addEventListener('change', () => {
     state.labelThresholdEnabled = labelThresholdToggle.checked;
+    labelThresholdControls.hidden = !state.labelThresholdEnabled;
     textThresholdSlider.disabled = !state.labelThresholdEnabled;
     refresh();
   });
 
   labelsToggle.addEventListener('change', () => {
     state.showLabels = labelsToggle.checked;
+    labelControls.hidden = !state.showLabels;
     refresh();
   });
 
@@ -4041,6 +4047,8 @@ async function main() {
   const advancedExportClose = document.getElementById('advanced-export-close');
   const advancedExportTypeButtons = [...advancedExportWindow.querySelectorAll('[data-export-type]')];
   const advancedExportFormat = document.getElementById('advanced-export-format');
+  const advancedExportSvgLayerField = document.getElementById('advanced-export-svg-layer-field');
+  const advancedExportSvgLayers = document.getElementById('advanced-export-svg-layers');
   const advancedExportQualityField = document.getElementById('advanced-export-quality-field');
   const advancedExportQuality = document.getElementById('advanced-export-quality');
   const advancedExportBackground = document.getElementById('advanced-export-background');
@@ -4161,6 +4169,7 @@ async function main() {
       placeholder.textContent = 'Select Raster or Vector first';
       advancedExportFormat.appendChild(placeholder);
       advancedExportFormat.disabled = true;
+      advancedExportSvgLayerField.hidden = true;
       advancedExportQualityField.hidden = true;
       advancedExportBounds.disabled = true;
       advancedExportSave.disabled = true;
@@ -4169,7 +4178,7 @@ async function main() {
     }
     const formats = advancedExportType === 'raster'
       ? [['png', 'PNG'], ['jpeg', 'JPEG']]
-      : [['pdf', 'PDF'], ['svg', 'SVG']];
+      : [['svg', 'SVG (recommended for editability)'], ['pdf', 'PDF']];
     formats.forEach(([value, label], index) => {
       const option = document.createElement('option');
       option.value = value;
@@ -4178,6 +4187,7 @@ async function main() {
       advancedExportFormat.appendChild(option);
     });
     advancedExportFormat.disabled = false;
+    advancedExportSvgLayerField.hidden = !(advancedExportType === 'vector' && advancedExportFormat.value === 'svg');
     advancedExportQualityField.hidden = advancedExportType !== 'raster';
     advancedExportBounds.disabled = false;
     advancedExportBounds.value = advancedExportType === 'raster' ? 'viewport' : 'whole-model';
@@ -4201,6 +4211,7 @@ async function main() {
   }));
   advancedExportFormat.addEventListener('change', () => {
     syncAdvancedExportBackground();
+    advancedExportSvgLayerField.hidden = !(advancedExportType === 'vector' && advancedExportFormat.value === 'svg');
     resetAdvancedExportDestination();
   });
   advancedExportLegend.addEventListener('change', resetAdvancedExportDestination);
@@ -4422,7 +4433,7 @@ async function main() {
     }
   }
 
-  async function buildAdvancedSvg(boundsMode, backgroundMode, legendCapture = null) {
+  async function buildAdvancedSvg(boundsMode, backgroundMode, legendCapture = null, optimizeForIllustrator = false) {
     const dimensions = renderer.getDimensions();
     const width = Math.max(1, Math.round(dimensions.width));
     const height = Math.max(1, Math.round(dimensions.height));
@@ -4565,7 +4576,13 @@ async function main() {
       const normalX = -unitY;
       const normalY = unitX;
       const arrow = `M ${tipX} ${tipY} L ${baseX + normalX * headWidth} ${baseY + normalY * headWidth} L ${baseX - normalX * headWidth} ${baseY - normalY * headWidth} Z`;
-      addLayer(`relationship-${slug(attributes.adjacencyType)}`, groupLabel, 20,
+      const arrowLayerId = optimizeForIllustrator
+        ? `relationship-arrowheads-${slug(attributes.adjacencyType)}`
+        : `relationship-${slug(attributes.adjacencyType)}`;
+      const arrowLayerLabel = optimizeForIllustrator
+        ? `Arrowheads · ${attributes.label || attributes.adjacencyType}`
+        : groupLabel;
+      addLayer(arrowLayerId, arrowLayerLabel, optimizeForIllustrator ? 21 : 20,
         `<path d="${arrow}" fill="${color}" fill-opacity="${opacity}"/>`);
     });
 
@@ -4671,12 +4688,12 @@ async function main() {
 
     const orderedLayers = [...layers.values()].sort((first, second) => first.order - second.order);
     const layerMarkup = orderedLayers.map(({ id, label, markup }) =>
-      `<g id="layer-${id}" inkscape:groupmode="layer" inkscape:label="${escapeXml(label)}">${markup.join('')}</g>`).join('');
+      `<g id="layer-${id}"${optimizeForIllustrator ? ` data-name="${escapeXml(label)}"` : ''} inkscape:groupmode="layer" inkscape:label="${escapeXml(label)}">${markup.join('')}</g>`).join('');
     let legendMarkup = '';
     if (legendCapture) {
       const x = wholeModel ? width + padding : legendCapture.viewportX;
       const y = wholeModel ? (outputHeight - legendCapture.height) / 2 : legendCapture.viewportY;
-      legendMarkup = `<g id="layer-legend" inkscape:groupmode="layer" inkscape:label="Legend"><image x="${x}" y="${y}" width="${legendCapture.width}" height="${legendCapture.height}" href="${legendCapture.dataUrl}"/></g>`;
+      legendMarkup = `<g id="layer-legend"${optimizeForIllustrator ? ' data-name="Legend"' : ''} inkscape:groupmode="layer" inkscape:label="Legend"><image x="${x}" y="${y}" width="${legendCapture.width}" height="${legendCapture.height}" href="${legendCapture.dataUrl}"/></g>`;
     }
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${outputWidth}" height="${outputHeight}" viewBox="0 0 ${outputWidth} ${outputHeight}">${layerMarkup}${legendMarkup}</svg>`;
     return { svg, width: outputWidth, height: outputHeight };
@@ -4832,6 +4849,7 @@ async function main() {
           bounds,
           background,
           legendMode === 'include' ? legendCapture : null,
+          format === 'svg' && advancedExportSvgLayers.checked,
         );
         if (format === 'svg') {
           await saveAdvancedBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), filename, fileHandle, directoryHandle);
