@@ -86,6 +86,12 @@ function coreNodeSize(scale) {
   const defaultSize = defaultSizes[scale] ?? defaultSizes.MESO;
   return defaultSize * state.nodeSizeScale / nodeSizeDisplayToScale(50);
 }
+
+function collaborationEdgeWidthLimit(sourceScale, targetScale) {
+  if (sourceScale !== 'MICRO' && targetScale !== 'MICRO') return Infinity;
+  return Math.min(coreNodeSize(sourceScale), coreNodeSize(targetScale));
+}
+
 // Label text sizes for the bottom/middle/top thirds of nodes by centrality rank
 // (the current/old label-size formula topped out at 15, so the top two tiers exceed it).
 const LABEL_TIER_SIZES = [11, 19, 26];
@@ -152,6 +158,7 @@ const state = {
   focusOpacityActive: false,
   focusNodeIds: new Set(),
   focusEdgeIds: new Set(),
+  advancedExportFocus: null,
   pinnedGraphNodeIds: new Set(),
   pinnedGraphEdgeIds: new Set(),
   updateFocusOpacity: null,
@@ -1692,6 +1699,8 @@ async function main() {
   }
 
   function isNodeVisible(node) {
+    if (state.advancedExportFocus?.mode === 'only'
+      && !state.advancedExportFocus.nodeIds.has(node)) return false;
     return state.pinnedGraphNodeIds.has(node)
       || (isNodeVisibleBase(node) && passesCentralityThreshold(node));
   }
@@ -1799,6 +1808,8 @@ async function main() {
   state.updateFocusOpacity = updateFocusOpacity;
 
   function isTimelineActorVisible(node) {
+    if (state.advancedExportFocus?.mode === 'only'
+      && !state.advancedExportFocus.nodeIds.has(node)) return false;
     const attrs = graph.getNodeAttributes(node);
     const hasSelectedTopic = state.activeTopics.size === state.allTopics.size
       || attrs.topics.some((topic) => state.activeTopics.has(topic));
@@ -2048,6 +2059,10 @@ async function main() {
     timelineRows.forEach((unit) => {
       const y = rowTop + unit.rowIndex * rowHeight;
       const row = createSvgElement('g', { 'data-row-unit': unit.id });
+      const rowRelated = unit.members.some((actor) => state.focusNodeIds.has(actor.id));
+      if (state.advancedExportFocus?.mode === 'dim' && !rowRelated) {
+        row.setAttribute('opacity', String(FOCUS_DIM_OPACITY));
+      }
       row.appendChild(createSvgElement('line', {
         x1: 0,
         x2: width,
@@ -2082,6 +2097,9 @@ async function main() {
           'data-actor-id': actor.id,
           'data-row-unit': unit.id,
         });
+        if (state.advancedExportFocus?.mode === 'dim' && !state.focusNodeIds.has(actor.id)) {
+          actorGroup.setAttribute('opacity', String(FOCUS_DIM_OPACITY));
+        }
         const bar = createSvgElement('rect', {
           x: boundaryX(actor.start),
           y: isParentActor ? rowTop + parentSpan.start * rowHeight + 3 : laneY,
@@ -2110,6 +2128,10 @@ async function main() {
         const connectorEnd = boundaryX(successor.start);
         const flowDirection = connectorEnd >= connectorStart ? 1 : -1;
         const arrowX = Math.max(plotLeft + 3, Math.min(plotRight - 3, connectorEnd));
+        const edgeOpacity = state.advancedExportFocus?.mode === 'dim'
+          && (!state.focusNodeIds.has(source) || !state.focusNodeIds.has(target))
+          ? FOCUS_DIM_OPACITY
+          : 1;
         if (Math.abs(connectorEnd - connectorStart) > 3) {
           row.appendChild(createSvgElement('line', {
             x1: connectorStart,
@@ -2118,6 +2140,7 @@ async function main() {
             y2: actorLaneCenter.get(target),
             stroke: '#f2f5f3',
             'stroke-opacity': 0.8,
+            opacity: edgeOpacity,
             'stroke-width': 1.5,
           }));
         }
@@ -2126,6 +2149,7 @@ async function main() {
           fill: 'none',
           stroke: '#f2f5f3',
           'stroke-opacity': 0.9,
+          opacity: edgeOpacity,
           'stroke-width': 1.5,
         });
         arrow.appendChild(createSvgElement('title', {}, `${predecessor.label} precedes ${successor.label}`));
@@ -2563,6 +2587,8 @@ async function main() {
     mapFootprintHitTargets = mapGeography.buildingFootprints.map((footprint) => {
       const actorId = footprint.actorId && graph.hasNode(footprint.actorId) ? footprint.actorId : null;
       const path = createProjectedPath(footprint.rings);
+      if (state.advancedExportFocus?.mode === 'only' && actorId
+        && !state.advancedExportFocus.nodeIds.has(actorId)) return { actorId, path };
       const attributes = actorId ? graph.getNodeAttributes(actorId) : null;
       const isEmphasized = actorId === hoveredBuildingActorId || state.emphasizedNodeIds.has(actorId);
       const color = attributes ? nodeColorForMode(attributes, isEmphasized) : '#ffffff';
@@ -2848,14 +2874,25 @@ async function main() {
     const [source, target] = graph.extremities(edge);
     const nodesVisible = isNodeVisible(source) && isNodeVisible(target);
     const hidden = (!state.activeEdgeTypes.has(data.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge))
-      || !nodesVisible;
+      || !nodesVisible
+      || (state.advancedExportFocus?.mode === 'only'
+        && !state.advancedExportFocus.edgeIds.has(edge));
     if (hidden) return { ...data, hidden: true };
-    const withWidthOrder = (size, attributes = data) => ({
-      ...attributes,
-      type: edgeProgramType(data.baseRenderType, size),
-      size,
-      zIndex: Math.max(0, MAX_WEIGHTED_EDGE_WIDTH - size),
-    });
+    const edgeWidthLimit = data.adjacencyType === 'col'
+      ? collaborationEdgeWidthLimit(
+        graph.getNodeAttribute(source, 'scale'),
+        graph.getNodeAttribute(target, 'scale'),
+      )
+      : Infinity;
+    const withWidthOrder = (size, attributes = data) => {
+      const boundedSize = Math.min(size, edgeWidthLimit);
+      return {
+        ...attributes,
+        type: edgeProgramType(data.baseRenderType, boundedSize),
+        size: boundedSize,
+        zIndex: Math.max(0, MAX_WEIGHTED_EDGE_WIDTH - boundedSize),
+      };
+    };
     const edgeColor = edgeColorForTheme(data.adjacencyType, data.color);
     const themedData = edgeColor === data.color ? data : { ...data, color: edgeColor };
     if (state.selectedEdgeIds.has(edge)) {
@@ -3403,11 +3440,23 @@ async function main() {
   const advancedExportClose = document.getElementById('advanced-export-close');
   const advancedExportTypeButtons = [...advancedExportWindow.querySelectorAll('[data-export-type]')];
   const advancedExportFormat = document.getElementById('advanced-export-format');
+  const advancedExportQualityField = document.getElementById('advanced-export-quality-field');
+  const advancedExportQuality = document.getElementById('advanced-export-quality');
   const advancedExportBackground = document.getElementById('advanced-export-background');
   const advancedExportBounds = document.getElementById('advanced-export-bounds');
+  const advancedExportLegend = document.getElementById('advanced-export-legend');
+  const advancedExportIsolate = document.getElementById('advanced-export-isolate');
+  const advancedExportIsolateModeField = document.getElementById('advanced-export-isolate-mode-field');
+  const advancedExportIsolateMode = document.getElementById('advanced-export-isolate-mode');
+  const advancedExportSave = document.getElementById('advanced-export-save');
+  const advancedExportDestination = document.getElementById('advanced-export-destination');
   const advancedExportRun = document.getElementById('advanced-export-run');
+  const advancedExportProgress = document.getElementById('advanced-export-progress');
   const advancedExportStatus = document.getElementById('advanced-export-status');
   let advancedExportType = null;
+  let advancedExportFileHandle = null;
+  let advancedExportDirectoryHandle = null;
+  let advancedExportFilename = '';
   let exportMenuPinnedOpen = false;
   const setExportMenuOpen = (open) => {
     exportMenu.hidden = !open;
@@ -3437,9 +3486,11 @@ async function main() {
     advancedExportWindow.hidden = !open;
     if (open) {
       advancedExportType = null;
+      resetAdvancedExportDestination();
       updateAdvancedExportOptions();
       advancedExportBackground.value = state.theme === 'light' ? 'light' : 'dark';
       advancedExportStatus.textContent = '';
+      advancedExportProgress.hidden = true;
       advancedExportTypeButtons[0].focus();
     }
   }
@@ -3491,6 +3542,13 @@ async function main() {
   };
   advancedExportHeader.addEventListener('pointerup', stopAdvancedExportDrag);
   advancedExportHeader.addEventListener('pointercancel', stopAdvancedExportDrag);
+  function resetAdvancedExportDestination() {
+    advancedExportFileHandle = null;
+    advancedExportDirectoryHandle = null;
+    advancedExportFilename = '';
+    advancedExportDestination.textContent = 'No destination selected';
+    advancedExportRun.disabled = true;
+  }
   const updateAdvancedExportOptions = () => {
     advancedExportTypeButtons.forEach((button) => {
       button.setAttribute('aria-pressed', String(button.dataset.exportType === advancedExportType));
@@ -3502,7 +3560,9 @@ async function main() {
       placeholder.textContent = 'Select Raster or Vector first';
       advancedExportFormat.appendChild(placeholder);
       advancedExportFormat.disabled = true;
+      advancedExportQualityField.hidden = true;
       advancedExportBounds.disabled = true;
+      advancedExportSave.disabled = true;
       advancedExportRun.disabled = true;
       return;
     }
@@ -3517,9 +3577,11 @@ async function main() {
       advancedExportFormat.appendChild(option);
     });
     advancedExportFormat.disabled = false;
+    advancedExportQualityField.hidden = advancedExportType !== 'raster';
     advancedExportBounds.disabled = false;
     advancedExportBounds.value = advancedExportType === 'raster' ? 'viewport' : 'whole-model';
-    advancedExportRun.disabled = false;
+    advancedExportSave.disabled = false;
+    advancedExportRun.disabled = !advancedExportFilename;
     syncAdvancedExportBackground();
   };
   const transparentBackgroundOption = advancedExportBackground.querySelector('option[value="transparent"]');
@@ -3533,10 +3595,76 @@ async function main() {
   }
   advancedExportTypeButtons.forEach((button) => button.addEventListener('click', () => {
     advancedExportType = button.dataset.exportType;
+    resetAdvancedExportDestination();
     updateAdvancedExportOptions();
   }));
-  advancedExportFormat.addEventListener('change', syncAdvancedExportBackground);
+  advancedExportFormat.addEventListener('change', () => {
+    syncAdvancedExportBackground();
+    resetAdvancedExportDestination();
+  });
+  advancedExportLegend.addEventListener('change', resetAdvancedExportDestination);
+  advancedExportIsolate.addEventListener('change', () => {
+    advancedExportIsolateModeField.hidden = !advancedExportIsolate.checked;
+  });
   updateAdvancedExportOptions();
+  function advancedExportFileType(format) {
+    return {
+      extension: format === 'jpeg' ? 'jpg' : format,
+      mimeType: {
+        png: 'image/png',
+        jpeg: 'image/jpeg',
+        pdf: 'application/pdf',
+        svg: 'image/svg+xml',
+      }[format],
+    };
+  }
+  advancedExportSave.addEventListener('click', async () => {
+    const format = advancedExportFormat.value;
+    const { extension, mimeType } = advancedExportFileType(format);
+    const suggestedName = advancedExportFilename || `networkchart.${extension}`;
+    try {
+      if (advancedExportLegend.value === 'separate' && typeof window.showDirectoryPicker === 'function') {
+        advancedExportDirectoryHandle = await window.showDirectoryPicker();
+        const chosenName = window.prompt('Choose the main export file name.', suggestedName);
+        if (chosenName === null) {
+          advancedExportDirectoryHandle = null;
+          return;
+        }
+        const trimmedName = chosenName.trim();
+        if (!trimmedName) {
+          advancedExportDirectoryHandle = null;
+          return;
+        }
+        advancedExportFilename = trimmedName.toLowerCase().endsWith(`.${extension}`)
+          ? trimmedName
+          : `${trimmedName}.${extension}`;
+      } else if (typeof window.showSaveFilePicker === 'function') {
+        advancedExportFileHandle = await window.showSaveFilePicker({
+          suggestedName,
+          types: [{ description: `${format.toUpperCase()} export`, accept: { [mimeType]: [`.${extension}`] } }],
+        });
+        advancedExportFilename = advancedExportFileHandle.name;
+      } else {
+        const chosenName = window.prompt('Choose a file name. Your browser will use its configured download location.', suggestedName);
+        if (chosenName === null) return;
+        const trimmedName = chosenName.trim();
+        if (!trimmedName) return;
+        advancedExportFilename = trimmedName.toLowerCase().endsWith(`.${extension}`)
+          ? trimmedName
+          : `${trimmedName}.${extension}`;
+      }
+      advancedExportDestination.textContent = advancedExportDirectoryHandle
+        ? `${advancedExportDirectoryHandle.name}/${advancedExportFilename}`
+        : advancedExportFilename;
+      advancedExportRun.disabled = false;
+      advancedExportStatus.textContent = '';
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        advancedExportStatus.textContent = 'Could not choose a save location.';
+        console.error('Unable to choose an advanced export destination.', error);
+      }
+    }
+  });
   document.addEventListener('pointerdown', (event) => {
     if (!headerExportContainer.contains(event.target)) {
       exportMenuPinnedOpen = false;
@@ -3612,7 +3740,88 @@ async function main() {
     })[character]);
   }
 
-  function buildAdvancedSvg(boundsMode, backgroundMode) {
+  function getAdvancedExportFocus() {
+    const nodeIds = new Set();
+    const edgeIds = new Set();
+    const selections = [
+      ...state.pinnedSelections,
+      ...(state.currentSelection ? [state.currentSelection] : []),
+    ];
+    const addNode = (node) => {
+      if (graph.hasNode(node) && state.isNodeVisible(node)) nodeIds.add(node);
+    };
+    const addEdge = (edge, source, target) => {
+      if ((!state.activeEdgeTypes.has(graph.getEdgeAttribute(edge, 'adjacencyType'))
+        && !state.pinnedGraphEdgeIds.has(edge))
+        || !state.isNodeVisible(source)
+        || !state.isNodeVisible(target)) return;
+      edgeIds.add(edge);
+      nodeIds.add(source);
+      nodeIds.add(target);
+    };
+    selections.forEach((selection) => {
+      (selection.nodeIds || []).forEach(addNode);
+      (selection.edgeIds || []).forEach((edge) => {
+        if (graph.hasEdge(edge)) addEdge(edge, ...graph.extremities(edge));
+      });
+      if (selection.kind === 'node') {
+        const selectedNodes = new Set(selection.nodeIds || []);
+        graph.forEachEdge((edge, attributes, source, target) => {
+          if (selectedNodes.has(source) || selectedNodes.has(target)) addEdge(edge, source, target);
+        });
+      }
+    });
+    return { nodeIds, edgeIds };
+  }
+
+  function withAdvancedExportNodeOpacity(node, markup) {
+    const focus = state.advancedExportFocus;
+    if (focus?.mode !== 'dim' || focus.nodeIds.has(node)) return markup;
+    return `<g opacity="${FOCUS_DIM_OPACITY}">${markup}</g>`;
+  }
+
+  async function captureAdvancedLegend(resolution) {
+    const { default: html2canvas } = await import('html2canvas');
+    const wasHidden = legendPanel.hidden;
+    const previousVisibility = legendPanel.style.visibility;
+    legendPanel.hidden = false;
+    legendPanel.style.visibility = 'hidden';
+    const legendBounds = legendPanel.getBoundingClientRect();
+    const workspaceBounds = workspace.getBoundingClientRect();
+    const scale = resolution / 96;
+    try {
+      const canvas = await html2canvas(legendPanel, {
+        backgroundColor: null,
+        scale,
+        useCORS: true,
+        logging: false,
+        ignoreElements: (element) => element.matches('.legend-panel-actions, .legend-resize-handle'),
+        onclone: (clonedDocument) => {
+          const clonedLegend = clonedDocument.getElementById('legend-panel');
+          if (clonedLegend) {
+            clonedLegend.hidden = false;
+            clonedLegend.style.visibility = 'visible';
+          }
+        },
+      });
+      const renderedBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!renderedBlob) throw new Error('Could not encode the legend image.');
+      const blob = await withPngResolution(renderedBlob, resolution);
+      return {
+        blob,
+        dataUrl: canvas.toDataURL('image/png'),
+        width: canvas.width / scale,
+        height: canvas.height / scale,
+        viewportX: legendBounds.left - workspaceBounds.left,
+        viewportY: legendBounds.top - workspaceBounds.top,
+      };
+    } finally {
+      legendPanel.hidden = wasHidden;
+      legendPanel.style.visibility = previousVisibility;
+    }
+  }
+
+  async function buildAdvancedSvg(boundsMode, backgroundMode, legendCapture = null) {
     const dimensions = renderer.getDimensions();
     const width = Math.max(1, Math.round(dimensions.width));
     const height = Math.max(1, Math.round(dimensions.height));
@@ -3621,6 +3830,8 @@ async function main() {
 
     const wholeModel = boundsMode === 'whole-model';
     const padding = Math.min(48, Math.max(12, Math.min(width, height) * 0.04));
+    const outputWidth = wholeModel && legendCapture ? width + legendCapture.width + padding * 2 : width;
+    const outputHeight = wholeModel && legendCapture ? Math.max(height, legendCapture.height + padding * 2) : height;
     let modelScale = 1;
     let offsetX = 0;
     let offsetY = 0;
@@ -3656,7 +3867,7 @@ async function main() {
     const slug = (value) => String(value).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'other';
     const circle = (x, y, radius, fill, options = {}) => `<circle cx="${x}" cy="${y}" r="${radius}" fill="${fill}"${options.fillOpacity !== undefined ? ` fill-opacity="${options.fillOpacity}"` : ''}${options.stroke ? ` stroke="${options.stroke}" stroke-width="${options.strokeWidth || 1}"` : ''}/>`;
     const backgroundColor = backgroundMode === 'dark' ? '#000000' : backgroundMode === 'light' ? '#f1f3f5' : null;
-    if (backgroundColor) addLayer('background', 'Background', 0, `<rect width="${width}" height="${height}" fill="${backgroundColor}"/>`);
+    if (backgroundColor) addLayer('background', 'Background', 0, `<rect width="${outputWidth}" height="${outputHeight}" fill="${backgroundColor}"/>`);
 
     visibleNodes.forEach((node) => {
       const position = positions.get(node);
@@ -3677,12 +3888,15 @@ async function main() {
           groupLabel = Number.isFinite(attributes.sentiment) ? 'Halos · Sentiment data' : 'Halos · No sentiment data';
         }
         const haloColor = nodeColorForMode(attributes);
-        addLayer(`halo-${slug(groupLabel)}`, groupLabel, 10, circle(position.x, position.y, haloRadius, haloColor, { fillOpacity: 0.16 }));
+        addLayer(`halo-${slug(groupLabel)}`, groupLabel, 10,
+          withAdvancedExportNodeOpacity(node, circle(position.x, position.y, haloRadius, haloColor, { fillOpacity: 0.16 })));
       }
     });
 
     graph.forEachEdge((edge, attributes, source, target) => {
       if (!state.activeEdgeTypes.has(attributes.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge)) return;
+      if (state.advancedExportFocus?.mode === 'only'
+        && !state.advancedExportFocus.edgeIds.has(edge)) return;
       if (!state.isNodeVisible(source) || !state.isNodeVisible(target)) return;
       const sourcePoint = positions.get(source);
       const targetPoint = positions.get(target);
@@ -3702,7 +3916,10 @@ async function main() {
         ? `M ${sourcePoint.x} ${sourcePoint.y} Q ${control.x} ${control.y} ${targetPoint.x} ${targetPoint.y}`
         : `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`;
       const color = edgeColorForTheme(attributes.adjacencyType, attributes.color);
-      const strokeWidth = wholeModel ? Math.max(1, (attributes.size || 1) * 2) : Math.max(1, renderer.scaleSize(attributes.size || 1) * 2);
+      const edgeSize = attributes.adjacencyType === 'col'
+        ? Math.min(attributes.size || 1, collaborationEdgeWidthLimit(sourceNode.attributes.scale, targetNode.attributes.scale))
+        : attributes.size || 1;
+      const strokeWidth = wholeModel ? Math.max(1, edgeSize * 2) : Math.max(1, renderer.scaleSize(edgeSize) * 2);
       const opacity = state.focusOpacityActive && !state.focusEdgeIds.has(edge) ? FOCUS_DIM_OPACITY : 1;
       const groupLabel = `Relationships · ${attributes.label || attributes.adjacencyType}`;
       addLayer(`relationship-${slug(attributes.adjacencyType)}`, groupLabel, 20,
@@ -3747,7 +3964,7 @@ async function main() {
       const color = nodeColorForMode(attributes);
       if (state.colorMode === 'category') {
         addLayer('actor-outline', 'Actor outline', 32,
-          circle(position.x, position.y, radius, 'none', { stroke: nodeOutline, strokeWidth: 1 }));
+          withAdvancedExportNodeOpacity(node, circle(position.x, position.y, radius, 'none', { stroke: nodeOutline, strokeWidth: 1 })));
         const topics = [...new Set(attributes.topics.filter((topic) => state.activeTopics.has(topic)))];
         if (topics.length > 1) {
           topics.forEach((topic, index) => {
@@ -3758,13 +3975,13 @@ async function main() {
             const path = `M ${position.x} ${position.y} L ${start.x} ${start.y} A ${radius} ${radius} 0 0 1 ${finish.x} ${finish.y} Z`;
             const layerLabel = `Nodes · ${topic}`;
             addLayer(`node-category-${slug(topic)}`, layerLabel, 31,
-              `<path d="${path}" fill="${state.topicColors.get(topic) || '#8a8a8a'}"/>`);
+              withAdvancedExportNodeOpacity(node, `<path d="${path}" fill="${state.topicColors.get(topic) || '#8a8a8a'}"/>`));
           });
         } else {
           const topic = topics[0];
           const layerLabel = topic ? `Nodes · ${topic}` : 'Nodes · Uncategorized';
           addLayer(`node-category-${slug(topic || 'uncategorized')}`, layerLabel, 31,
-            circle(position.x, position.y, radius, topic ? state.topicColors.get(topic) || '#8a8a8a' : '#8a8a8a'));
+            withAdvancedExportNodeOpacity(node, circle(position.x, position.y, radius, topic ? state.topicColors.get(topic) || '#8a8a8a' : '#8a8a8a')));
         }
       } else {
         let layerId = 'node-plain';
@@ -3782,7 +3999,7 @@ async function main() {
           }
         }
         addLayer(layerId, layerLabel, 30,
-          circle(position.x, position.y, radius, fill, { stroke: nodeOutline, strokeWidth: 1 }));
+          withAdvancedExportNodeOpacity(node, circle(position.x, position.y, radius, fill, { stroke: nodeOutline, strokeWidth: 1 })));
       }
 
       if (!Number.isFinite(attributes.haloRatio) || state.sizeMode === 'plain') return;
@@ -3799,7 +4016,7 @@ async function main() {
         ? Math.min(50, haloSizeForScore(attributes.scale, attributes.haloRatio, 0, 1))
         : renderer.scaleSize(haloSizeForScore(attributes.scale, attributes.haloRatio, 0, 1));
       addLayer(`halo-${slug(haloLayerLabel)}`, haloLayerLabel, 10,
-        circle(position.x, position.y, haloRadius, haloColor, { fillOpacity: 0.16 }));
+        withAdvancedExportNodeOpacity(node, circle(position.x, position.y, haloRadius, haloColor, { fillOpacity: 0.16 })));
     });
     visibleNodes.forEach((node) => {
       const position = positions.get(node);
@@ -3831,14 +4048,20 @@ async function main() {
       const layerNames = ['labels-small', 'labels-med', 'labels-large'];
       const tierNames = ['Small labels', 'Medium labels', 'Large labels'];
       const text = `<text x="${x}" y="${y}" fill="${color}" font-family="${family}" font-size="${baseSize}" font-weight="${focused ? 700 : 300}">${escapeXml(label)}</text>`;
-      addLayer(layerNames[tier], tierNames[tier], 40 + tier, text);
+      addLayer(layerNames[tier], tierNames[tier], 40 + tier, withAdvancedExportNodeOpacity(node, text));
     });
 
     const orderedLayers = [...layers.values()].sort((first, second) => first.order - second.order);
     const layerMarkup = orderedLayers.map(({ id, label, markup }) =>
       `<g id="layer-${id}" inkscape:groupmode="layer" inkscape:label="${escapeXml(label)}">${markup.join('')}</g>`).join('');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${layerMarkup}</svg>`;
-    return { svg, width, height };
+    let legendMarkup = '';
+    if (legendCapture) {
+      const x = wholeModel ? width + padding : legendCapture.viewportX;
+      const y = wholeModel ? (outputHeight - legendCapture.height) / 2 : legendCapture.viewportY;
+      legendMarkup = `<g id="layer-legend" inkscape:groupmode="layer" inkscape:label="Legend"><image x="${x}" y="${y}" width="${legendCapture.width}" height="${legendCapture.height}" href="${legendCapture.dataUrl}"/></g>`;
+    }
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${outputWidth}" height="${outputHeight}" viewBox="0 0 ${outputWidth} ${outputHeight}">${layerMarkup}${legendMarkup}</svg>`;
+    return { svg, width: outputWidth, height: outputHeight };
   }
 
   function downloadBlob(blob, filename) {
@@ -3852,14 +4075,32 @@ async function main() {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   }
 
-  async function rasterizeAdvancedSvg(svg, width, height, format, background) {
+  async function saveAdvancedBlob(blob, filename, fileHandle, directoryHandle) {
+    if (directoryHandle) {
+      const outputHandle = await directoryHandle.getFileHandle(filename, { create: true });
+      const writable = await outputHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return outputHandle.name;
+    }
+    if (fileHandle) {
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return fileHandle.name;
+    }
+    downloadBlob(blob, filename);
+    return filename;
+  }
+
+  async function rasterizeAdvancedSvg(svg, width, height, format, background, resolution) {
     const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
     try {
       const image = new Image();
       image.src = url;
       await image.decode();
-      const scale = 300 / 96;
+      const scale = resolution / 96;
       const canvas = document.createElement('canvas');
       canvas.width = Math.round(width * scale);
       canvas.height = Math.round(height * scale);
@@ -3873,7 +4114,7 @@ async function main() {
       const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
       const blob = await new Promise((resolve) => canvas.toBlob(resolve, mimeType, 0.94));
       if (!blob) throw new Error('Could not encode the raster export.');
-      return format === 'png' ? withPngResolution(blob, 300) : blob;
+      return format === 'png' ? withPngResolution(blob, resolution) : blob;
     } finally {
       URL.revokeObjectURL(url);
     }
@@ -3882,29 +4123,72 @@ async function main() {
   async function exportAdvanced() {
     advancedExportRun.disabled = true;
     advancedExportStatus.textContent = 'Preparing export…';
+    advancedExportProgress.hidden = true;
+    let previousFocusState = null;
     try {
+      const exportType = advancedExportType;
       const format = advancedExportFormat.value;
       const background = advancedExportBackground.value;
       const bounds = advancedExportBounds.value;
-      const extension = format === 'jpeg' ? 'jpg' : format;
-      if (advancedExportType === 'raster' && bounds === 'viewport') {
+      const resolution = Number(advancedExportQuality.value);
+      const { extension } = advancedExportFileType(format);
+      const fileHandle = advancedExportFileHandle;
+      const directoryHandle = advancedExportDirectoryHandle;
+      const filename = advancedExportFilename || `networkchart.${extension}`;
+      const legendMode = advancedExportLegend.value;
+      const legendFilename = `${filename.replace(/\.[^.]+$/, '')}-legend.png`;
+      if (advancedExportIsolate.checked) {
+        const focus = getAdvancedExportFocus();
+        if (!focus.nodeIds.size) throw new Error('Select or pin at least one visible actor or relationship to isolate.');
+        previousFocusState = {
+          advancedExportFocus: state.advancedExportFocus,
+          focusOpacityActive: state.focusOpacityActive,
+          focusNodeIds: state.focusNodeIds,
+          focusEdgeIds: state.focusEdgeIds,
+        };
+        state.advancedExportFocus = {
+          mode: advancedExportIsolateMode.value,
+          nodeIds: focus.nodeIds,
+          edgeIds: focus.edgeIds,
+        };
+        state.focusOpacityActive = true;
+        state.focusNodeIds = focus.nodeIds;
+        state.focusEdgeIds = focus.edgeIds;
+        renderer.refresh();
+        if (workspace.dataset.mode === 'timeline') renderTimeline();
+        if (workspace.dataset.mode === 'map') drawMapGeoLayer();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+      const width = Math.round(workspace.clientWidth);
+      const height = Math.round(workspace.clientHeight);
+      const estimatedPixels = Math.ceil(width * resolution / 96) * Math.ceil(height * resolution / 96);
+      const showProgress = (exportType === 'raster' && estimatedPixels >= 8000000)
+        || (format === 'pdf' && graph.size >= 5000);
+      advancedExportProgress.hidden = !showProgress;
+      if (showProgress) {
+        advancedExportStatus.textContent = 'Rendering high-resolution export…';
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      }
+      const needsLegendCapture = legendMode === 'separate'
+        || (legendMode === 'include' && (exportType === 'vector' || bounds === 'whole-model'));
+      const legendCapture = needsLegendCapture ? await captureAdvancedLegend(resolution) : null;
+      if (exportType === 'raster' && bounds === 'viewport') {
         const { default: html2canvas } = await import('html2canvas');
         renderer.refresh();
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-        const width = Math.round(workspace.clientWidth);
-        const height = Math.round(workspace.clientHeight);
         const backgroundColor = background === 'transparent' ? null : background === 'light' ? '#f1f3f5' : '#000000';
         const ignoredSelectors = [
           '#sidebar', '#details-sidebar', '#panel-tabs', '.zoom-controls', '.zoom-level-indicator',
-          '.map-caption', '.legend-panel', '.advanced-export-window', '.sigma-mouse',
+          '.map-caption', '.legend-panel-actions', '.legend-resize-handle', '.advanced-export-window', '.sigma-mouse',
         ];
+        if (legendMode !== 'include') ignoredSelectors.push('.legend-panel');
         const canvas = await html2canvas(workspace, {
           backgroundColor,
           width,
           height,
           windowWidth: window.innerWidth,
           windowHeight: window.innerHeight,
-          scale: 300 / 96,
+          scale: resolution / 96,
           useCORS: true,
           logging: false,
           ignoreElements: (element) => ignoredSelectors.some((selector) => element.matches(selector)),
@@ -3914,16 +4198,25 @@ async function main() {
             const fill = backgroundColor || 'transparent';
             if (clonedWorkspace) clonedWorkspace.style.backgroundColor = fill;
             if (clonedGraph) clonedGraph.style.backgroundColor = fill;
+            const clonedLegend = clonedDocument.getElementById('legend-panel');
+            if (clonedLegend && legendMode === 'include') {
+              clonedLegend.hidden = false;
+              clonedLegend.style.visibility = 'visible';
+            }
           },
         });
         let blob = await new Promise((resolve) => canvas.toBlob(resolve, format === 'jpeg' ? 'image/jpeg' : 'image/png', 0.94));
         if (!blob) throw new Error('Could not encode the viewport export.');
-        if (format === 'png') blob = await withPngResolution(blob, 300);
-        downloadBlob(blob, `networkchart.${extension}`);
+        if (format === 'png') blob = await withPngResolution(blob, resolution);
+        await saveAdvancedBlob(blob, filename, fileHandle, directoryHandle);
       } else {
-        const { svg, width, height } = buildAdvancedSvg(bounds, background);
+        const { svg, width, height } = await buildAdvancedSvg(
+          bounds,
+          background,
+          legendMode === 'include' ? legendCapture : null,
+        );
         if (format === 'svg') {
-          downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), 'networkchart.svg');
+          await saveAdvancedBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), filename, fileHandle, directoryHandle);
         } else if (format === 'pdf') {
           const [{ jsPDF }, _svg2pdf] = await Promise.all([import('jspdf'), import('svg2pdf.js')]);
           const svgDocument = new DOMParser().parseFromString(svg, 'image/svg+xml');
@@ -3931,18 +4224,33 @@ async function main() {
           const pageHeight = height * 0.75;
           const pdf = new jsPDF({ orientation: pageWidth > pageHeight ? 'landscape' : 'portrait', unit: 'pt', format: [pageWidth, pageHeight] });
           await pdf.svg(svgDocument.documentElement, { x: 0, y: 0, width: pageWidth, height: pageHeight });
-          pdf.save('networkchart.pdf');
+          await saveAdvancedBlob(pdf.output('blob'), filename, fileHandle, directoryHandle);
         } else {
-          const blob = await rasterizeAdvancedSvg(svg, width, height, format, background);
-          downloadBlob(blob, `networkchart.${extension}`);
+          const blob = await rasterizeAdvancedSvg(svg, width, height, format, background, resolution);
+          await saveAdvancedBlob(blob, filename, fileHandle, directoryHandle);
         }
       }
-      advancedExportStatus.textContent = `Exported networkchart.${extension}`;
+      if (legendMode === 'separate' && legendCapture) {
+        await saveAdvancedBlob(legendCapture.blob, legendFilename, null, directoryHandle);
+      }
+      advancedExportStatus.textContent = fileHandle || directoryHandle
+        ? `Saved ${filename}${legendMode === 'separate' ? ` and ${legendFilename}` : ''}`
+        : `Downloaded ${filename}${legendMode === 'separate' ? ` and ${legendFilename}` : ''}`;
     } catch (error) {
       advancedExportStatus.textContent = 'Export failed. See console for details.';
       console.error('Unable to create the advanced export.', error);
     } finally {
-      advancedExportRun.disabled = false;
+      if (previousFocusState) {
+        state.advancedExportFocus = previousFocusState.advancedExportFocus;
+        state.focusOpacityActive = previousFocusState.focusOpacityActive;
+        state.focusNodeIds = previousFocusState.focusNodeIds;
+        state.focusEdgeIds = previousFocusState.focusEdgeIds;
+        renderer.refresh();
+        if (workspace.dataset.mode === 'timeline') renderTimeline();
+        if (workspace.dataset.mode === 'map') drawMapGeoLayer();
+      }
+      advancedExportProgress.hidden = true;
+      advancedExportRun.disabled = !advancedExportFilename;
     }
   }
 
@@ -3981,12 +4289,13 @@ async function main() {
     heading.textContent = title;
     const list = document.createElement('ul');
     list.className = 'legend-list';
-    entries.forEach(({ label, color, kind = 'line', size }) => {
+    entries.forEach(({ label, color, kind = 'line', size, directional = false }) => {
       const item = document.createElement('li');
       item.className = 'legend-item';
       const swatch = document.createElement('span');
-      swatch.className = `legend-swatch ${kind}`;
+      swatch.className = `legend-swatch ${kind}${directional ? ' directional' : ''}`;
       swatch.style.background = color;
+      if (directional) swatch.style.color = color;
       if (Number.isFinite(size)) {
         swatch.style.width = `${size}px`;
         swatch.style.height = `${size}px`;
@@ -4091,6 +4400,7 @@ async function main() {
       .map((entry) => ({
         label: entry.label,
         color: edgeColorForTheme(entry.type, state.edgeTypeColors.get(entry.type)),
+        directional: !DATA.undirectedEdgeTypes.includes(entry.type),
       })));
 
     const visibleNodeAttributes = visibleNodes.map((node) => graph.getNodeAttributes(node));

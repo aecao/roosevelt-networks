@@ -56,6 +56,10 @@
               <p>Dataset built + populated by Anna Cao, Victoria Li, and Audrey Lau.</p>
               <p>Created for ARCH5115, "Designing the Urban Commons", Fall 2026, instructed by Garine Boghossian and Kobi Ruthenberg.</p>
             </div>
+            <div class="header-info-options header-info-links" role="group" aria-label="Project links">
+              <a href="https://github.com/aecao/roosevelt-networks" target="_blank" rel="noopener noreferrer">Code (public repository)</a>
+              <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pubhtml?gid=1300872278" target="_blank" rel="noopener noreferrer">Dataset</a>
+            </div>
           </div>
         </div>
       </div>
@@ -373,6 +377,15 @@
               <option value="" selected>Select Raster or Vector first</option>
             </select>
           </label>
+          <label id="advanced-export-quality-field" class="advanced-export-field" for="advanced-export-quality" hidden>
+            <span class="advanced-export-label">Quality</span>
+            <select id="advanced-export-quality">
+              <option value="72">72 ppi</option>
+              <option value="150">150 ppi</option>
+              <option value="300" selected>300 ppi (recommended)</option>
+              <option value="600">600 ppi</option>
+            </select>
+          </label>
           <label class="advanced-export-field" for="advanced-export-background">
             <span class="advanced-export-label">Background color</span>
             <select id="advanced-export-background">
@@ -388,7 +401,31 @@
               <option value="whole-model">Whole model</option>
             </select>
           </label>
+          <label class="advanced-export-field" for="advanced-export-legend">
+            <span class="advanced-export-label">Legend</span>
+            <select id="advanced-export-legend">
+              <option value="none">No legend</option>
+              <option value="include" selected>Include in export</option>
+              <option value="separate">Export as separate image</option>
+            </select>
+          </label>
+          <label class="advanced-export-toggle">
+            <input id="advanced-export-isolate" type="checkbox" />
+            <span>Isolate selected/pinned</span>
+          </label>
+          <label id="advanced-export-isolate-mode-field" class="advanced-export-field" for="advanced-export-isolate-mode" hidden>
+            <span class="advanced-export-label">Isolation</span>
+            <select id="advanced-export-isolate-mode">
+              <option value="only">Only export selected/pinned</option>
+              <option value="dim">Include unrelated elements at low opacity</option>
+            </select>
+          </label>
+          <div class="advanced-export-save-row">
+            <button id="advanced-export-save" class="advanced-export-save" type="button" disabled>Save to...</button>
+            <span id="advanced-export-destination" class="advanced-export-destination">No destination selected</span>
+          </div>
           <button id="advanced-export-run" class="advanced-export-submit" type="button" disabled>Export</button>
+          <progress id="advanced-export-progress" class="advanced-export-progress" aria-label="Export in progress" hidden></progress>
           <p id="advanced-export-status" class="advanced-export-status" role="status" aria-live="polite"></p>
         </div>
       </section>
