@@ -51,6 +51,7 @@
             <li><a href="#spreadsheet">Spreadsheet structure</a></li>
             <li><a href="#network-model">Network model</a></li>
             <li><a href="#centrality">Centrality</a></li>
+            <li><a href="#interest-sentiment">Public interest + sentiment</a></li>
             <li><a href="#layout">Layout</a></li>
             <li><a href="#visual-encoding">Visual encoding</a></li>
             <li><a href="#map">Map</a></li>
@@ -111,8 +112,9 @@
               Public interest (news hits) and public sentiment are read from a separate bundled table,
               <code>actor database - actor_working - with news hits.csv</code>, with columns <code>actor</code>,
               <code>hits</code> and <code>sentiment</code>. Rows are matched to actors by name, ignoring case and surrounding
-              whitespace. Non-numeric values are treated as missing, as are negative hit counts. In the current snapshot, 188
-                            actors have a hits value (0&ndash;100) and 213 have a sentiment value (about &minus;0.69 to +0.77).
+              whitespace. Non-numeric values are treated as missing, as are negative hit counts. In the current snapshot, all 277
+              actors have a hits value (0&ndash;100) and 213 have a sentiment value (about &minus;0.69 to +0.77). How these
+              values are collected is described under <a href="#interest-sentiment">Public interest + sentiment</a>.
             </p>
 
             <h3>Geographic data</h3>
@@ -132,7 +134,7 @@
             </p>
 
             <h3>Actors (<code>actor_working</code>)</h3>
-            <p>One row per actor. In the current snapshot, 273 actors.</p>
+            <p>One row per actor. In the current snapshot, 277 actors.</p>
             <div class="doc-table-wrap">
               <table>
                 <thead>
@@ -147,15 +149,15 @@
                   <tr><td><code>year_start</code></td><td>First active year.</td><td>Time range filter and Timeline. Blank means unknown.</td></tr>
                   <tr><td><code>year_end</code></td><td>Last active year. <code>3000</code> marks an actor that is still active.</td><td>Time range filter and Timeline. Shown as &ldquo;Present&rdquo; in details.</td></tr>
                   <tr><td><code>notes</code></td><td>Research notes and sources.</td><td>Kept with the actor record for reference.</td></tr>
-                  <tr><td><code>public sentiment</code></td><td>Team-assessed sentiment.</td><td>Kept for reference. The Public sentiment colour mode uses the news metrics table described above.</td></tr>
+                  <tr><td><code>public sentiment</code></td><td>Team-assessed sentiment.</td><td>Kept for reference. The Public sentiment colour mode uses the news metrics table instead (see <a href="#interest-sentiment">Public interest + sentiment</a>).</td></tr>
                   <tr><td><code>present on island</code></td><td><code>1</code> if the actor has a physical presence on the island.</td><td>Kept for reference.</td></tr>
                 </tbody>
               </table>
             </div>
             <p>
-              In the current snapshot, actors break down by sector as 183 public, 83 private, 5 community and 2 other, and by
-              scale as 112 micro, 156 meso and 5 macro. 176 actors are marked as ongoing (<code>year_end</code> 3000), and 4 have
-              no years at all.
+              In the current snapshot, actors break down by sector as 182 public, 84 private, 5 community, 2 other and 4 blank,
+              and by scale as 115 micro, 155 meso, 5 macro and 2 blank. 173 actors are marked as ongoing (<code>year_end</code>
+              3000), and 9 have no years at all.
             </p>
 
             <h3>Adjacency</h3>
@@ -357,8 +359,90 @@
             </ul>
           </section>
 
+          <section id="interest-sentiment" class="doc-subsection">
+            <h2>6. Public interest + sentiment</h2>
+            <p>
+              Two news-derived measures describe how visible each actor is in the press and the tone of that coverage. Both are
+              produced offline by a Python script, <code>analyze_actors.py</code>, and bundled with the app as the news metrics
+              table (see <a href="#data-sources">Data sources</a>). The browser does not contact any news service.
+            </p>
+
+            <h3>Collecting headlines</h3>
+            <ol>
+              <li>
+                <strong>Query.</strong> Each actor is searched as an exact phrase together with the island, for example
+                <code>"Roosevelt Island Operating Corporation" "Roosevelt Island"</code>. Quotation marks inside names are removed,
+                and a trailing <code>&nbsp;00</code> (used in the sheet to mark repeated people) is dropped, so both rows share
+                one search. Other names are searched exactly as written.
+              </li>
+              <li>
+                <strong>Feed.</strong> The query is sent to the Google News RSS search endpoint,
+                <code>https://news.google.com/rss/search?q=&lt;query&gt;&amp;hl=en-US&amp;gl=US&amp;ceid=US:en</code>, which
+                returns up to 100 English-language US articles, ranked by Google. No API key is needed. Up to four feeds are requested at
+                once.
+              </li>
+              <li>
+                <strong>Parse.</strong> For each item the script keeps the headline, link, publisher name, publisher URL and
+                publication date. The <code>&nbsp;- Publisher</code> suffix that Google appends to headlines is removed.
+              </li>
+              <li>
+                <strong>Cache + audit.</strong> Each parsed feed is saved, keyed by a SHA-256 hash of its query, so later runs
+                reuse it instead of searching again. Every run appends the query, retrieval time, chosen headlines and their
+                individual scores to an audit log, so any value can be traced back to its sources. The current values come
+                from feeds retrieved on 2 and 6 October 2026.
+              </li>
+            </ol>
+
+            <h3>Public interest (hits)</h3>
+            <p>
+              <code>hits</code> is the number of Google News results returned for the actor's query, capped at 100 (the most
+              the feed returns). It counts all results before any filtering, so it measures how often the actor appears in news
+              coverage that also mentions Roosevelt Island. Actors with no matching coverage have 0. In the current snapshot, 6
+              actors reach the cap of 100.
+            </p>
+            <p>
+              In the app, hits can set halo size (<em>Public interest</em>). The halo grows linearly from the smallest to the
+              largest hits value among visible actors (see <a href="#visual-encoding">Visual encoding</a>). Because of the cap,
+              actors at 100 cannot be told apart.
+            </p>
+
+            <h3>Public sentiment</h3>
+            <p>
+              Sentiment is scored with <a href="https://github.com/cjhutto/vaderSentiment" target="_blank" rel="noopener noreferrer">VADER</a>
+              (Valence Aware Dictionary and sEntiment Reasoner, version 3.3.2). It is a rule-based model: each word has a
+              human-rated valence, adjusted for negation (&ldquo;not good&rdquo;), intensifiers (&ldquo;very&rdquo;), capitals,
+              exclamation marks and contrast words such as &ldquo;but&rdquo;. VADER runs locally with no trained model to
+              download.
+            </p>
+            <p>Before scoring, the headlines are filtered for a broader spread of sources:</p>
+            <ul>
+              <li>Headlines with no link, publisher or text are skipped.</li>
+              <li>Repeated links and identical headlines (ignoring letter case and spacing) are kept only once.</li>
+              <li>At most 2 headlines are kept from any one publisher, so a single outlet cannot dominate the score.</li>
+            </ul>
+            <p>
+              Each remaining headline gets VADER's <em>compound</em> score, a normalised sum of its word valences from
+              &minus;1 (most negative) to +1 (most positive). An actor's <code>sentiment</code> is the mean compound score of its
+              headlines, rounded to 4 decimal places. Actors with no usable headlines are left blank and appear grey in the
+              Public sentiment colour mode. In the current snapshot, 213 of 277 actors have a score. The median actor is scored
+              from 9 headlines, ranging from 1 to 78, and 61 actors are scored from fewer than 5.
+            </p>
+
+            <h3>Updating the values</h3>
+            <ol>
+              <li>Copy the current actor list into the working CSV, keeping the existing <code>hits</code> and <code>sentiment</code> columns.</li>
+              <li>Run <code>python analyze_actors.py</code> (requires <code>vaderSentiment==3.3.2</code>). The script backs up the CSV first, then searches only actors without a saved feed. Use <code>--refresh</code> to search every actor again, and <code>--dry-run</code> to preview queries.</li>
+              <li>Fill <code>hits</code> from the number of results in each actor's feed.</li>
+              <li>Copy the result to <code>public/data/actor database - actor_working - with news hits.csv</code>.</li>
+            </ol>
+            <p>
+              Repeating a search later can return different headlines, so scores change over time. Saved feeds keep earlier
+              values reproducible.
+            </p>
+          </section>
+
           <section id="layout" class="doc-subsection">
-            <h2>6. Layout</h2>
+            <h2>7. Layout</h2>
             <p>
               Relationships mode uses a force-directed layout, so actors with many shared relationships settle near each other.
               The steps are:
@@ -380,7 +464,7 @@
           </section>
 
           <section id="visual-encoding" class="doc-subsection">
-            <h2>7. Visual encoding</h2>
+            <h2>8. Visual encoding</h2>
 
             <h3>Node size</h3>
             <p>
@@ -390,13 +474,14 @@
 
             <h3>Node colour</h3>
             <ul>
-              <li><strong>Sector:</strong> one colour per <code>type</code> value, assigned from a fixed ten-colour palette in alphabetical order.</li>
+              <li><strong>Sector:</strong> fixed colours per <code>type</code>: public #FFD23D (yellow), private #3D94FF (blue), community/voluntary #FF3BA9 (pink) and other #DBDBDB (grey). Any other value gets a colour from a ten-colour palette.</li>
               <li><strong>Category:</strong> one colour per topic, assigned the same way. An actor with several active topics is drawn as a pie with one slice per topic.</li>
               <li>
                 <strong>Public sentiment:</strong> a diverging scale from white (neutral) toward red, rgb(220, 28, 42), for
                 negative sentiment and green, rgb(0, 154, 70), for positive. Intensity is
                 (|s| / max|s|)<sup>0.7</sup>, where max|s| is the largest absolute sentiment in the dataset. The 0.7 exponent
-                lifts weak values so mild sentiment stays visible. Actors without a value are grey.
+                lifts weak values so mild sentiment stays visible. Actors without a value are grey. Scores come from news
+                headlines (see <a href="#interest-sentiment">Public interest + sentiment</a>).
               </li>
             </ul>
 
@@ -416,7 +501,7 @@
           </section>
 
           <section id="map" class="doc-subsection">
-            <h2>8. Map</h2>
+            <h2>9. Map</h2>
 
             <h3>Building the overlay</h3>
             <p>Map geometry is prepared ahead of time by <code>scripts/build-map-overlay.mjs</code>:</p>
@@ -456,7 +541,7 @@
           </section>
 
           <section id="timeline" class="doc-subsection">
-            <h2>9. Timeline</h2>
+            <h2>10. Timeline</h2>
             <p>Timeline mode (beta) arranges actors by their active years:</p>
             <ul>
               <li>Each actor's bar runs from <code>year_start</code> to <code>year_end</code>, clipped to the visible range. A missing start or end extends the bar to that edge of the range.</li>
@@ -468,7 +553,7 @@
           </section>
 
           <section id="libraries" class="doc-subsection">
-            <h2>10. Libraries + APIs</h2>
+            <h2>11. Libraries + APIs</h2>
             <p>The app is a static site with no server: all loading, analysis and rendering runs in the browser.</p>
             <div class="doc-table-wrap">
               <table>
@@ -499,17 +584,28 @@
               <li><strong>Google Sheets &ldquo;Publish to the web&rdquo; CSV endpoint:</strong> live actor, adjacency and buildings data. No API key is needed; the sheet must be published.</li>
               <li><strong>NYC Open Data (Socrata):</strong> BUILDING footprints and PLUTO, retrieved once and stored with the app.</li>
               <li><strong>OpenStreetMap:</strong> the island boundary, retrieved once and stored with the app.</li>
+              <li><strong>Google News RSS search</strong> (offline, via <code>analyze_actors.py</code>): headlines for public interest and sentiment. No API key; results are cached and bundled, so the app makes no news requests.</li>
             </ul>
+            <p>
+              The news script is written in Python and uses only the standard library (<code>urllib</code>, <code>xml.etree</code>,
+              <code>csv</code>, <code>hashlib</code>, <code>concurrent.futures</code>) plus
+              <a href="https://github.com/cjhutto/vaderSentiment" target="_blank" rel="noopener noreferrer">vaderSentiment</a> 3.3.2
+              for scoring.
+            </p>
           </section>
 
           <section id="limitations" class="doc-subsection">
-            <h2>11. Limitations</h2>
+            <h2>12. Limitations</h2>
             <ul>
               <li><strong>Coverage:</strong> the network contains only relationships the team has documented. A missing edge means &ldquo;not recorded&rdquo;, not &ldquo;no relationship&rdquo;, and centrality inherits that bias.</li>
               <li><strong>Unweighted metrics:</strong> centrality ignores funding amounts, areas and collaboration closeness. Every relationship counts equally.</li>
               <li><strong>Relative scores:</strong> because centrality is recomputed on the visible network, scores are not comparable between different filter settings.</li>
               <li><strong>Mixed relationship semantics:</strong> direction means different things for different types (ownership, funding, succession), so directed measures such as closeness and eigenvector are most interpretable with a single relationship type, or a few related types, switched on.</li>
               <li><strong>News metrics</strong> are a proxy for public visibility and perception, matched by actor name. They are only available for actors with news coverage.</li>
+              <li><strong>Sentiment is headline tone, not opinion:</strong> VADER scores the wording of headlines, not readers' views of the actor. A negative headline may be about an event rather than the actor itself, and VADER handles irony, policy language and historical context poorly.</li>
+              <li><strong>Small, non-random samples:</strong> headlines are whatever Google News ranks first, so heavily reported events and outlets that publish often weigh more. Scores from only a few headlines (61 actors have fewer than 5) are unreliable.</li>
+              <li><strong>Name matching:</strong> generic names, abbreviations and job titles can match unrelated articles or none. Historical actors and repeated people are searched in present-day coverage, regardless of their active years.</li>
+              <li><strong>Capped interest:</strong> hits stop at 100, so the most-covered actors are indistinguishable, and counts change as Google's index changes.</li>
               <li><strong>Lot-level data:</strong> PLUTO values describe tax lots, which can contain several buildings.</li>
             </ul>
           </section>

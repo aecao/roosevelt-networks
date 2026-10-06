@@ -92,7 +92,7 @@
               <tr><td><code>type</code></td><td>Sector.</td></tr>
               <tr><td><code>scale</code></td><td>Scale, for example <code>0 - MICRO</code>, <code>1 - MESO</code>, <code>2 - MACRO</code>.</td></tr>
               <tr><td><code>year_start</code>, <code>year_end</code></td><td>Active years (optional).</td></tr>
-              <tr><td><code>public sentiment</code></td><td>Sentiment rating (optional, kept for reference). The Public sentiment colour mode reads <code>public/data/actor database - actor_working - with news hits.csv</code> instead, with columns <code>actor</code>, <code>hits</code> and <code>sentiment</code>.</td></tr>
+              <tr><td><code>public sentiment</code></td><td>Sentiment rating (optional, kept for reference). The Public sentiment colour mode and the Public interest halo read <code>public/data/actor database - actor_working - with news hits.csv</code> instead, with columns <code>actor</code>, <code>hits</code> (0&ndash;100) and <code>sentiment</code> (&minus;1 to +1). Both are optional: actors without values are drawn grey and with the smallest halo. To generate them for your own actors, follow the news headline method in the <a href="../methodology/#interest-sentiment">methodology</a>, changing the search context from &ldquo;Roosevelt Island&rdquo; to your site.</td></tr>
             </tbody>
           </table>
         </div>
