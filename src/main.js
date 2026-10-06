@@ -3385,18 +3385,17 @@ async function main() {
         && Number.isFinite(thresholdPercentile)
         && thresholdPercentile >= state.labelThresholdPercent / 100);
     const zoomEligible = cameraRatio <= LABEL_TIER_MAX_RATIO[tier];
-    const labelVisible = state.labelThresholdEnabled
-      ? state.showLabels && thresholdEligible
-      : isEmphasized || isFocusLabel || (state.showLabels && zoomEligible);
+    const focusedLabel = isEmphasized || isFocusLabel;
+    const labelVisible = focusedLabel || (state.showLabels
+      && (state.labelThresholdEnabled ? thresholdEligible : zoomEligible));
     return {
       ...data,
       size: coreNodeSize(data.scale),
       color: isDimmed ? colorWithOpacity(nodeColor, FOCUS_DIM_OPACITY) : nodeColor,
       // Only force the top tier (bypassing Sigma's overlap avoidance); lower tiers still
       // go through the normal spacing algorithm once in-range, to avoid a wall of text.
-      forceLabel: state.labelThresholdEnabled
-        ? state.showLabels && thresholdEligible
-        : isEmphasized || isFocusLabel || (tier === 2 && state.showLabels && zoomEligible),
+      forceLabel: focusedLabel || (state.showLabels
+        && (state.labelThresholdEnabled ? thresholdEligible : tier === 2 && zoomEligible)),
       highlighted: isEmphasized,
       label: labelVisible ? data.label : null,
     };
@@ -4663,9 +4662,9 @@ async function main() {
       const thresholdVisible = state.labelThresholdPercent === 0
         || (state.labelThresholdPercent < 100 && Number.isFinite(thresholdPercentile)
           && thresholdPercentile >= state.labelThresholdPercent / 100);
-      const labelVisible = state.labelThresholdEnabled
+      const labelVisible = focused || (state.labelThresholdEnabled
         ? thresholdVisible
-        : (wholeModel || displayData.label !== null && displayData.label !== undefined || focused);
+        : (wholeModel || displayData.label !== null && displayData.label !== undefined));
       if (!labelVisible) return;
       const label = displayData.label || graph.getNodeAttribute(node, 'label');
       if (!label) return;
