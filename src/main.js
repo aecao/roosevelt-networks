@@ -13,6 +13,12 @@ import { dataLoadState, loadActors, loadActorNewsMetrics, loadAdjacencyRows, loa
 
 const mapGeoModule = import('./map-mode.js');
 
+class ExportableSigma extends Sigma {
+  createWebGLContext(id, options = {}) {
+    return super.createWebGLContext(id, { ...options, preserveDrawingBuffer: true });
+  }
+}
+
 const MIN_SIZE = 4;
 const MAX_SIZE = 8;
 const CORE_NODE_SIZE = 2;
@@ -149,6 +155,7 @@ const state = {
   pinnedGraphNodeIds: new Set(),
   pinnedGraphEdgeIds: new Set(),
   updateFocusOpacity: null,
+  refreshLegend: null,
   currentSelection: null,
   pinnedSelections: [],
 };
@@ -1068,6 +1075,51 @@ function clearCurrentSelection() {
   renderCurrentSelection();
 }
 
+function pngCrc32(bytes) {
+  let crc = 0xffffffff;
+  bytes.forEach((byte) => {
+    crc ^= byte;
+    for (let bit = 0; bit < 8; bit += 1) {
+      crc = (crc & 1) ? (crc >>> 1) ^ 0xedb88320 : crc >>> 1;
+    }
+  });
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+async function withPngResolution(blob, pixelsPerInch) {
+  const png = new Uint8Array(await blob.arrayBuffer());
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (!signature.every((byte, index) => png[index] === byte)) {
+    throw new Error('The export renderer did not return a PNG.');
+  }
+  const view = new DataView(png.buffer, png.byteOffset, png.byteLength);
+  let insertAt = 8;
+  while (insertAt + 12 <= png.length) {
+    const chunkLength = view.getUint32(insertAt);
+    const chunkType = String.fromCharCode(...png.subarray(insertAt + 4, insertAt + 8));
+    if (chunkType === 'pHYs') return blob;
+    if (chunkType === 'IDAT') break;
+    insertAt += chunkLength + 12;
+  }
+  if (insertAt + 12 > png.length) throw new Error('The export PNG is missing image data.');
+
+  const pixelsPerMeter = Math.round(pixelsPerInch / 0.0254);
+  const physicalResolution = new Uint8Array(21);
+  const resolutionView = new DataView(physicalResolution.buffer);
+  resolutionView.setUint32(0, 9);
+  physicalResolution.set([112, 72, 89, 115], 4);
+  resolutionView.setUint32(8, pixelsPerMeter);
+  resolutionView.setUint32(12, pixelsPerMeter);
+  physicalResolution[16] = 1;
+  resolutionView.setUint32(17, pngCrc32(physicalResolution.subarray(4, 17)));
+
+  const output = new Uint8Array(png.length + physicalResolution.length);
+  output.set(png.subarray(0, insertAt));
+  output.set(physicalResolution, insertAt);
+  output.set(png.subarray(insertAt), insertAt + physicalResolution.length);
+  return new Blob([output], { type: 'image/png' });
+}
+
 async function main() {
   const workspace = document.getElementById('workspace');
   // Node -> tier (0 small/close-only, 1 medium, 2 large/visible-from-far), keyed by
@@ -1205,6 +1257,7 @@ async function main() {
       state.renderer.setSetting('labelColor', { color: isLight ? '#1f2933' : '#ffffff' });
       state.renderer.refresh();
     }
+    state.refreshLegend?.();
   }
 
   themeToggle.addEventListener('click', () => applyRelationshipTheme(state.theme !== 'light'));
@@ -1336,7 +1389,7 @@ async function main() {
   if (workspace.dataset.mode === 'map') applyMapLayout();
 
   const container = document.getElementById('graph-container');
-  const renderer = new Sigma(graph, container, {
+  const renderer = new ExportableSigma(graph, container, {
     minCameraRatio: 0.05,
     maxCameraRatio: 10,
     zIndex: true,
@@ -1447,6 +1500,7 @@ async function main() {
   function refresh() {
     updateFocusOpacity();
     renderer.refresh();
+    state.refreshLegend?.();
   }
 
   colorModeSelect.addEventListener('change', () => {
@@ -1480,6 +1534,7 @@ async function main() {
     updateNodeSizes();
     updateCentralityThresholdRange();
     updateLabelTiers();
+    state.refreshLegend?.();
     refreshVisibleNodeDetails();
     if (state.freezePositions) {
       renderer.refresh();
@@ -3299,6 +3354,7 @@ async function main() {
   const headerInfoContainer = document.querySelector('.header-info-container');
   const headerInfoToggle = document.getElementById('header-info-toggle');
   const headerInfoMenu = document.getElementById('header-info-menu');
+  let headerInfoPinnedOpen = false;
   const setHeaderInfoMenuOpen = (open) => {
     headerInfoMenu.hidden = !open;
     headerInfoToggle.setAttribute('aria-expanded', String(open));
@@ -3307,24 +3363,953 @@ async function main() {
     if (event.pointerType !== 'touch') setHeaderInfoMenuOpen(true);
   });
   headerInfoContainer.addEventListener('pointerleave', (event) => {
-    if (event.pointerType !== 'touch' && !headerInfoContainer.contains(document.activeElement)) {
+    if (event.pointerType !== 'touch'
+      && !headerInfoPinnedOpen
+      && !headerInfoContainer.contains(document.activeElement)) {
       setHeaderInfoMenuOpen(false);
     }
   });
   headerInfoContainer.addEventListener('focusin', () => setHeaderInfoMenuOpen(true));
   headerInfoContainer.addEventListener('focusout', (event) => {
-    if (!headerInfoContainer.contains(event.relatedTarget)) setHeaderInfoMenuOpen(false);
+    if (!headerInfoPinnedOpen && !headerInfoContainer.contains(event.relatedTarget)) {
+      setHeaderInfoMenuOpen(false);
+    }
   });
   headerInfoToggle.addEventListener('click', () => {
-    setHeaderInfoMenuOpen(true);
+    headerInfoPinnedOpen = !headerInfoPinnedOpen;
+    setHeaderInfoMenuOpen(headerInfoPinnedOpen);
   });
   document.addEventListener('pointerdown', (event) => {
-    if (!headerActions.contains(event.target)) setHeaderInfoMenuOpen(false);
+    if (!headerActions.contains(event.target)) {
+      headerInfoPinnedOpen = false;
+      setHeaderInfoMenuOpen(false);
+    }
   });
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && !headerInfoMenu.hidden) {
+      headerInfoPinnedOpen = false;
       setHeaderInfoMenuOpen(false);
       headerInfoToggle.focus();
+    }
+  });
+
+  const headerExportContainer = document.querySelector('.header-export-container');
+  const exportToggle = document.getElementById('export-toggle');
+  const exportMenu = document.getElementById('export-menu');
+  const basicExportButton = document.getElementById('basic-export');
+  const advancedExportOption = document.getElementById('advanced-export-option');
+  const advancedExportWindow = document.getElementById('advanced-export-window');
+  const advancedExportHeader = document.getElementById('advanced-export-header');
+  const advancedExportClose = document.getElementById('advanced-export-close');
+  const advancedExportTypeButtons = [...advancedExportWindow.querySelectorAll('[data-export-type]')];
+  const advancedExportFormat = document.getElementById('advanced-export-format');
+  const advancedExportBackground = document.getElementById('advanced-export-background');
+  const advancedExportBounds = document.getElementById('advanced-export-bounds');
+  const advancedExportRun = document.getElementById('advanced-export-run');
+  const advancedExportStatus = document.getElementById('advanced-export-status');
+  let advancedExportType = null;
+  let exportMenuPinnedOpen = false;
+  const setExportMenuOpen = (open) => {
+    exportMenu.hidden = !open;
+    exportToggle.setAttribute('aria-expanded', String(open));
+  };
+  headerExportContainer.addEventListener('pointerenter', (event) => {
+    if (event.pointerType !== 'touch') setExportMenuOpen(true);
+  });
+  headerExportContainer.addEventListener('pointerleave', (event) => {
+    if (event.pointerType !== 'touch'
+      && !exportMenuPinnedOpen
+      && !headerExportContainer.contains(document.activeElement)) {
+      setExportMenuOpen(false);
+    }
+  });
+  headerExportContainer.addEventListener('focusin', () => setExportMenuOpen(true));
+  headerExportContainer.addEventListener('focusout', (event) => {
+    if (!exportMenuPinnedOpen && !headerExportContainer.contains(event.relatedTarget)) {
+      setExportMenuOpen(false);
+    }
+  });
+  exportToggle.addEventListener('click', () => {
+    exportMenuPinnedOpen = !exportMenuPinnedOpen;
+    setExportMenuOpen(exportMenuPinnedOpen);
+  });
+  function setAdvancedExportOpen(open) {
+    advancedExportWindow.hidden = !open;
+    if (open) {
+      advancedExportType = null;
+      updateAdvancedExportOptions();
+      advancedExportBackground.value = state.theme === 'light' ? 'light' : 'dark';
+      advancedExportStatus.textContent = '';
+      advancedExportTypeButtons[0].focus();
+    }
+  }
+  advancedExportOption.addEventListener('click', () => {
+    exportMenuPinnedOpen = false;
+    setExportMenuOpen(false);
+    setAdvancedExportOpen(true);
+  });
+  advancedExportClose.addEventListener('click', () => setAdvancedExportOpen(false));
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !advancedExportWindow.hidden) {
+      setAdvancedExportOpen(false);
+      advancedExportOption.focus();
+    }
+  });
+  let advancedExportDrag = null;
+  advancedExportHeader.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || event.target.closest('button')) return;
+    event.preventDefault();
+    const panelBounds = advancedExportWindow.getBoundingClientRect();
+    const workspaceBounds = workspace.getBoundingClientRect();
+    advancedExportDrag = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - panelBounds.left,
+      offsetY: event.clientY - panelBounds.top,
+      workspaceBounds,
+    };
+    advancedExportWindow.style.left = `${panelBounds.left - workspaceBounds.left}px`;
+    advancedExportWindow.style.top = `${panelBounds.top - workspaceBounds.top}px`;
+    advancedExportWindow.style.transform = 'none';
+    advancedExportHeader.setPointerCapture(event.pointerId);
+  });
+  advancedExportHeader.addEventListener('pointermove', (event) => {
+    if (!advancedExportDrag || advancedExportDrag.pointerId !== event.pointerId) return;
+    const { workspaceBounds, offsetX, offsetY } = advancedExportDrag;
+    const left = Math.max(0, Math.min(
+      workspaceBounds.width - advancedExportWindow.offsetWidth,
+      event.clientX - workspaceBounds.left - offsetX,
+    ));
+    const top = Math.max(0, Math.min(
+      workspaceBounds.height - advancedExportWindow.offsetHeight,
+      event.clientY - workspaceBounds.top - offsetY,
+    ));
+    advancedExportWindow.style.left = `${left}px`;
+    advancedExportWindow.style.top = `${top}px`;
+  });
+  const stopAdvancedExportDrag = (event) => {
+    if (advancedExportDrag?.pointerId === event.pointerId) advancedExportDrag = null;
+  };
+  advancedExportHeader.addEventListener('pointerup', stopAdvancedExportDrag);
+  advancedExportHeader.addEventListener('pointercancel', stopAdvancedExportDrag);
+  const updateAdvancedExportOptions = () => {
+    advancedExportTypeButtons.forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.dataset.exportType === advancedExportType));
+    });
+    advancedExportFormat.replaceChildren();
+    if (!advancedExportType) {
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select Raster or Vector first';
+      advancedExportFormat.appendChild(placeholder);
+      advancedExportFormat.disabled = true;
+      advancedExportBounds.disabled = true;
+      advancedExportRun.disabled = true;
+      return;
+    }
+    const formats = advancedExportType === 'raster'
+      ? [['png', 'PNG'], ['jpeg', 'JPEG']]
+      : [['pdf', 'PDF'], ['svg', 'SVG']];
+    formats.forEach(([value, label], index) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      option.selected = index === 0;
+      advancedExportFormat.appendChild(option);
+    });
+    advancedExportFormat.disabled = false;
+    advancedExportBounds.disabled = false;
+    advancedExportBounds.value = advancedExportType === 'raster' ? 'viewport' : 'whole-model';
+    advancedExportRun.disabled = false;
+    syncAdvancedExportBackground();
+  };
+  const transparentBackgroundOption = advancedExportBackground.querySelector('option[value="transparent"]');
+  function syncAdvancedExportBackground() {
+    const isJpeg = advancedExportFormat.value === 'jpeg';
+    transparentBackgroundOption.hidden = isJpeg;
+    transparentBackgroundOption.disabled = isJpeg;
+    if (isJpeg && advancedExportBackground.value === 'transparent') {
+      advancedExportBackground.value = state.theme === 'light' ? 'light' : 'dark';
+    }
+  }
+  advancedExportTypeButtons.forEach((button) => button.addEventListener('click', () => {
+    advancedExportType = button.dataset.exportType;
+    updateAdvancedExportOptions();
+  }));
+  advancedExportFormat.addEventListener('change', syncAdvancedExportBackground);
+  updateAdvancedExportOptions();
+  document.addEventListener('pointerdown', (event) => {
+    if (!headerExportContainer.contains(event.target)) {
+      exportMenuPinnedOpen = false;
+      setExportMenuOpen(false);
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !exportMenu.hidden) {
+      exportMenuPinnedOpen = false;
+      setExportMenuOpen(false);
+      exportToggle.focus();
+    }
+  });
+
+  async function exportWorkspacePng() {
+    basicExportButton.disabled = true;
+    try {
+      const { default: html2canvas } = await import('html2canvas');
+      renderer.refresh();
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const width = Math.round(workspace.clientWidth);
+      const height = Math.round(workspace.clientHeight);
+      if (!width || !height) throw new Error('The workspace has no exportable dimensions.');
+      const ignoredSelectors = [
+        '#sidebar',
+        '#details-sidebar',
+        '#panel-tabs',
+        '.zoom-controls',
+        '.zoom-level-indicator',
+        '.map-caption',
+        '.legend-resize-handle',
+        '.legend-panel-actions button',
+        '.advanced-export-window',
+        '.sigma-mouse',
+      ];
+      const backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      const canvas = await html2canvas(workspace, {
+        backgroundColor,
+        width,
+        height,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+        scale: 300 / 96,
+        useCORS: true,
+        logging: false,
+        ignoreElements: (element) => ignoredSelectors.some((selector) => element.matches(selector)),
+      });
+      const renderedBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+      if (!renderedBlob) throw new Error('Could not encode the workspace as a PNG.');
+      const blob = await withPngResolution(renderedBlob, 300);
+      const url = URL.createObjectURL(blob);
+      const download = document.createElement('a');
+      download.href = url;
+      download.download = 'networkchart.png';
+      document.body.appendChild(download);
+      download.click();
+      download.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      console.error('Unable to export the workspace as a PNG.', error);
+    } finally {
+      basicExportButton.disabled = false;
+    }
+  }
+
+  function escapeXml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, (character) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&apos;',
+    })[character]);
+  }
+
+  function buildAdvancedSvg(boundsMode, backgroundMode) {
+    const dimensions = renderer.getDimensions();
+    const width = Math.max(1, Math.round(dimensions.width));
+    const height = Math.max(1, Math.round(dimensions.height));
+    const visibleNodes = graph.nodes().filter((node) => state.isNodeVisible(node));
+    if (!visibleNodes.length) throw new Error('There are no visible actors to export.');
+
+    const wholeModel = boundsMode === 'whole-model';
+    const padding = Math.min(48, Math.max(12, Math.min(width, height) * 0.04));
+    let modelScale = 1;
+    let offsetX = 0;
+    let offsetY = 0;
+    if (wholeModel) {
+      const modelPoints = visibleNodes.map((node) => graph.getNodeAttributes(node));
+      const minX = Math.min(...modelPoints.map(({ x }) => x));
+      const maxX = Math.max(...modelPoints.map(({ x }) => x));
+      const minY = Math.min(...modelPoints.map(({ y }) => y));
+      const maxY = Math.max(...modelPoints.map(({ y }) => y));
+      const spanX = Math.max(maxX - minX, 1);
+      const spanY = Math.max(maxY - minY, 1);
+      modelScale = Math.min((width - padding * 2) / spanX, (height - padding * 2) / spanY);
+      offsetX = (width - spanX * modelScale) / 2 - minX * modelScale;
+      offsetY = (height - spanY * modelScale) / 2 - minY * modelScale;
+    }
+    const positions = new Map();
+    const nodeDataById = new Map();
+    visibleNodes.forEach((node) => {
+      const attributes = graph.getNodeAttributes(node);
+      const displayData = renderer.getNodeDisplayData(node);
+      if (!displayData || displayData.hidden) return;
+      positions.set(node, wholeModel
+        ? { x: attributes.x * modelScale + offsetX, y: attributes.y * modelScale + offsetY }
+        : renderer.framedGraphToViewport(displayData));
+      nodeDataById.set(node, { attributes, displayData });
+    });
+
+    const layers = new Map();
+    const addLayer = (id, label, order, markup) => {
+      if (!layers.has(id)) layers.set(id, { id, label, order, markup: [] });
+      layers.get(id).markup.push(markup);
+    };
+    const slug = (value) => String(value).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'other';
+    const circle = (x, y, radius, fill, options = {}) => `<circle cx="${x}" cy="${y}" r="${radius}" fill="${fill}"${options.fillOpacity !== undefined ? ` fill-opacity="${options.fillOpacity}"` : ''}${options.stroke ? ` stroke="${options.stroke}" stroke-width="${options.strokeWidth || 1}"` : ''}/>`;
+    const backgroundColor = backgroundMode === 'dark' ? '#000000' : backgroundMode === 'light' ? '#f1f3f5' : null;
+    if (backgroundColor) addLayer('background', 'Background', 0, `<rect width="${width}" height="${height}" fill="${backgroundColor}"/>`);
+
+    visibleNodes.forEach((node) => {
+      const position = positions.get(node);
+      if (!position) return;
+      const { attributes, displayData } = nodeDataById.get(node);
+      const radius = wholeModel
+        ? Math.max(2, Math.min(12, coreNodeSize(attributes.scale) * 1.5))
+        : renderer.scaleSize(displayData.size || coreNodeSize(attributes.scale));
+      if (Number.isFinite(attributes.haloRatio) && state.sizeMode !== 'plain') {
+        const haloRadius = wholeModel
+          ? Math.min(50, haloSizeForScore(attributes.scale, attributes.haloRatio, 0, 1))
+          : renderer.scaleSize(haloSizeForScore(attributes.scale, attributes.haloRatio, 0, 1));
+        let groupLabel = 'Halos';
+        if (state.colorMode === 'sector') groupLabel = `Halos · ${attributes.category}`;
+        else if (state.colorMode === 'category') {
+          groupLabel = `Halos · ${attributes.topics.find((topic) => state.activeTopics.has(topic)) || 'Uncategorized'}`;
+        } else if (state.colorMode === 'public-sentiment') {
+          groupLabel = Number.isFinite(attributes.sentiment) ? 'Halos · Sentiment data' : 'Halos · No sentiment data';
+        }
+        const haloColor = nodeColorForMode(attributes);
+        addLayer(`halo-${slug(groupLabel)}`, groupLabel, 10, circle(position.x, position.y, haloRadius, haloColor, { fillOpacity: 0.16 }));
+      }
+    });
+
+    graph.forEachEdge((edge, attributes, source, target) => {
+      if (!state.activeEdgeTypes.has(attributes.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge)) return;
+      if (!state.isNodeVisible(source) || !state.isNodeVisible(target)) return;
+      const sourcePoint = positions.get(source);
+      const targetPoint = positions.get(target);
+      if (!sourcePoint || !targetPoint) return;
+      const sourceNode = nodeDataById.get(source);
+      const targetNode = nodeDataById.get(target);
+      const deltaX = targetPoint.x - sourcePoint.x;
+      const deltaY = targetPoint.y - sourcePoint.y;
+      const curvature = Number.isFinite(attributes.curvature)
+        ? attributes.adjacencyType === 'fin' ? -attributes.curvature : attributes.curvature
+        : 0;
+      const control = {
+        x: (sourcePoint.x + targetPoint.x) / 2 - deltaY * curvature,
+        y: (sourcePoint.y + targetPoint.y) / 2 + deltaX * curvature,
+      };
+      const path = curvature
+        ? `M ${sourcePoint.x} ${sourcePoint.y} Q ${control.x} ${control.y} ${targetPoint.x} ${targetPoint.y}`
+        : `M ${sourcePoint.x} ${sourcePoint.y} L ${targetPoint.x} ${targetPoint.y}`;
+      const color = edgeColorForTheme(attributes.adjacencyType, attributes.color);
+      const strokeWidth = wholeModel ? Math.max(1, (attributes.size || 1) * 2) : Math.max(1, renderer.scaleSize(attributes.size || 1) * 2);
+      const opacity = state.focusOpacityActive && !state.focusEdgeIds.has(edge) ? FOCUS_DIM_OPACITY : 1;
+      const groupLabel = `Relationships · ${attributes.label || attributes.adjacencyType}`;
+      addLayer(`relationship-${slug(attributes.adjacencyType)}`, groupLabel, 20,
+        `<path d="${path}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-opacity="${opacity}" stroke-linecap="round"/>`);
+
+      if (DATA.undirectedEdgeTypes.includes(attributes.adjacencyType)) return;
+      const reversed = attributes.adjacencyType === 'fin';
+      const end = reversed ? sourcePoint : targetPoint;
+      const other = reversed ? targetPoint : sourcePoint;
+      const endpointData = reversed ? sourceNode : targetNode;
+      const tangentX = curvature ? end.x - control.x : end.x - other.x;
+      const tangentY = curvature ? end.y - control.y : end.y - other.y;
+      const tangentLength = Math.hypot(tangentX, tangentY) || 1;
+      const unitX = tangentX / tangentLength;
+      const unitY = tangentY / tangentLength;
+      const headLength = Math.max(5, strokeWidth * 2.5);
+      const headWidth = Math.max(3, strokeWidth * 1.5);
+      const endpointRadius = wholeModel
+        ? Math.max(2, Math.min(12, coreNodeSize(endpointData.attributes.scale) * 1.5))
+        : renderer.scaleSize(endpointData.displayData.size || coreNodeSize(endpointData.attributes.scale));
+      const tipX = end.x - unitX * endpointRadius * 0.8;
+      const tipY = end.y - unitY * endpointRadius * 0.8;
+      const baseX = tipX - unitX * headLength;
+      const baseY = tipY - unitY * headLength;
+      const normalX = -unitY;
+      const normalY = unitX;
+      const arrow = `M ${tipX} ${tipY} L ${baseX + normalX * headWidth} ${baseY + normalY * headWidth} L ${baseX - normalX * headWidth} ${baseY - normalY * headWidth} Z`;
+      addLayer(`relationship-${slug(attributes.adjacencyType)}`, groupLabel, 20,
+        `<path d="${arrow}" fill="${color}" fill-opacity="${opacity}"/>`);
+    });
+
+    const nodeOutline = state.theme === 'light' ? '#1f2933' : '#ffffff';
+    const topicSlices = new Map();
+    visibleNodes.forEach((node) => {
+      const position = positions.get(node);
+      const nodeData = nodeDataById.get(node);
+      if (!position || !nodeData) return;
+      const { attributes, displayData } = nodeData;
+      const radius = wholeModel
+        ? Math.max(2, Math.min(12, coreNodeSize(attributes.scale) * 1.5))
+        : renderer.scaleSize(displayData.size || coreNodeSize(attributes.scale));
+      const color = nodeColorForMode(attributes);
+      if (state.colorMode === 'category') {
+        addLayer('actor-outline', 'Actor outline', 32,
+          circle(position.x, position.y, radius, 'none', { stroke: nodeOutline, strokeWidth: 1 }));
+        const topics = [...new Set(attributes.topics.filter((topic) => state.activeTopics.has(topic)))];
+        if (topics.length > 1) {
+          topics.forEach((topic, index) => {
+            const startAngle = -Math.PI / 2 + (Math.PI * 2 * index) / topics.length;
+            const endAngle = -Math.PI / 2 + (Math.PI * 2 * (index + 1)) / topics.length;
+            const start = { x: position.x + Math.cos(startAngle) * radius, y: position.y + Math.sin(startAngle) * radius };
+            const finish = { x: position.x + Math.cos(endAngle) * radius, y: position.y + Math.sin(endAngle) * radius };
+            const path = `M ${position.x} ${position.y} L ${start.x} ${start.y} A ${radius} ${radius} 0 0 1 ${finish.x} ${finish.y} Z`;
+            const layerLabel = `Nodes · ${topic}`;
+            addLayer(`node-category-${slug(topic)}`, layerLabel, 31,
+              `<path d="${path}" fill="${state.topicColors.get(topic) || '#8a8a8a'}"/>`);
+          });
+        } else {
+          const topic = topics[0];
+          const layerLabel = topic ? `Nodes · ${topic}` : 'Nodes · Uncategorized';
+          addLayer(`node-category-${slug(topic || 'uncategorized')}`, layerLabel, 31,
+            circle(position.x, position.y, radius, topic ? state.topicColors.get(topic) || '#8a8a8a' : '#8a8a8a'));
+        }
+      } else {
+        let layerId = 'node-plain';
+        let layerLabel = 'Nodes';
+        let fill = color;
+        if (state.colorMode === 'sector') {
+          layerId = `node-sector-${slug(attributes.category)}`;
+          layerLabel = `Nodes · ${attributes.category}`;
+        } else if (state.colorMode === 'public-sentiment') {
+          const hasSentiment = Number.isFinite(attributes.sentiment);
+          layerId = hasSentiment ? 'node-sentiment-data' : 'node-sentiment-missing';
+          layerLabel = hasSentiment ? 'Nodes · Sentiment data' : 'Nodes · No sentiment data';
+          if (hasSentiment && state.theme === 'light') {
+            fill = nodeColorForMode(attributes);
+          }
+        }
+        addLayer(layerId, layerLabel, 30,
+          circle(position.x, position.y, radius, fill, { stroke: nodeOutline, strokeWidth: 1 }));
+      }
+
+      if (!Number.isFinite(attributes.haloRatio) || state.sizeMode === 'plain') return;
+      let haloLayerLabel = 'Halos';
+      if (state.colorMode === 'sector') haloLayerLabel = `Halos · ${attributes.category}`;
+      else if (state.colorMode === 'category') {
+        haloLayerLabel = `Halos · ${attributes.topics.find((topic) => state.activeTopics.has(topic)) || 'Uncategorized'}`;
+      }
+      else if (state.colorMode === 'public-sentiment') {
+        haloLayerLabel = Number.isFinite(attributes.sentiment) ? 'Halos · Sentiment data' : 'Halos · No sentiment data';
+      }
+      const haloColor = nodeColorForMode(attributes);
+      const haloRadius = wholeModel
+        ? Math.min(50, haloSizeForScore(attributes.scale, attributes.haloRatio, 0, 1))
+        : renderer.scaleSize(haloSizeForScore(attributes.scale, attributes.haloRatio, 0, 1));
+      addLayer(`halo-${slug(haloLayerLabel)}`, haloLayerLabel, 10,
+        circle(position.x, position.y, haloRadius, haloColor, { fillOpacity: 0.16 }));
+    });
+    visibleNodes.forEach((node) => {
+      const position = positions.get(node);
+      const { attributes, displayData } = nodeDataById.get(node) || {};
+      if (!position || !attributes || !displayData || !state.showLabels) return;
+      const tier = labelTierByNode.get(node) ?? 1;
+      const focused = node === hoveredLabelNode || state.emphasizedNodeIds.has(node) || state.focusNodeIds.has(node);
+      const thresholdPercentile = labelPercentileByNode.get(node);
+      const thresholdVisible = state.labelThresholdPercent === 0
+        || (state.labelThresholdPercent < 100 && Number.isFinite(thresholdPercentile)
+          && thresholdPercentile >= state.labelThresholdPercent / 100);
+      const labelVisible = state.labelThresholdEnabled
+        ? thresholdVisible
+        : (wholeModel || displayData.label !== null && displayData.label !== undefined || focused);
+      if (!labelVisible) return;
+      const label = displayData.label || graph.getNodeAttribute(node, 'label');
+      if (!label) return;
+      const baseSize = LABEL_TIER_SIZES[tier] * state.textSizeScale
+        * (wholeModel ? 1 : labelScaleAtZoom(renderer.getCamera().getState().ratio));
+      const radius = wholeModel
+        ? Math.max(2, Math.min(12, coreNodeSize(attributes.scale) * 1.5))
+        : renderer.scaleSize(displayData.size || coreNodeSize(attributes.scale));
+      const x = position.x + radius + 3;
+      const y = position.y + baseSize * 0.35;
+      const family = focused
+        ? 'Helvetica Neue, Helvetica, Arial, sans-serif'
+        : 'Helvetica Neue Light, Helvetica Neue, Helvetica, Arial, sans-serif';
+      const color = state.theme === 'light' ? '#1f2933' : '#ffffff';
+      const layerNames = ['labels-small', 'labels-med', 'labels-large'];
+      const tierNames = ['Small labels', 'Medium labels', 'Large labels'];
+      const text = `<text x="${x}" y="${y}" fill="${color}" font-family="${family}" font-size="${baseSize}" font-weight="${focused ? 700 : 300}">${escapeXml(label)}</text>`;
+      addLayer(layerNames[tier], tierNames[tier], 40 + tier, text);
+    });
+
+    const orderedLayers = [...layers.values()].sort((first, second) => first.order - second.order);
+    const layerMarkup = orderedLayers.map(({ id, label, markup }) =>
+      `<g id="layer-${id}" inkscape:groupmode="layer" inkscape:label="${escapeXml(label)}">${markup.join('')}</g>`).join('');
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${layerMarkup}</svg>`;
+    return { svg, width, height };
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const download = document.createElement('a');
+    download.href = url;
+    download.download = filename;
+    document.body.appendChild(download);
+    download.click();
+    download.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function rasterizeAdvancedSvg(svg, width, height, format, background) {
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    try {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      const scale = 300 / 96;
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(width * scale);
+      canvas.height = Math.round(height * scale);
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error('Could not create the raster export canvas.');
+      if (background !== 'transparent') {
+        context.fillStyle = background === 'light' ? '#f1f3f5' : '#000000';
+        context.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const mimeType = format === 'jpeg' ? 'image/jpeg' : 'image/png';
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, mimeType, 0.94));
+      if (!blob) throw new Error('Could not encode the raster export.');
+      return format === 'png' ? withPngResolution(blob, 300) : blob;
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  async function exportAdvanced() {
+    advancedExportRun.disabled = true;
+    advancedExportStatus.textContent = 'Preparing export…';
+    try {
+      const format = advancedExportFormat.value;
+      const background = advancedExportBackground.value;
+      const bounds = advancedExportBounds.value;
+      const extension = format === 'jpeg' ? 'jpg' : format;
+      if (advancedExportType === 'raster' && bounds === 'viewport') {
+        const { default: html2canvas } = await import('html2canvas');
+        renderer.refresh();
+        await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        const width = Math.round(workspace.clientWidth);
+        const height = Math.round(workspace.clientHeight);
+        const backgroundColor = background === 'transparent' ? null : background === 'light' ? '#f1f3f5' : '#000000';
+        const ignoredSelectors = [
+          '#sidebar', '#details-sidebar', '#panel-tabs', '.zoom-controls', '.zoom-level-indicator',
+          '.map-caption', '.legend-panel', '.advanced-export-window', '.sigma-mouse',
+        ];
+        const canvas = await html2canvas(workspace, {
+          backgroundColor,
+          width,
+          height,
+          windowWidth: window.innerWidth,
+          windowHeight: window.innerHeight,
+          scale: 300 / 96,
+          useCORS: true,
+          logging: false,
+          ignoreElements: (element) => ignoredSelectors.some((selector) => element.matches(selector)),
+          onclone: (clonedDocument) => {
+            const clonedWorkspace = clonedDocument.getElementById('workspace');
+            const clonedGraph = clonedDocument.getElementById('graph-container');
+            const fill = backgroundColor || 'transparent';
+            if (clonedWorkspace) clonedWorkspace.style.backgroundColor = fill;
+            if (clonedGraph) clonedGraph.style.backgroundColor = fill;
+          },
+        });
+        let blob = await new Promise((resolve) => canvas.toBlob(resolve, format === 'jpeg' ? 'image/jpeg' : 'image/png', 0.94));
+        if (!blob) throw new Error('Could not encode the viewport export.');
+        if (format === 'png') blob = await withPngResolution(blob, 300);
+        downloadBlob(blob, `networkchart.${extension}`);
+      } else {
+        const { svg, width, height } = buildAdvancedSvg(bounds, background);
+        if (format === 'svg') {
+          downloadBlob(new Blob([svg], { type: 'image/svg+xml;charset=utf-8' }), 'networkchart.svg');
+        } else if (format === 'pdf') {
+          const [{ jsPDF }, _svg2pdf] = await Promise.all([import('jspdf'), import('svg2pdf.js')]);
+          const svgDocument = new DOMParser().parseFromString(svg, 'image/svg+xml');
+          const pageWidth = width * 0.75;
+          const pageHeight = height * 0.75;
+          const pdf = new jsPDF({ orientation: pageWidth > pageHeight ? 'landscape' : 'portrait', unit: 'pt', format: [pageWidth, pageHeight] });
+          await pdf.svg(svgDocument.documentElement, { x: 0, y: 0, width: pageWidth, height: pageHeight });
+          pdf.save('networkchart.pdf');
+        } else {
+          const blob = await rasterizeAdvancedSvg(svg, width, height, format, background);
+          downloadBlob(blob, `networkchart.${extension}`);
+        }
+      }
+      advancedExportStatus.textContent = `Exported networkchart.${extension}`;
+    } catch (error) {
+      advancedExportStatus.textContent = 'Export failed. See console for details.';
+      console.error('Unable to create the advanced export.', error);
+    } finally {
+      advancedExportRun.disabled = false;
+    }
+  }
+
+  advancedExportRun.addEventListener('click', exportAdvanced);
+  basicExportButton.addEventListener('click', () => {
+    exportMenuPinnedOpen = false;
+    setExportMenuOpen(false);
+    exportWorkspacePng();
+  });
+
+  const legendToggle = document.getElementById('legend-toggle');
+  const legendPanel = document.getElementById('legend-panel');
+  const legendPanelHeader = document.getElementById('legend-panel-header');
+  const legendClose = document.getElementById('legend-close');
+  const legendTextSmaller = document.getElementById('legend-text-smaller');
+  const legendTextLarger = document.getElementById('legend-text-larger');
+  const legendContent = document.getElementById('legend-content');
+  let legendScale = 1;
+  function updateLegendScale() {
+    legendContent.style.setProperty('--legend-content-zoom', String(legendScale));
+  }
+  updateLegendScale();
+  legendTextSmaller.addEventListener('click', () => {
+    legendScale = Math.max(0.7, Math.round((legendScale - 0.1) * 10) / 10);
+    updateLegendScale();
+  });
+  legendTextLarger.addEventListener('click', () => {
+    legendScale = Math.min(1.5, Math.round((legendScale + 0.1) * 10) / 10);
+    updateLegendScale();
+  });
+  function renderLegendSection(title, entries) {
+    if (!entries.length) return;
+    const section = document.createElement('section');
+    section.className = 'legend-section';
+    const heading = document.createElement('h3');
+    heading.textContent = title;
+    const list = document.createElement('ul');
+    list.className = 'legend-list';
+    entries.forEach(({ label, color, kind = 'line', size }) => {
+      const item = document.createElement('li');
+      item.className = 'legend-item';
+      const swatch = document.createElement('span');
+      swatch.className = `legend-swatch ${kind}`;
+      swatch.style.background = color;
+      if (Number.isFinite(size)) {
+        swatch.style.width = `${size}px`;
+        swatch.style.height = `${size}px`;
+        swatch.style.flexBasis = `${size}px`;
+      }
+      const text = document.createElement('span');
+      text.textContent = label;
+      item.append(swatch, text);
+      list.appendChild(item);
+    });
+    section.append(heading, list);
+    legendContent.appendChild(section);
+  }
+
+  function renderHaloLegend(haloType, values) {
+    const section = document.createElement('section');
+    section.className = 'legend-section';
+    const heading = document.createElement('h3');
+    heading.textContent = 'HALO';
+    const samples = document.createElement('div');
+    samples.className = 'legend-halo-samples';
+    [
+      ['none', 'Minimum'],
+      ['medium', 'Middle'],
+      ['large', 'Maximum'],
+    ].forEach(([size, label], index) => {
+      const entry = document.createElement('div');
+      entry.className = 'legend-halo-entry';
+      const sample = document.createElement('div');
+      sample.className = 'legend-halo-sample';
+      sample.setAttribute('aria-label', `${label}: ${values[index]}`);
+      const ring = document.createElement('span');
+      ring.className = `legend-halo-ring legend-halo-ring-${size}`;
+      const node = document.createElement('span');
+      node.className = 'legend-halo-node';
+      sample.append(ring, node);
+      const value = document.createElement('span');
+      value.className = 'legend-halo-value';
+      value.textContent = values[index];
+      entry.append(sample, value);
+      samples.appendChild(entry);
+    });
+    const type = document.createElement('div');
+    type.className = 'legend-halo-type';
+    type.textContent = haloType;
+    section.append(heading, samples, type);
+    legendContent.appendChild(section);
+  }
+
+  function renderLegend() {
+    legendContent.replaceChildren();
+    const dimensions = renderer.getDimensions();
+    const nodePositions = new Map();
+    const visibleNodes = [];
+    graph.forEachNode((node) => {
+      if (!state.isNodeVisible(node)) return;
+      const data = renderer.getNodeDisplayData(node);
+      if (!data || data.hidden) return;
+      const point = renderer.framedGraphToViewport(data);
+      nodePositions.set(node, point);
+      const radius = renderer.scaleSize(data.size || 0);
+      if (point.x + radius >= 0 && point.x - radius <= dimensions.width
+        && point.y + radius >= 0 && point.y - radius <= dimensions.height) {
+        visibleNodes.push(node);
+      }
+    });
+
+    const segmentIntersectsViewport = (start, end) => {
+      const deltaX = end.x - start.x;
+      const deltaY = end.y - start.y;
+      let minimum = 0;
+      let maximum = 1;
+      const pValues = [-deltaX, deltaX, -deltaY, deltaY];
+      const qValues = [start.x, dimensions.width - start.x, start.y, dimensions.height - start.y];
+      for (let index = 0; index < pValues.length; index += 1) {
+        const p = pValues[index];
+        const q = qValues[index];
+        if (p === 0) {
+          if (q < 0) return false;
+          continue;
+        }
+        const ratio = q / p;
+        if (p < 0) minimum = Math.max(minimum, ratio);
+        else maximum = Math.min(maximum, ratio);
+        if (minimum > maximum) return false;
+      }
+      return true;
+    };
+
+    const visibleRelationshipTypes = new Set();
+    graph.forEachEdge((edge, attributes, source, target) => {
+      if (!state.activeEdgeTypes.has(attributes.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge)) return;
+      if (!state.isNodeVisible(source) || !state.isNodeVisible(target)) return;
+      const sourcePoint = nodePositions.get(source);
+      const targetPoint = nodePositions.get(target);
+      if (sourcePoint && targetPoint && segmentIntersectsViewport(sourcePoint, targetPoint)) {
+        visibleRelationshipTypes.add(attributes.adjacencyType);
+      }
+    });
+    renderLegendSection('Relationships', manifest
+      .filter(({ type }) => visibleRelationshipTypes.has(type))
+      .map((entry) => ({
+        label: entry.label,
+        color: edgeColorForTheme(entry.type, state.edgeTypeColors.get(entry.type)),
+      })));
+
+    const visibleNodeAttributes = visibleNodes.map((node) => graph.getNodeAttributes(node));
+    if (state.colorMode === 'sector') {
+      const sectors = new Set(visibleNodeAttributes.map(({ category }) => category));
+      renderLegendSection('Sectors', [...sectors]
+        .filter((sector) => state.categoryColors.has(sector))
+        .map((sector) => ({ label: sector, color: state.categoryColors.get(sector), kind: 'node' })));
+    } else if (state.colorMode === 'category') {
+      const categories = new Set();
+      let hasUncategorized = false;
+      visibleNodeAttributes.forEach(({ topics = [] }) => {
+        const represented = topics.filter((topic) => state.activeTopics.has(topic));
+        if (!represented.length) hasUncategorized = true;
+        represented.forEach((topic) => categories.add(topic));
+      });
+      const entries = [...categories].map((topic) => ({
+        label: topic,
+        color: state.topicColors.get(topic) || '#8a8a8a',
+        kind: 'node',
+      }));
+      if (hasUncategorized) entries.push({ label: 'Uncategorized', color: '#8a8a8a', kind: 'node' });
+      renderLegendSection('Categories', entries);
+    } else if (state.colorMode === 'public-sentiment') {
+      if (visibleNodeAttributes.length) {
+        const section = document.createElement('section');
+        section.className = 'legend-section';
+        const heading = document.createElement('h3');
+        heading.textContent = 'Public sentiment';
+        const gradient = document.createElement('div');
+        gradient.className = 'legend-gradient';
+        gradient.style.background = state.theme === 'light'
+          ? 'linear-gradient(90deg, #dc1c2a, #ffffff, #009a46)'
+          : 'linear-gradient(90deg, #dc1c2a, #ffffff, #009a46)';
+        const labels = document.createElement('div');
+        labels.className = 'legend-gradient-labels';
+        labels.append('Negative', 'Neutral', 'Positive');
+        section.append(heading, gradient, labels);
+        if (visibleNodeAttributes.some(({ sentiment }) => !Number.isFinite(sentiment))) {
+          const missing = document.createElement('div');
+          missing.className = 'legend-item';
+          const swatch = document.createElement('span');
+          swatch.className = 'legend-swatch node';
+          swatch.style.background = '#8a8a8a';
+          const label = document.createElement('span');
+          label.textContent = 'No sentiment data';
+          missing.append(swatch, label);
+          section.appendChild(missing);
+        }
+        legendContent.appendChild(section);
+      }
+    } else if (state.colorMode === 'plain' && visibleNodes.length) {
+      renderLegendSection('Nodes', [{ label: 'Actors', color: nodeColorForMode({}), kind: 'node' }]);
+    }
+
+    if (state.sizeNodesByScale && visibleNodes.length) {
+      const representedScales = new Set(visibleNodeAttributes.map(({ scale }) => scale));
+      const scaleOrder = ['MICRO', 'MESO', 'MACRO'];
+      const visibleScales = [
+        ...scaleOrder.filter((scale) => representedScales.has(scale)),
+        ...[...representedScales].filter((scale) => !scaleOrder.includes(scale)).sort(),
+      ];
+      const maximumRadius = Math.max(...visibleScales.map(coreNodeSize));
+      const scaleEntries = visibleScales.map((scale) => ({
+        label: scale,
+        color: '#8a8a8a',
+        kind: 'scale-node',
+        size: Math.max(5, Math.round(Math.pow(coreNodeSize(scale) / maximumRadius, 0.65) * 18)),
+      }));
+      renderLegendSection('SCALE OF ACTOR', scaleEntries);
+    }
+
+    if (visibleNodes.length) {
+      const modeLabels = {
+        'public-interest': 'Public interest (hits)',
+        'degree-centrality': 'Degree centrality',
+        'closeness-centrality': 'Closeness centrality',
+        'betweenness-centrality': 'Betweenness centrality',
+        'eigenvector-centrality': 'Eigenvector centrality',
+        plain: 'Plain',
+      };
+      const haloScores = state.sizeMode === 'plain'
+        ? []
+        : visibleNodeAttributes
+          .filter(({ haloMode, haloScore }) => haloMode === state.sizeMode && Number.isFinite(haloScore))
+          .map(({ haloScore }) => haloScore)
+          .sort((first, second) => first - second);
+      const formatHaloScore = (score) => state.sizeMode === 'public-interest' || state.sizeMode === 'degree-centrality'
+        ? String(Math.round(score))
+        : Number(score).toPrecision(3);
+      const sampleValues = haloScores.length
+        ? [haloScores[0], haloScores[Math.floor((haloScores.length - 1) / 2)], haloScores.at(-1)].map(formatHaloScore)
+        : ['—', '—', '—'];
+      renderHaloLegend(modeLabels[state.sizeMode] || state.sizeMode, sampleValues);
+    }
+  }
+
+  function setLegendOpen(open) {
+    legendPanel.hidden = !open;
+    legendToggle.setAttribute('aria-expanded', String(open));
+    if (open) renderLegend();
+  }
+  let legendRefreshTimer = null;
+  state.refreshLegend = () => {
+    if (legendPanel.hidden) return;
+    window.clearTimeout(legendRefreshTimer);
+    legendRefreshTimer = window.setTimeout(renderLegend, 100);
+  };
+  camera.on('updated', state.refreshLegend);
+  legendToggle.addEventListener('click', () => setLegendOpen(legendPanel.hidden));
+  legendClose.addEventListener('click', () => setLegendOpen(false));
+
+  let legendDrag = null;
+  legendPanelHeader.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || event.target.closest('button')) return;
+    event.preventDefault();
+    const panelBounds = legendPanel.getBoundingClientRect();
+    const workspaceBounds = workspace.getBoundingClientRect();
+    legendDrag = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - panelBounds.left,
+      offsetY: event.clientY - panelBounds.top,
+      workspaceBounds,
+    };
+    legendPanel.style.left = `${panelBounds.left - workspaceBounds.left}px`;
+    legendPanel.style.top = `${panelBounds.top - workspaceBounds.top}px`;
+    legendPanel.style.right = 'auto';
+    legendPanel.style.bottom = 'auto';
+    legendPanelHeader.setPointerCapture(event.pointerId);
+  });
+  legendPanelHeader.addEventListener('pointermove', (event) => {
+    if (!legendDrag || legendDrag.pointerId !== event.pointerId) return;
+    const { workspaceBounds, offsetX, offsetY } = legendDrag;
+    const left = Math.max(0, Math.min(
+      workspaceBounds.width - legendPanel.offsetWidth,
+      event.clientX - workspaceBounds.left - offsetX,
+    ));
+    const top = Math.max(0, Math.min(
+      workspaceBounds.height - legendPanel.offsetHeight,
+      event.clientY - workspaceBounds.top - offsetY,
+    ));
+    legendPanel.style.left = `${left}px`;
+    legendPanel.style.top = `${top}px`;
+  });
+  const stopLegendDrag = (event) => {
+    if (legendDrag?.pointerId === event.pointerId) legendDrag = null;
+  };
+  legendPanelHeader.addEventListener('pointerup', stopLegendDrag);
+  legendPanelHeader.addEventListener('pointercancel', stopLegendDrag);
+
+  let legendResize = null;
+  const legendResizeHandles = [...legendPanel.querySelectorAll('.legend-resize-handle')];
+  legendResizeHandles.forEach((handle) => {
+    handle.addEventListener('pointerdown', (event) => {
+      if (event.button !== 0) return;
+      event.preventDefault();
+      const panelBounds = legendPanel.getBoundingClientRect();
+      const workspaceBounds = workspace.getBoundingClientRect();
+      legendResize = {
+        pointerId: event.pointerId,
+        edge: handle.dataset.edge,
+        left: panelBounds.left - workspaceBounds.left,
+        top: panelBounds.top - workspaceBounds.top,
+        width: panelBounds.width,
+        height: panelBounds.height,
+        startX: event.clientX,
+        startY: event.clientY,
+        workspaceBounds,
+      };
+      legendPanel.style.left = `${legendResize.left}px`;
+      legendPanel.style.top = `${legendResize.top}px`;
+      legendPanel.style.right = 'auto';
+      legendPanel.style.bottom = 'auto';
+      handle.setPointerCapture(event.pointerId);
+    });
+    handle.addEventListener('pointermove', (event) => {
+      if (!legendResize || legendResize.pointerId !== event.pointerId) return;
+      const { edge, left: startLeft, top: startTop, width: startWidth, height: startHeight, startX, startY, workspaceBounds } = legendResize;
+      const deltaX = event.clientX - startX;
+      const deltaY = event.clientY - startY;
+      const maxWidth = Math.min(640, workspaceBounds.width);
+      const maxHeight = Math.max(140, workspaceBounds.height - 24);
+      const minWidth = Math.min(220, maxWidth);
+      const minHeight = Math.min(140, maxHeight);
+      let left = startLeft;
+      let top = startTop;
+      let right = startLeft + startWidth;
+      let bottom = startTop + startHeight;
+      if (edge.includes('w')) left += deltaX;
+      if (edge.includes('e')) right += deltaX;
+      if (edge.includes('n')) top += deltaY;
+      if (edge.includes('s')) bottom += deltaY;
+      let width = Math.max(minWidth, Math.min(maxWidth, right - left));
+      let height = Math.max(minHeight, Math.min(maxHeight, bottom - top));
+      if (edge.includes('w')) left = right - width;
+      else right = left + width;
+      if (edge.includes('n')) top = bottom - height;
+      else bottom = top + height;
+      width = Math.min(width, workspaceBounds.width);
+      height = Math.min(height, workspaceBounds.height);
+      left = Math.max(0, Math.min(workspaceBounds.width - width, left));
+      top = Math.max(0, Math.min(workspaceBounds.height - height, top));
+      legendPanel.style.width = `${width}px`;
+      legendPanel.style.height = `${height}px`;
+      legendPanel.style.left = `${left}px`;
+      legendPanel.style.top = `${top}px`;
+    });
+    handle.addEventListener('pointerup', (event) => {
+      if (legendResize?.pointerId === event.pointerId) legendResize = null;
+    });
+    handle.addEventListener('pointercancel', (event) => {
+      if (legendResize?.pointerId === event.pointerId) legendResize = null;
+    });
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !legendPanel.hidden) {
+      setLegendOpen(false);
+      legendToggle.focus();
     }
   });
 

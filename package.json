@@ -14,9 +14,12 @@
     "graphology-layout": "^0.6.1",
     "graphology-layout-forceatlas2": "^0.10.1",
     "graphology-metrics": "^2.4.2",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^4.2.1",
     "leaflet": "^1.9.4",
     "papaparse": "^5.4.1",
-    "sigma": "^3.0.0"
+    "sigma": "^3.0.0",
+    "svg2pdf.js": "^2.8.1"
   },
   "devDependencies": {
     "vite": "^5.4.0"

@@ -27,8 +27,16 @@
         <button id="theme-toggle" class="header-utility theme-toggle" type="button" role="switch" aria-label="Light mode" aria-checked="false" title="Switch to light mode">
           <span class="theme-toggle-track" aria-hidden="true"></span>
         </button>
-        <button class="header-utility" type="button">Export</button>
-        <button class="header-utility" type="button">Legend</button>
+        <div class="header-export-container">
+          <button id="export-toggle" class="header-utility" type="button" aria-expanded="false" aria-controls="export-menu">Export</button>
+          <div id="export-menu" class="header-info-menu header-export-menu" role="region" aria-label="Export options" hidden>
+            <div class="header-info-options" role="group" aria-label="Export options">
+              <button id="basic-export" type="button">Basic export</button>
+              <button id="advanced-export-option" type="button">Advanced...</button>
+            </div>
+          </div>
+        </div>
+        <button id="legend-toggle" class="header-utility" type="button" aria-expanded="false" aria-controls="legend-panel">Legend</button>
         <button id="refresh-sheets" class="header-refresh" type="button" data-tooltip="Changes made to dataset may take up to 5 minutes to be published" aria-describedby="refresh-sheets-tooltip">
           <span aria-hidden="true">↻</span><span>Relink data</span>
         </button>
@@ -326,6 +334,64 @@
           <span>ROOSEVELT ISLAND</span>
         </div>
       </main>
+      <section id="legend-panel" class="legend-panel" aria-label="Legend" hidden>
+        <header id="legend-panel-header" class="legend-panel-header">
+          <h2>Legend</h2>
+          <div class="legend-panel-actions">
+            <button id="legend-text-smaller" type="button" aria-label="Decrease legend size" title="Decrease legend size">A−</button>
+            <button id="legend-text-larger" type="button" aria-label="Increase legend size" title="Increase legend size">A+</button>
+            <button type="button" aria-label="More legend options" title="More options">…</button>
+            <button id="legend-close" type="button" aria-label="Close legend" title="Close">×</button>
+          </div>
+        </header>
+        <div id="legend-content" class="legend-content"></div>
+        <button class="legend-resize-handle legend-resize-n" type="button" data-edge="n" aria-label="Resize legend from top edge"></button>
+        <button class="legend-resize-handle legend-resize-e" type="button" data-edge="e" aria-label="Resize legend from right edge"></button>
+        <button class="legend-resize-handle legend-resize-s" type="button" data-edge="s" aria-label="Resize legend from bottom edge"></button>
+        <button class="legend-resize-handle legend-resize-w" type="button" data-edge="w" aria-label="Resize legend from left edge"></button>
+        <button class="legend-resize-handle legend-resize-ne" type="button" data-edge="ne" aria-label="Resize legend from top right corner"></button>
+        <button class="legend-resize-handle legend-resize-se" type="button" data-edge="se" aria-label="Resize legend from bottom right corner"></button>
+        <button class="legend-resize-handle legend-resize-sw" type="button" data-edge="sw" aria-label="Resize legend from bottom left corner"></button>
+        <button class="legend-resize-handle legend-resize-nw" type="button" data-edge="nw" aria-label="Resize legend from top left corner"></button>
+      </section>
+      <section id="advanced-export-window" class="advanced-export-window" role="dialog" aria-labelledby="advanced-export-title" hidden>
+        <header id="advanced-export-header" class="advanced-export-header">
+          <h2 id="advanced-export-title">Export</h2>
+          <button id="advanced-export-close" type="button" aria-label="Close export window" title="Close">×</button>
+        </header>
+        <div class="advanced-export-content">
+          <div class="advanced-export-field">
+            <span class="advanced-export-label">Type</span>
+            <div class="advanced-export-types" role="group" aria-label="Export type">
+              <button type="button" data-export-type="raster" aria-pressed="false">Raster</button>
+              <button type="button" data-export-type="vector" aria-pressed="false">Vector</button>
+            </div>
+          </div>
+          <label class="advanced-export-field" for="advanced-export-format">
+            <span class="advanced-export-label">Format</span>
+            <select id="advanced-export-format" disabled>
+              <option value="" selected>Select Raster or Vector first</option>
+            </select>
+          </label>
+          <label class="advanced-export-field" for="advanced-export-background">
+            <span class="advanced-export-label">Background color</span>
+            <select id="advanced-export-background">
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="transparent">Transparent</option>
+            </select>
+          </label>
+          <label class="advanced-export-field" for="advanced-export-bounds">
+            <span class="advanced-export-label">Bounds</span>
+            <select id="advanced-export-bounds" disabled>
+              <option value="viewport">Viewport</option>
+              <option value="whole-model">Whole model</option>
+            </select>
+          </label>
+          <button id="advanced-export-run" class="advanced-export-submit" type="button" disabled>Export</button>
+          <p id="advanced-export-status" class="advanced-export-status" role="status" aria-live="polite"></p>
+        </div>
+      </section>
     </div>
   </div>
   <div id="selection-context-menu" class="selection-context-menu" role="menu" hidden>
