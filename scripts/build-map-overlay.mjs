@@ -4,13 +4,18 @@
 // "point - "name"" rows of building_actors.csv.
 // Run with: node scripts/build-map-overlay.mjs
 // Add --sync to first download the "buildings" sheet into building_actors.csv.
+// Custom datasets can override the defaults with:
+//   --sheet=<published buildings CSV URL>   (used with --sync)
+//   --boundary=<GeoJSON file in public/data/buildings>
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const buildingsDir = path.join(__dirname, '..', 'public', 'data', 'buildings');
-const BUILDINGS_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pub?gid=1593670637&single=true&output=csv';
+const cliOption = (name) => process.argv.find((arg) => arg.startsWith(`--${name}=`))?.slice(name.length + 3);
+const BUILDINGS_SHEET_CSV_URL = cliOption('sheet') || 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pub?gid=1593670637&single=true&output=csv';
+const BOUNDARY_FILE = cliOption('boundary') || 'roosevelt_island_boundary.geojson';
 
 async function syncBuildingsSheet() {
   const response = await fetch(BUILDINGS_SHEET_CSV_URL);
@@ -125,7 +130,7 @@ function escapeAttr(value) {
 
 async function main() {
   if (process.argv.includes('--sync')) await syncBuildingsSheet();
-  const islandGeojson = JSON.parse(await readFile(path.join(buildingsDir, 'roosevelt_island_boundary.geojson'), 'utf8'));
+  const islandGeojson = JSON.parse(await readFile(path.join(buildingsDir, BOUNDARY_FILE), 'utf8'));
   const islandRings = ringsFromGeometry(islandGeojson.features?.[0]?.geometry);
 
   const actorRows = parseCsv(await readFile(path.join(buildingsDir, 'building_actors.csv'), 'utf8'));

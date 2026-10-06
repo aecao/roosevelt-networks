@@ -41,6 +41,8 @@ Map-mode point geometry is loaded from separate SVG files, each containing the i
 
 Building footprint parameters and actor links live in the "buildings" sheet of the linked Google Spreadsheet. Run `npm run sync:buildings` to download it into `public/data/buildings/building_actors.csv` and regenerate `map-overlay.svg` and `map-points.json`.
 
+For a different site, pass your own buildings CSV URL and boundary GeoJSON (WGS84, in `public/data/buildings/`): `npm run sync:buildings -- --sheet=<csv url> --boundary=<file>.geojson`. Footprints are read from `bin-<id>.geojson`, where `<id>` is any unique value in the sheet's `BIN` column. Set `mapLabel` in `src/config.js` to rename the map caption. For datasets without spatial data, set `mapEnabled: false` to hide Map mode. If the map files are missing or fail to load, the Map tab is disabled automatically.
+
 ## Local development
 
 ```bash

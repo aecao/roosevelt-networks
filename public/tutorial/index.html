@@ -42,58 +42,134 @@
         </ul>
       </nav>
 
-      <section class="doc-section" aria-label="Tutorial">
-        <h3>Modes</h3>
-        <p>Use the tabs at the top of the window to switch between three views of the same dataset:</p>
-        <ul>
-          <li><strong>Relationships</strong> lays the network out with a force-directed layout, so closely connected actors cluster together.</li>
-          <li><strong>Map</strong> places actors on the buildings and sites they are linked to on Roosevelt Island. Hover over an unlinked building footprint to see its name or BIN.</li>
-          <li><strong>Timeline</strong> (beta) plots actors across their active years and links predecessors to their successors.</li>
-        </ul>
+      <div class="doc-layout">
+        <nav class="doc-toc" aria-label="Tutorial sections">
+          <p class="doc-toc-title">Contents</p>
+          <ol>
+            <li><a href="#navigation">Navigation</a></li>
+            <li><a href="#filtering">Filtering</a></li>
+            <li><a href="#appearance">Appearance</a></li>
+            <li><a href="#selecting-pinning">Selecting + Pinning</a></li>
+            <li><a href="#exporting">Exporting</a></li>
+            <li><a href="#advanced">Advanced</a></li>
+          </ol>
+        </nav>
 
-        <h3>Selecting, hovering and pinning</h3>
-        <ul>
-          <li>Hover over an actor or connection to highlight it and its direct neighbours; everything else fades back.</li>
-          <li>Click an actor or connection to open its details in the right-hand <strong>Details</strong> panel. Click empty space to clear the selection.</li>
-          <li><strong>Pin</strong> a selection to keep it in the Details panel while you explore other actors. Pinned items can be expanded, collapsed and reordered by dragging.</li>
-          <li>Use the search box to find an actor by full name or abbreviation; each result can be opened or pinned directly.</li>
-          <li>When the Details panel is collapsed, a dot on its button signals a new selection or pin you haven't looked at yet.</li>
-        </ul>
+        <div class="doc-section" aria-label="Tutorial">
+          <section id="navigation" class="doc-subsection">
+            <h2>1. Navigation</h2>
 
-        <h3>Filters and appearance</h3>
-        <p>The left-hand sidebar controls what is shown and how it is drawn:</p>
-        <ul>
-          <li><strong>Appearance</strong>: toggle labels, set text size and an optional label threshold, set node size, choose a colour mode (sector, category, public sentiment or plain), and turn the halo on or off and choose what its size represents.</li>
-          <li><strong>Centrality</strong>: hide actors below a minimum centrality score, using degree, closeness, betweenness or eigenvector centrality.</li>
-          <li><strong>Sector</strong>, <strong>Category</strong> and <strong>Scale</strong>: show or hide actors by group.</li>
-          <li><strong>Relationships</strong>: show or hide each kind of connection, and adjust connection curvature and layout gravity.</li>
-          <li><strong>Time range</strong>: show only the actors active in a given year.</li>
-          <li><strong>Freeze actor position</strong> stops the layout from moving; <strong>Zoom to selected</strong> moves the view to each new selection.</li>
-        </ul>
-        <p>Sliders have &minus; and + buttons for stepping through values, and their value can be clicked to type an exact number.</p>
+            <h3>Modes</h3>
+            <p>The <strong>Mode</strong> tabs in the header switch between three views of the same dataset:</p>
+            <ul>
+              <li><strong>Relationships</strong> lays the network out with a force-directed layout, so closely connected actors cluster together.</li>
+              <li><strong>Map</strong> places actors on the buildings and sites they are linked to on Roosevelt Island. Hover over an unlinked building footprint to see its name or BIN.</li>
+              <li><strong>Timeline</strong> (beta) plots actors across their active years and links predecessors to their successors.</li>
+            </ul>
 
-        <h3>Legend</h3>
-        <p>
-          The <strong>Legend</strong> button in the header opens a movable, resizable legend describing everything in the
-          current model: relationship types and their line styles, line-weight scales, node colours, scales and halos. Use
-          A&minus; / A+ to change its text size and the fit button to resize it to its contents. Closing the legend collapses it
-          back into the Legend button.
-        </p>
+            <h3>Panning, zooming and fullscreen</h3>
+            <ul>
+              <li><strong>Pan</strong> by clicking and dragging on empty space.</li>
+              <li><strong>Zoom</strong> with the scroll wheel or trackpad, or with the <strong>+</strong> and <strong>&minus;</strong> buttons in the top-right corner of the view.</li>
+              <li>The percentage next to those buttons shows the current zoom level; click it to type an exact value.</li>
+              <li><strong>&#10530;</strong> resets the zoom to fit the whole model, and <strong>&#9974;</strong> toggles fullscreen (press Esc to exit).</li>
+            </ul>
 
-        <h3>Export</h3>
-        <p>
-          <strong>Export</strong> saves the current view. <em>Basic export</em> saves an image immediately;
-          <em>Advanced</em> lets you choose raster or vector output, resolution, background, whether to export the viewport
-          or the whole model, how to include the legend, and whether to export only selected/pinned items or dim everything else.
-        </p>
+            <h3>Interface overview</h3>
+            <ul>
+              <li><strong>Header</strong>: mode tabs, a light/dark theme switch, <strong>Export</strong>, <strong>Legend</strong>, <strong>Relink data</strong>, and the <strong>i</strong> menu with these documentation pages, credits and links to the code and dataset.</li>
+              <li><strong>Filters</strong> (left sidebar): search, appearance settings and filters. Collapse it with <strong>&minus;</strong> to give the view more room.</li>
+              <li><strong>Details</strong> (right sidebar): information about the current selection and any pinned selections. Expand it with <strong>+</strong>, and drag its left edge to resize it.</li>
+              <li><strong>Legend</strong>: a floating panel explaining colours, line styles and scales. Drag its header to move it and its edges to resize it; A&minus; / A+ change its text size and the fit button sizes it to its contents. Closing it collapses it back into the Legend button.</li>
+            </ul>
+          </section>
 
-        <h3>Relinking data</h3>
-        <p>
-          The app starts from a bundled snapshot of the dataset. <strong>Relink data</strong> fetches the latest version of the
-          published spreadsheet and rebuilds the model. Edits to the spreadsheet can take up to five minutes to be published.
-        </p>
-      </section>
+          <section id="filtering" class="doc-subsection">
+            <h2>2. Filtering</h2>
+            <p>Filters in the left sidebar control which actors and connections are shown. Click a heading to expand or collapse its group.</p>
+            <ul>
+              <li><strong>Search</strong>: find an actor by full name or abbreviation.</li>
+              <li><strong>Centrality</strong>: choose a centrality measure (degree, closeness, betweenness or eigenvector) and hide actors below a minimum score.</li>
+              <li><strong>Sector</strong>, <strong>Category</strong> and <strong>Scale</strong>: tick or untick groups to show or hide their actors. <strong>All</strong> toggles every group at once.</li>
+              <li><strong>Relationships</strong>: show or hide each type of connection.</li>
+              <li><strong>Time range</strong>: turn on <em>Filter by active year</em> to show only the actors active in the chosen year. In Timeline mode, <strong>Year range</strong> sets the span of years shown.</li>
+            </ul>
+            <p>Sliders have &minus; and + buttons for stepping between values, and their value can be clicked to type an exact number.</p>
+          </section>
+
+          <section id="appearance" class="doc-subsection">
+            <h2>3. Appearance</h2>
+            <p>The <strong>Appearance</strong> group at the top of the Filters sidebar controls how the model is drawn:</p>
+            <ul>
+              <li><strong>Labels</strong>: show or hide actor names, set their text size, and optionally set a threshold so only the most significant actors are labelled.</li>
+              <li><strong>Node size</strong>: scale every actor up or down. Under Scale, <em>Size nodes by scale</em> makes macro-scale actors larger than micro-scale ones.</li>
+              <li><strong>Color mode</strong>: colour actors by sector, category or public sentiment, or use a single plain colour.</li>
+              <li><strong>Halo</strong>: turn the halo around each actor on or off, and choose what its size represents: public interest or one of the centrality measures.</li>
+            </ul>
+            <p>The Relationships section also sets <strong>connection curvature</strong> and layout <strong>gravity</strong> (how tightly the layout pulls together). The theme switch in the header toggles light and dark backgrounds.</p>
+          </section>
+
+          <section id="selecting-pinning" class="doc-subsection">
+            <h2>4. Selecting + Pinning</h2>
+            <ul>
+              <li><strong>Hover</strong> over an actor or connection to highlight it and its direct neighbours; everything else fades back.</li>
+              <li><strong>Click</strong> an actor or connection to select it and show its details in the Details panel. Click empty space to clear the selection.</li>
+              <li><strong>Pin</strong> a selection to keep it in the Details panel while you explore other actors: use the pin button in the Details panel, or right-click an actor or connection and choose <em>Pin selection</em>. Search results can also be pinned directly.</li>
+              <li>Pinned selections stay highlighted in the view. Expand, collapse or unpin them in the Details panel, drag them to reorder, and click a title to zoom to it.</li>
+              <li>With <strong>Zoom to selected</strong> on (bottom of the Filters sidebar), the view moves to each new selection. <strong>Freeze actor position</strong> stops the layout from moving.</li>
+              <li>When the Details panel is collapsed, a dot on its button signals a new selection or pin you haven't looked at yet.</li>
+            </ul>
+          </section>
+
+          <section id="exporting" class="doc-subsection">
+            <h2>5. Exporting</h2>
+            <p>The <strong>Export</strong> button in the header saves the current view.</p>
+            <ul>
+              <li><strong>Basic export</strong> saves an image of the view immediately.</li>
+              <li><strong>Advanced...</strong> opens export settings: raster or vector output, resolution, background, whether to export the visible viewport or the whole model, how to include the legend, and whether to export only selected/pinned items or dim everything else.</li>
+            </ul>
+          </section>
+
+          <section id="advanced" class="doc-subsection">
+            <h2>6. Advanced</h2>
+
+            <h3>Relinking data</h3>
+            <p>
+              The app opens with a bundled snapshot of the dataset. <strong>Relink data</strong> in the header fetches the latest
+              version of the published spreadsheet and rebuilds the model. Edits to the spreadsheet can take up to five minutes to be
+              published, so if a recent change doesn't appear, wait and relink again.
+            </p>
+
+            <h3>Importing a custom dataset</h3>
+            <p>
+              The app can also model a different network, as long as its spreadsheet follows the same structure. See
+              <a href="../custom/">Importing custom datasets</a> for the required columns and setup steps, and
+              <a href="../methodology/">Methodology</a> for how the model is constructed.
+            </p>
+          </section>
+        </div>
+      </div>
     </section>
   </main>
+  <script>
+    (() => {
+      const links = [...document.querySelectorAll('.doc-toc a')];
+      const sections = links.map((link) => document.querySelector(link.getAttribute('href')));
+      const update = () => {
+        const offset = window.innerHeight * 0.3;
+        let current = sections[0];
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= offset) current = section;
+        }
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+          current = sections[sections.length - 1];
+        }
+        links.forEach((link, i) => link.setAttribute('aria-current', String(sections[i] === current)));
+      };
+      window.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update);
+      update();
+    })();
+  </script>
 </body>
 </html>

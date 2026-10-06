@@ -42,13 +42,39 @@
         </ul>
       </nav>
 
-      <section class="doc-section" aria-label="Importing custom datasets">
+      <div class="doc-layout">
+        <nav class="doc-toc" aria-label="Importing custom datasets sections">
+          <p class="doc-toc-title">Contents</p>
+          <ol>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#prepare">Prepare the spreadsheet</a></li>
+            <li><a href="#publish">Publish it</a></li>
+            <li><a href="#connect">Point the app at it</a></li>
+            <li><a href="#map-data">Map data (optional)</a></li>
+            <li><a href="#extending">Extending the model</a></li>
+          </ol>
+        </nav>
+
+        <div class="doc-section" aria-label="Importing custom datasets">
+        <section id="overview" class="doc-subsection">
+        <h2>1. Overview</h2>
         <p>
           Roosevelt Networks reads its data from a Google Spreadsheet published to the web, so any network with the same structure
           can be loaded. The app's source code is on <a href="https://github.com/aecao/roosevelt-networks" target="_blank" rel="noopener noreferrer">GitHub</a>.
         </p>
+        <p>
+          The process takes three steps: prepare a spreadsheet in the expected format, publish it, and point a copy of the app
+          at it. See <a href="../methodology/#spreadsheet">Methodology</a> for a detailed description of how each column is read.
+        </p>
+        <p>
+          Your network doesn't need to be about Roosevelt Island. The <strong>Relationships</strong> and <strong>Timeline</strong> modes
+          work for any network. <strong>Map</strong> mode is optional: you can turn it off, or supply your own site
+          (see <a href="#map-data">Map data</a>).
+        </p>
+        </section>
 
-        <h3>1. Prepare the spreadsheet</h3>
+        <section id="prepare" class="doc-subsection">
+        <h2>2. Prepare the spreadsheet</h2>
         <p>
           Make a copy of the <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pubhtml?gid=1300872278" target="_blank" rel="noopener noreferrer">project dataset</a>
           and replace its contents with your own, keeping the column headers. Two tabs are required:
@@ -66,7 +92,7 @@
               <tr><td><code>type</code></td><td>Sector.</td></tr>
               <tr><td><code>scale</code></td><td>Scale, for example <code>0 - MICRO</code>, <code>1 - MESO</code>, <code>2 - MACRO</code>.</td></tr>
               <tr><td><code>year_start</code>, <code>year_end</code></td><td>Active years (optional).</td></tr>
-              <tr><td><code>public sentiment</code></td><td>Sentiment rating (optional).</td></tr>
+              <tr><td><code>public sentiment</code></td><td>Sentiment rating (optional, kept for reference). The Public sentiment colour mode reads <code>public/data/actor database - actor_working - with news hits.csv</code> instead, with columns <code>actor</code>, <code>hits</code> and <code>sentiment</code>.</td></tr>
             </tbody>
           </table>
         </div>
@@ -77,7 +103,7 @@
               <tr><th>Column</th><th>Contents</th></tr>
             </thead>
             <tbody>
-              <tr><td><code>source-target relationship</code></td><td>One of the <a href="../methodology/">relationship types</a>, for example <code>COLLABORATION</code> or <code>OWNER-TENANT</code>.</td></tr>
+              <tr><td><code>source-target relationship</code></td><td>One of the <a href="../methodology/#network-model">relationship types</a>, for example <code>COLLABORATION</code> or <code>OWNER-TENANT</code>.</td></tr>
               <tr><td><code>source</code>, <code>target</code></td><td>Actor names, exactly as written in the actors tab.</td></tr>
               <tr><td><code>parameter 0</code>&ndash;<code>parameter 2</code></td><td>
                 Optional details: parcel area in sq ft (Owner&ndash;Tenant, parameter 0); <code>one-time</code> and a whole-number
@@ -88,27 +114,125 @@
           </table>
         </div>
         <p>Blank cells are fine. Rows whose actors can't be found are skipped and reported in the browser console.</p>
+        </section>
 
-        <h3>2. Publish it</h3>
+        <section id="publish" class="doc-subsection">
+        <h2>3. Publish it</h2>
         <p>
           In Google Sheets, choose <em>File &rarr; Share &rarr; Publish to web</em> and publish the entire document. Note the published
           URL and the <code>gid</code> of each tab (the number after <code>gid=</code> in the tab's address).
         </p>
+        </section>
 
-        <h3>3. Point the app at it</h3>
+        <section id="connect" class="doc-subsection">
+        <h2>4. Point the app at it</h2>
         <ol>
           <li>Fork or download the <a href="https://github.com/aecao/roosevelt-networks" target="_blank" rel="noopener noreferrer">repository</a>.</li>
           <li>In <code>src/config.js</code>, replace <code>publishedUrl</code>, <code>actorGid</code> and <code>adjacencyGid</code> with your own values.</li>
           <li>Run <code>npm install</code>, then <code>npm run dev</code>, and click <strong>Relink data</strong> to load your sheet.</li>
           <li>Optionally, save CSV snapshots of your tabs over <code>public/data/actors.csv</code> and <code>public/data/edges/adjacency.csv</code> so the app opens with your data before relinking.</li>
+          <li>Decide how to handle Map mode (next section). If your network isn't on Roosevelt Island, set <code>mapEnabled: false</code> or replace the map data.</li>
+          <li>The page title ("Roosevelt Island: Actor Network") is set in <code>index.html</code>. Edit it to match your project.</li>
+        </ol>
+        </section>
+
+        <section id="map-data" class="doc-subsection">
+        <h2>5. Map data (optional)</h2>
+        <p>
+          Map mode places actors over a site plan: actors linked to buildings sit on those buildings' footprints, and actors
+          with a specific location are pinned to a point. You can use the app in one of three ways.
+        </p>
+        <div class="doc-table-wrap">
+          <table class="doc-table">
+            <thead><tr><th>Option</th><th>What you get</th><th>What you need</th></tr></thead>
+            <tbody>
+              <tr><td>No map</td><td>Relationships and Timeline modes; the Map tab is hidden.</td><td>Set <code>mapEnabled: false</code> in <code>src/config.js</code>.</td></tr>
+              <tr><td>Your own site</td><td>All three modes, with actors placed on your geography.</td><td>A boundary, building footprints, a buildings tab, and optionally point SVGs (below).</td></tr>
+              <tr><td>Roosevelt Island</td><td>All three modes, using the included island data.</td><td>Nothing; this is the default.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Without spatial data</h3>
+        <p>
+          In <code>src/config.js</code>, set <code>mapEnabled: false</code>. The Map tab is removed and everything else works as normal.
+          Centrality, filtering, selection, pinning and exporting don't depend on geography. If you leave Map mode on but the map files
+          are missing or can't be read, the app disables the Map tab ("Map data unavailable for this dataset") instead of failing.
+        </p>
+
+        <h3>With your own geography</h3>
+        <ol>
+          <li>
+            <strong>Boundary.</strong> Save your site outline as a GeoJSON file in WGS84 longitude/latitude (EPSG:4326) in
+            <code>public/data/buildings/</code>. Only the first feature is used. To convert from a shapefile, DXF or another CRS, use QGIS
+            (<em>Export &rarr; Save Features As &rarr; GeoJSON, CRS EPSG:4326</em>) or
+            <code>ogr2ogr -f GeoJSON -t_srs EPSG:4326 boundary.geojson input.shp</code>.
+          </li>
+          <li>
+            <strong>Building footprints.</strong> Save each footprint as <code>public/data/buildings/bin-&lt;id&gt;.geojson</code>,
+            also in WGS84. The id can be any unique value: a NYC BIN, a parcel number, or a number you assign.
+          </li>
+          <li>
+            <strong>Buildings tab.</strong> Add a tab to your spreadsheet with the columns <code>BIN</code> (the footprint id),
+            <code>Name</code> and <code>Actor</code> (the actor's name, matching the actors tab), with one row per building–actor link.
+            Publish it as CSV (<em>Publish to web &rarr; select the tab &rarr; Comma-separated values</em>).
+          </li>
+          <li>
+            <strong>Points (optional).</strong> For actors that need an exact location rather than a building, add a row with
+            <code>BIN</code> left blank, <code>Name</code> set to <code>point - "&lt;name&gt;"</code> and the actor in <code>Actor</code>. Then save
+            <code>public/data/buildings/point-&lt;name&gt;.svg</code>. Each SVG must contain your boundary drawn as a path inside
+            <code>&lt;g id="boundary"&gt;</code> and exactly one circle or ellipse outside it. The circle is placed by its relative position
+            within the boundary's extents. In Rhino, draw the circle over the boundary curve and select both. Then use
+            <em>Export Selected &rarr; SVG</em>, and make sure the boundary ends up in a group with <code>id="boundary"</code>.
+          </li>
+          <li>
+            <strong>Build the overlay.</strong> Run
+            <code>npm run sync:buildings -- --sheet=&lt;buildings CSV URL&gt; --boundary=&lt;boundary file name&gt;</code>.
+            This downloads the buildings tab and writes <code>public/data/buildings/map-overlay.svg</code> and <code>map-points.json</code>. Rows without a matching footprint
+            file are skipped with a warning.
+          </li>
+          <li>
+            <strong>Label.</strong> Set <code>mapLabel</code> in <code>src/config.js</code> to your site's name, which is shown
+            in the corner of Map mode.
+          </li>
         </ol>
         <p>
-          To add a new relationship type, add its label to <code>public/data/edges/manifest.json</code> and map the spreadsheet's
-          name for it in <code>SHEET_ADJACENCY_TYPES</code> in <code>src/config.js</code>. Map-mode building data is described in the
-          repository's README.
+          Footprints don't have to be buildings. Any polygon, such as a park, block or district, can be used. See
+          <a href="../methodology/#map">Methodology</a> for how positions are projected and combined.
         </p>
-      </section>
+        </section>
+
+        <section id="extending" class="doc-subsection">
+        <h2>6. Extending the model</h2>
+        <h3>New relationship types</h3>
+        <p>
+          To add a new relationship type, add its label to <code>public/data/edges/manifest.json</code> and map the spreadsheet's
+          name for it in <code>SHEET_ADJACENCY_TYPES</code> in <code>src/config.js</code>.
+        </p>
+        </section>
+        </div>
+      </div>
     </section>
   </main>
+  <script>
+    (() => {
+      const links = [...document.querySelectorAll('.doc-toc a')];
+      const sections = links.map((link) => document.querySelector(link.getAttribute('href')));
+      const update = () => {
+        const offset = window.innerHeight * 0.3;
+        let current = sections[0];
+        for (const section of sections) {
+          if (section.getBoundingClientRect().top <= offset) current = section;
+        }
+        if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+          current = sections[sections.length - 1];
+        }
+        links.forEach((link, i) => link.setAttribute('aria-current', String(sections[i] === current)));
+      };
+      window.addEventListener('scroll', update, { passive: true });
+      window.addEventListener('resize', update);
+      update();
+    })();
+  </script>
 </body>
 </html>

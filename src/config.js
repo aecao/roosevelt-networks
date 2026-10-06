@@ -23,6 +23,10 @@ export const DATA = {
   // Adjacency types that are symmetric (rendered as plain undirected lines).
   // Every other type is treated as directional and rendered with an arrow.
   undirectedEdgeTypes: ['col'],
+  // Set to false for datasets without spatial data; hides the Map mode tab.
+  mapEnabled: true,
+  // Caption shown in the corner of Map mode.
+  mapLabel: 'Roosevelt Island',
 };
 
 export const SHEET_ADJACENCY_TYPES = {

@@ -1205,6 +1205,19 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text);
 }
 
+.mode-tab[hidden] {
+  display: none;
+}
+
+.mode-tab:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.mode-tab:disabled:hover {
+  color: var(--muted);
+}
+
 .mode-tab[aria-pressed="true"] {
   border-bottom-color: var(--accent);
   color: var(--text);

@@ -1694,6 +1694,9 @@ async function main() {
   const timelineEndInput = document.getElementById('timeline-end');
   const mapCaption = document.getElementById('map-caption');
   const mapFootprintLabel = document.getElementById('map-footprint-label');
+  document.getElementById('map-caption-label').textContent = String(DATA.mapLabel || '').toUpperCase();
+  const mapModeTab = modeTabs.find((tab) => tab.dataset.mode === 'map');
+  if (!DATA.mapEnabled && mapModeTab) mapModeTab.hidden = true;
   let timelineStart = 1920;
   let timelineEnd = 2026;
   let contextSelection = null;
@@ -1754,6 +1757,7 @@ async function main() {
   themeToggle.addEventListener('click', () => applyRelationshipTheme(state.theme !== 'light'));
 
   function setMode(mode) {
+    if (mode === 'map' && (!DATA.mapEnabled || mapModeTab?.disabled)) mode = 'relationships';
     const isMap = mode === 'map';
     hoveredHaloNode = null;
     const leavingRelationships = workspace.dataset.mode === 'relationships' && mode !== 'relationships';
@@ -3285,7 +3289,20 @@ async function main() {
     if (mapModeApplied || !state.graph || !state.renderer) return;
     mapModeApplied = true;
     const generation = ++mapLayoutGeneration;
-    const geo = await ensureMapGeography();
+    let geo;
+    try {
+      geo = await ensureMapGeography();
+    } catch (error) {
+      // Custom datasets may ship without map geometry; disable Map mode rather than leave it half-broken.
+      console.warn('Map data unavailable; disabling Map mode.', error);
+      mapModeApplied = false;
+      if (mapModeTab) {
+        mapModeTab.disabled = true;
+        mapModeTab.title = 'Map data unavailable for this dataset';
+      }
+      if (workspace.dataset.mode === 'map') setMode('relationships');
+      return;
+    }
     if (generation !== mapLayoutGeneration || workspace.dataset.mode !== 'map') return;
     const graphBounds = computeGraphBounds();
     const graphWidth = (graphBounds.maxX - graphBounds.minX) || 1;
