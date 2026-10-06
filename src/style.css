@@ -5,6 +5,7 @@
   --border: #3a3a3a;
   --text: #ffffff;
   --muted: #b0b0b0;
+  --detail-label-color: #858585;
   --accent: #6688ff;
   --control-bg: #000000;
   --control-raised-bg: #111111;
@@ -30,6 +31,7 @@
   --border: #c7cdd5;
   --text: #1f2933;
   --muted: #59636e;
+  --detail-label-color: #707a84;
   --accent: #0035ff;
   --control-bg: #ffffff;
   --control-raised-bg: #f5f6f7;
@@ -1707,6 +1709,7 @@ button:hover {
 .details {
   border-top: 1px solid var(--border);
   padding-top: 12px;
+  margin: 0;
   font-size: 0.85rem;
   line-height: 1.5;
 }
@@ -1732,6 +1735,176 @@ button:hover {
   margin: 0;
 }
 
+.actor-details-layout {
+  display: grid;
+  gap: 13px;
+  padding-top: 0;
+  border-top: 0;
+}
+
+.actor-detail-group {
+  display: grid;
+  min-width: 0;
+  margin: 0;
+}
+
+.actor-detail-group dt {
+  margin: 10px 0 0;
+  color: var(--detail-label-color);
+  font-family: var(--font-bold);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.actor-detail-group dt:first-child {
+  margin-top: 0;
+}
+
+.actor-detail-group dd {
+  min-width: 0;
+  margin: 3px 0 0;
+  font-size: 0.84rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.actor-network-details {
+  padding-top: 4px;
+}
+
+.actor-topic-layout {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.actor-topic-pie {
+  display: block;
+  flex: 0 0 72px;
+  width: 72px;
+  height: 72px;
+}
+
+.actor-topic-list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.actor-detail-symbol-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 18px;
+}
+
+.actor-centrality-content p {
+  margin: 5px 0 0;
+  line-height: 1.4;
+}
+
+.actor-centrality-value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.actor-centrality-value strong {
+  color: var(--text);
+  font-size: 1.05rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.actor-metric-range {
+  min-width: 0;
+  padding-top: 3px;
+}
+
+.actor-metric-track {
+  position: relative;
+  height: 48px;
+  margin: 0 24px;
+}
+
+.actor-metric-baseline {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--border);
+}
+
+.actor-metric-point {
+  position: absolute;
+  top: 50%;
+  display: grid;
+  place-items: center;
+  width: 8px;
+  height: 8px;
+  transform: translate(-50%, -50%);
+}
+
+.actor-metric-point.current {
+  z-index: 2;
+}
+
+.actor-metric-halo {
+  position: absolute;
+  border: 1px solid;
+  border-radius: 50%;
+}
+
+.actor-metric-node {
+  position: relative;
+  z-index: 1;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+}
+
+.actor-metric-point.current::after {
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  width: max-content;
+  max-width: 100px;
+  color: var(--text);
+  content: attr(data-label);
+  font-size: 0.64rem;
+  font-weight: 700;
+  text-align: center;
+  transform: translate(-50%, -100%);
+}
+
+.actor-metric-captions {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+  gap: 3px;
+  margin-top: -8px;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+.actor-metric-captions strong {
+  color: var(--muted);
+  font-size: inherit;
+  text-align: center;
+}
+
+.actor-metric-captions span:last-child {
+  text-align: right;
+}
+
 .detail-list {
   margin: 0;
   padding-left: 18px;
@@ -1739,6 +1912,51 @@ button:hover {
 
 .detail-list li + li {
   margin-top: 4px;
+}
+
+.actor-relationship-chart {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.actor-relationship-chart li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(42px, 1fr) 24px;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.actor-relationship-label {
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.actor-relationship-track {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  background: var(--hover-bg-strong);
+  border-radius: 3px;
+}
+
+.actor-relationship-bar {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: inherit;
+}
+
+.actor-relationship-count {
+  color: var(--text);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
 #details-sidebar {
@@ -1811,12 +2029,11 @@ button:hover {
 }
 
 #active-selection {
-  flex: 0 1 48%;
-  max-height: 48%;
+  flex: 0 1 var(--active-selection-height, 75%);
+  max-height: var(--active-selection-height, 75%);
   min-height: 0;
   padding-bottom: 10px;
   overflow-y: auto;
-  border-bottom: 1px solid var(--border);
 }
 
 #active-selection[hidden],
@@ -1833,7 +2050,60 @@ button:hover {
 #details-sidebar:not(.has-pinned) #active-selection {
   flex: 1;
   max-height: none;
-  border-bottom: 0;
+}
+
+#details-section-resize-handle {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 10px;
+  margin: 0;
+  cursor: row-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+#details-section-resize-handle[hidden] {
+  display: none;
+}
+
+#details-section-resize-handle::before,
+#details-section-resize-handle::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  content: '';
+  transform: translate(-50%, -50%);
+}
+
+#details-section-resize-handle::before {
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: var(--border);
+  transform: translateY(-50%);
+}
+
+#details-section-resize-handle::after {
+  width: 26px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--muted);
+}
+
+#details-section-resize-handle:hover::before,
+#details-section-resize-handle:focus-visible::before {
+  height: 2px;
+  background: var(--accent);
+}
+
+#details-section-resize-handle:hover::after,
+#details-section-resize-handle:focus-visible::after {
+  background: var(--accent);
+}
+
+#details-section-resize-handle:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
 }
 
 .selection-heading {
@@ -1881,7 +2151,7 @@ button:hover {
   align-items: center;
   justify-content: space-between;
   flex: 0 0 auto;
-  padding: 0 0 8px;
+  padding: 0 0 6px;
 }
 
 .pinned-section-heading h2 {
@@ -1903,7 +2173,7 @@ button:hover {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -1928,11 +2198,11 @@ button:hover {
 
 .pinned-item-header {
   display: grid;
-  grid-template-columns: 18px 24px minmax(0, 1fr) 24px;
+  grid-template-columns: 18px 22px minmax(0, 1fr) 22px;
   align-items: center;
   gap: 4px;
-  min-height: 34px;
-  padding: 2px 4px;
+  min-height: 29px;
+  padding: 1px 4px;
 }
 
 .pinned-grip {
@@ -1946,8 +2216,8 @@ button:hover {
 
 .pinned-disclosure,
 .unpin-selection {
-  width: 24px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   padding: 0;
   border: 0;
   border-radius: 2px;
@@ -1964,7 +2234,7 @@ button:hover {
   color: inherit;
   cursor: pointer;
   overflow: hidden;
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
   text-align: left;
@@ -1975,8 +2245,8 @@ button:hover {
 }
 
 .pinned-content {
-  margin: 0 8px 8px 30px;
-  padding-left: 10px;
+  margin: 0 8px 6px 30px;
+  padding-left: 8px;
   border-left: 1px solid var(--border);
 }
 
@@ -1986,6 +2256,22 @@ button:hover {
 
 .pinned-content dl {
   margin: 0;
+}
+
+.pinned-content .actor-details-layout {
+  gap: 7px;
+}
+
+.pinned-content .actor-detail-group dt {
+  margin-top: 7px;
+}
+
+.pinned-content .actor-detail-group dt:first-child {
+  margin-top: 0;
+}
+
+.pinned-content .actor-network-details {
+  padding-top: 0;
 }
 
 #graph-container {

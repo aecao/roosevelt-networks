@@ -191,19 +191,21 @@ function edgeColorForTheme(adjacencyType, color) {
   return state.theme === 'light' && adjacencyType === 'fin' ? '#519C00' : color;
 }
 
+function publicSentimentColor(sentiment) {
+  if (!Number.isFinite(sentiment)) return '#8a8a8a';
+  const intensity = Math.pow(Math.min(1, Math.abs(sentiment) / state.sentimentMaxAbs), 0.7);
+  const endpoint = sentiment < 0 ? [220, 28, 42] : [0, 154, 70];
+  const channels = endpoint.map((channel) => Math.round(255 + (channel - 255) * intensity));
+  return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+}
+
 function nodeColorForMode(attributes, isEmphasized = false) {
   if (state.colorMode === 'plain') {
     if (state.theme === 'light') return isEmphasized ? '#1f2933' : '#59636e';
     return isEmphasized ? '#d0d0d0' : '#ffffff';
   }
   if (state.colorMode === 'public-sentiment') {
-    const sentiment = attributes.sentiment;
-    if (!Number.isFinite(sentiment)) return '#8a8a8a';
-    const intensity = Math.pow(Math.min(1, Math.abs(sentiment) / state.sentimentMaxAbs), 0.7);
-    const endpoint = sentiment < 0 ? [220, 28, 42] : [0, 154, 70];
-    const midpoint = 255;
-    const channels = endpoint.map((channel) => Math.round(midpoint + (channel - midpoint) * intensity));
-    return `#${channels.map((channel) => channel.toString(16).padStart(2, '0')).join('')}`;
+    return publicSentimentColor(attributes.sentiment);
   }
   if (state.colorMode === 'category') {
     const topic = (attributes.topics || []).find((value) => state.activeTopics.has(value));
@@ -790,7 +792,12 @@ function getNodeNetworkSummary(graph, nodeId) {
     if (!isVisible(nodeId) || !isVisible(neighbor)) return;
     connectedActors.add(neighbor);
     const relationship = attributes.label || attributes.adjacencyType;
-    relationships.set(relationship, (relationships.get(relationship) || 0) + 1);
+    const relationshipData = relationships.get(relationship) || {
+      count: 0,
+      color: edgeColorForTheme(attributes.adjacencyType, state.edgeTypeColors.get(attributes.adjacencyType)),
+    };
+    relationshipData.count += 1;
+    relationships.set(relationship, relationshipData);
     if (!graph.isDirected(edge)) undirected += 1;
     else if (source === nodeId) outgoing += 1;
     else incoming += 1;
@@ -804,66 +811,306 @@ function getNodeNetworkSummary(graph, nodeId) {
     incoming,
     outgoing,
     undirected,
-    relationships: [...relationships].sort(([first], [second]) => first.localeCompare(second)),
+    relationships: [...relationships]
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((first, second) => first.name.localeCompare(second.name)),
   };
+}
+
+function createDetailField(label, content) {
+  const term = document.createElement('dt');
+  term.textContent = label;
+  const description = document.createElement('dd');
+  if (typeof content === 'string') description.textContent = content;
+  else description.appendChild(content);
+  return [term, description];
+}
+
+function createTopicPie(topics) {
+  const svgNamespace = 'http://www.w3.org/2000/svg';
+  const size = 72;
+  const center = size / 2;
+  const radius = 34;
+  const pie = document.createElementNS(svgNamespace, 'svg');
+  pie.setAttribute('class', 'actor-topic-pie');
+  pie.setAttribute('viewBox', `0 0 ${size} ${size}`);
+  pie.setAttribute('role', 'img');
+  pie.setAttribute('aria-label', `Category composition: ${topics.join(', ') || 'Uncategorized'}`);
+  const categories = [...new Set(topics)];
+  if (categories.length <= 1) {
+    const circle = document.createElementNS(svgNamespace, 'circle');
+    circle.setAttribute('cx', String(center));
+    circle.setAttribute('cy', String(center));
+    circle.setAttribute('r', String(radius));
+    circle.setAttribute('fill', categories.length ? state.topicColors.get(categories[0]) || '#8a8a8a' : '#8a8a8a');
+    pie.appendChild(circle);
+    return pie;
+  }
+  const sliceAngle = (Math.PI * 2) / categories.length;
+  categories.forEach((category, index) => {
+    const startAngle = -Math.PI / 2 + sliceAngle * index;
+    const endAngle = startAngle + sliceAngle;
+    const startX = center + Math.cos(startAngle) * radius;
+    const startY = center + Math.sin(startAngle) * radius;
+    const endX = center + Math.cos(endAngle) * radius;
+    const endY = center + Math.sin(endAngle) * radius;
+    const path = document.createElementNS(svgNamespace, 'path');
+    path.setAttribute('d', `M ${center} ${center} L ${startX} ${startY} A ${radius} ${radius} 0 ${sliceAngle > Math.PI ? 1 : 0} 1 ${endX} ${endY} Z`);
+    path.setAttribute('fill', state.topicColors.get(category) || '#8a8a8a');
+    pie.appendChild(path);
+  });
+  return pie;
+}
+
+function createActorMetricRange({ minimum, maximum, value, formatValue, colorForValue, borderColorForValue = colorForValue, currentLabelForValue = (score) => `${formatValue(score)} ${metricName}`, metricName, showHalo = true, showNumericLabels = true, minimumLabel = 'Min', maximumLabel = 'Max' }) {
+  const range = document.createElement('div');
+  range.className = 'actor-metric-range';
+  if (!Number.isFinite(minimum) || !Number.isFinite(maximum)) {
+    range.textContent = 'Not available';
+    return range;
+  }
+  const positionFor = (score) => maximum > minimum
+    ? Math.max(0, Math.min(1, (score - minimum) / (maximum - minimum)))
+    : 0.5;
+  const track = document.createElement('div');
+  track.className = 'actor-metric-track';
+  const baseline = document.createElement('span');
+  baseline.className = 'actor-metric-baseline';
+  track.appendChild(baseline);
+  const appendPoint = (kind, position, score, label) => {
+    const point = document.createElement('span');
+    point.className = `actor-metric-point ${kind}`;
+    point.style.left = `${position * 100}%`;
+    point.dataset.label = kind === 'current' ? currentLabelForValue(score) : '';
+    const color = colorForValue(score);
+    const node = document.createElement('span');
+    node.className = 'actor-metric-node';
+    node.style.background = color;
+    node.style.borderColor = borderColorForValue(score);
+    node.setAttribute('aria-hidden', 'true');
+    if (showHalo) {
+      const halo = document.createElement('span');
+      halo.className = 'actor-metric-halo';
+      const haloSize = Math.round(positionFor(score) * 42);
+      halo.style.width = `${haloSize}px`;
+      halo.style.height = `${haloSize}px`;
+      halo.style.borderColor = colorWithOpacity(color, 0.55);
+      halo.style.background = colorWithOpacity(color, 0.16);
+      point.appendChild(halo);
+    }
+    point.appendChild(node);
+    point.title = kind === 'current' ? currentLabelForValue(score) : showNumericLabels ? `${label}: ${formatValue(score)}` : label;
+    track.appendChild(point);
+  };
+  appendPoint('minimum', 0, minimum, 'Minimum');
+  appendPoint('maximum', 1, maximum, 'Maximum');
+  if (Number.isFinite(value)) appendPoint('current', positionFor(value), value, 'Selected actor');
+  range.appendChild(track);
+
+  const captions = document.createElement('div');
+  captions.className = 'actor-metric-captions';
+  const minimumCaption = document.createElement('span');
+  minimumCaption.textContent = showNumericLabels ? `${minimumLabel} ${formatValue(minimum)}` : minimumLabel;
+  const currentCaption = document.createElement('strong');
+  currentCaption.textContent = Number.isFinite(value) ? metricName : 'No data';
+  currentCaption.setAttribute('aria-label', Number.isFinite(value)
+    ? showNumericLabels ? `${metricName}: ${formatValue(value)}` : `${metricName} between ${minimumLabel.toLowerCase()} and ${maximumLabel.toLowerCase()}`
+    : `${metricName}: no data`);
+  const maximumCaption = document.createElement('span');
+  maximumCaption.textContent = showNumericLabels ? `${maximumLabel} ${formatValue(maximum)}` : maximumLabel;
+  captions.append(minimumCaption, currentCaption, maximumCaption);
+  range.appendChild(captions);
+  return range;
 }
 
 function renderSelectionDetails(selection, container) {
   container.replaceChildren();
-  const details = document.createElement('dl');
+  const isNodeSelection = selection.kind === 'node';
+  const details = document.createElement(isNodeSelection ? 'div' : 'dl');
+  details.className = isNodeSelection ? 'details actor-details-layout' : 'details';
   if (selection.kind === 'node') {
     const networkDetails = document.createElement('dl');
+    networkDetails.className = 'actor-detail-group actor-network-details';
+    const actorFields = document.createElement('dl');
+    actorFields.className = 'actor-detail-group actor-profile-details';
     const graph = state.graph;
     const nodeId = selection.nodeIds[0];
     if (graph?.hasNode(nodeId)) {
       const network = getNodeNetworkSummary(graph, nodeId);
       const modeLabels = {
-        'public-interest': 'Public interest (hits)',
         'degree-centrality': 'Degree centrality',
         'closeness-centrality': 'Closeness centrality',
         'betweenness-centrality': 'Betweenness centrality',
         'eigenvector-centrality': 'Eigenvector centrality',
-        plain: 'Plain halo mode',
       };
-      const centralityTerm = document.createElement('dt');
-      centralityTerm.textContent = 'Current centrality';
-      const centralityDescription = document.createElement('dd');
-      const score = Number.isFinite(network.score)
-        ? network.mode === 'public-interest' || network.mode === 'degree-centrality'
-          ? String(network.score)
-          : network.score.toPrecision(4)
+      const actorMetrics = state.getActorMetricSummary?.(nodeId);
+      const centralityContent = document.createElement('div');
+      centralityContent.className = 'actor-centrality-content';
+      const centralityValue = document.createElement('div');
+      centralityValue.className = 'actor-centrality-value';
+      const score = actorMetrics?.score;
+      const scoreText = Number.isFinite(score)
+        ? actorMetrics.mode === 'degree-centrality' ? String(score) : score.toPrecision(4)
         : 'Not available';
-      centralityDescription.textContent = `${modeLabels[network.mode] || 'Current halo metric'}: ${score}`;
-      networkDetails.append(centralityTerm, centralityDescription);
+      const scoreNumber = document.createElement('strong');
+      scoreNumber.textContent = scoreText;
+      const scoreType = document.createElement('span');
+      scoreType.textContent = `${modeLabels[actorMetrics?.mode] || 'Centrality'}:`;
+      centralityValue.append(scoreType, scoreNumber);
+      centralityContent.appendChild(centralityValue);
+      const percentile = document.createElement('p');
+      if (Number.isFinite(actorMetrics?.centralityPercentile)) {
+        percentile.append('This actor is more central than ');
+        const percentileValue = document.createElement('strong');
+        percentileValue.textContent = `${actorMetrics.centralityPercentile}%`;
+        percentile.append(percentileValue, ' of all other actors present in the model.');
+      } else {
+        percentile.textContent = Number.isFinite(actorMetrics?.score)
+          ? 'No other actors present in the model to compare.'
+          : actorMetrics?.includesActor
+            ? 'Centrality is unavailable for this actor.'
+            : 'This actor is filtered out or is not present in the model.';
+      }
+      centralityContent.appendChild(percentile);
+      networkDetails.append(...createDetailField('Centrality', centralityContent));
+
+      const formatHits = (value) => Number.isFinite(value) ? Math.round(value).toLocaleString() : '—';
+      networkDetails.append(...createDetailField('Public interest', createActorMetricRange({
+        ...actorMetrics.publicInterest,
+        formatValue: formatHits,
+        colorForValue: () => state.theme === 'light' ? '#000000' : '#ffffff',
+        metricName: 'Hits',
+        showHalo: true,
+      })));
+      const formatSentiment = (value) => Number.isFinite(value) ? value.toFixed(2) : '—';
+      const labelSentiment = (value) => {
+        if (!Number.isFinite(value) || value === 0) return 'Neutral';
+        const magnitude = Math.abs(value) / state.sentimentMaxAbs;
+        const direction = value < 0 ? 'negative' : 'positive';
+        if (magnitude >= 2 / 3) return `Strongly ${direction}`;
+        if (magnitude >= 1 / 3) return `${direction[0].toUpperCase()}${direction.slice(1)}`;
+        return `Slightly ${direction}`;
+      };
+      networkDetails.append(...createDetailField('Public sentiment', createActorMetricRange({
+        ...actorMetrics.publicSentiment,
+        formatValue: formatSentiment,
+        colorForValue: publicSentimentColor,
+        borderColorForValue: (value) => state.theme === 'light' ? 'rgba(31, 41, 51, 0.72)' : publicSentimentColor(value),
+        currentLabelForValue: labelSentiment,
+        metricName: 'Sentiment',
+        showHalo: false,
+        showNumericLabels: false,
+        minimumLabel: 'Negative',
+        maximumLabel: 'Positive',
+      })));
 
       const connectionsTerm = document.createElement('dt');
-      connectionsTerm.textContent = 'Current connections';
+      connectionsTerm.textContent = 'Relationships';
       const connectionsDescription = document.createElement('dd');
-      connectionsDescription.textContent = `${network.connectionCount} connections to ${network.actorCount} actors (${network.outgoing} outgoing, ${network.incoming} incoming, ${network.undirected} undirected)`;
+      const connectionCount = document.createElement('strong');
+      connectionCount.textContent = String(network.connectionCount);
+      const actorCount = document.createElement('strong');
+      actorCount.textContent = String(network.actorCount);
+      connectionsDescription.append(connectionCount, ' connections to ', actorCount, ' actors');
       networkDetails.append(connectionsTerm, connectionsDescription);
 
       if (network.relationships.length) {
-        const relationshipTerm = document.createElement('dt');
-        relationshipTerm.textContent = 'Connections by relationship';
-        const relationshipDescription = document.createElement('dd');
         const relationshipList = document.createElement('ul');
-        relationshipList.className = 'detail-list';
-        network.relationships.forEach(([name, count]) => {
+        relationshipList.className = 'actor-relationship-chart';
+        const maximumCount = Math.max(...network.relationships.map(({ count }) => count));
+        network.relationships.forEach(({ name, count, color }) => {
           const item = document.createElement('li');
-          item.textContent = `${name}: ${count}`;
+          const label = document.createElement('span');
+          label.className = 'actor-relationship-label';
+          label.textContent = name;
+          const track = document.createElement('span');
+          track.className = 'actor-relationship-track';
+          track.setAttribute('aria-hidden', 'true');
+          const bar = document.createElement('span');
+          bar.className = 'actor-relationship-bar';
+          bar.style.width = `${(count / maximumCount) * 100}%`;
+          bar.style.backgroundColor = color;
+          track.appendChild(bar);
+          const value = document.createElement('span');
+          value.className = 'actor-relationship-count';
+          value.textContent = String(count);
+          value.setAttribute('aria-label', `${count} connections`);
+          item.append(label, track, value);
           relationshipList.appendChild(item);
         });
-        relationshipDescription.appendChild(relationshipList);
-        networkDetails.append(relationshipTerm, relationshipDescription);
+        connectionsDescription.appendChild(relationshipList);
       }
     }
+    const attributes = graph?.hasNode(nodeId) ? graph.getNodeAttribute(nodeId, 'attributes') || {} : {};
+    let yearsAdded = false;
     selection.fields.forEach(([name, value]) => {
-      const term = document.createElement('dt');
-      term.textContent = name;
-      const description = document.createElement('dd');
-      description.textContent = value;
-      details.append(term, description);
+      const field = name.toLowerCase();
+      if (field === 'actor' || field === 'year_start' || field === 'year_end') {
+        if (!yearsAdded && (field === 'year_start' || field === 'year_end')) {
+          const start = attributes.year_start || 'Unknown';
+          const end = Number(attributes.year_end) === 3000 ? 'Present' : attributes.year_end || 'Unknown';
+          actorFields.append(...createDetailField('Years active', `${start}-${end}`));
+          yearsAdded = true;
+        }
+        return;
+      }
+      if (field === 'abbrev') {
+        actorFields.append(...createDetailField('Abbreviation', value));
+        return;
+      }
+      if (field === 'topic') {
+        const topicLayout = document.createElement('div');
+        topicLayout.className = 'actor-topic-layout';
+        topicLayout.appendChild(createTopicPie(graph.getNodeAttribute(nodeId, 'topics') || []));
+        const topicList = document.createElement('ul');
+        topicList.className = 'actor-topic-list';
+        [...new Set(graph.getNodeAttribute(nodeId, 'topics') || [])].forEach((topic) => {
+          const item = document.createElement('li');
+          item.textContent = topic;
+          item.style.color = state.topicColors.get(topic) || '#8a8a8a';
+          topicList.appendChild(item);
+        });
+        topicLayout.appendChild(topicList);
+        actorFields.append(...createDetailField('Category', topicLayout));
+        return;
+      }
+      if (field === 'type') {
+        const sectorRow = document.createElement('div');
+        sectorRow.className = 'actor-detail-symbol-row';
+        const sectorNode = document.createElement('span');
+        sectorNode.className = 'legend-swatch node';
+        sectorNode.style.background = state.categoryColors.get(graph.getNodeAttribute(nodeId, 'category')) || '#8a8a8a';
+        const sectorLabel = document.createElement('span');
+        sectorLabel.textContent = graph.getNodeAttribute(nodeId, 'category') || value;
+        sectorRow.append(sectorNode, sectorLabel);
+        actorFields.append(...createDetailField('Sector', sectorRow));
+        return;
+      }
+      if (field === 'scale') {
+        const scaleRow = document.createElement('div');
+        scaleRow.className = 'actor-detail-symbol-row';
+        const scaleNode = document.createElement('span');
+        scaleNode.className = 'legend-swatch scale-node';
+        const scales = ['MICRO', 'MESO', 'MACRO'];
+        const maximumRadius = Math.max(...scales.map(coreNodeSize));
+        scaleNode.style.width = `${Math.max(5, Math.round(Math.pow(coreNodeSize(graph.getNodeAttribute(nodeId, 'scale')) / maximumRadius, 0.65) * 18))}px`;
+        scaleNode.style.height = scaleNode.style.width;
+        scaleNode.style.flexBasis = scaleNode.style.width;
+        scaleNode.style.background = '#8a8a8a';
+        const scaleLabel = document.createElement('span');
+        scaleLabel.textContent = graph.getNodeAttribute(nodeId, 'scale') || value;
+        scaleRow.append(scaleNode, scaleLabel);
+        actorFields.append(...createDetailField('Scale of actor', scaleRow));
+        return;
+      }
+      actorFields.append(...createDetailField(name, value));
     });
+    if (!yearsAdded) {
+      const start = attributes.year_start || 'Unknown';
+      const end = Number(attributes.year_end) === 3000 ? 'Present' : attributes.year_end || 'Unknown';
+      actorFields.append(...createDetailField('Years active', `${start}-${end}`));
+    }
+    details.appendChild(actorFields);
     if (networkDetails.childElementCount) details.appendChild(networkDetails);
   } else {
     const actorsTerm = document.createElement('dt');
@@ -971,6 +1218,10 @@ function renderPinnedSelections() {
   const list = document.getElementById('pinned-list');
   document.getElementById('pinned-count').textContent = String(state.pinnedSelections.length);
   section.hidden = state.pinnedSelections.length === 0;
+  const detailsSidebar = document.getElementById('details-sidebar');
+  detailsSidebar.classList.toggle('has-pinned', state.pinnedSelections.length > 0);
+  const splitHandle = document.getElementById('details-section-resize-handle');
+  splitHandle.hidden = state.pinnedSelections.length === 0;
   list.replaceChildren();
 
   state.pinnedSelections.forEach((selection) => {
@@ -1265,6 +1516,7 @@ async function main() {
       state.renderer.refresh();
     }
     state.refreshLegend?.();
+    refreshVisibleNodeDetails();
   }
 
   themeToggle.addEventListener('click', () => applyRelationshipTheme(state.theme !== 'light'));
@@ -2186,13 +2438,16 @@ async function main() {
   timelineStartInput.addEventListener('change', updateTimelineRange);
   timelineEndInput.addEventListener('change', updateTimelineRange);
 
-  function buildMetricGraph() {
+  function buildMetricGraph(respectCentralityThreshold = false) {
     const metricGraph = new Graph({ multi: true });
     graph.forEachNode((node) => {
-      if (isNodeVisibleBase(node)) metricGraph.addNode(node);
+      const passesFilters = isNodeVisibleBase(node) || state.pinnedGraphNodeIds.has(node);
+      if (!passesFilters) return;
+      if (respectCentralityThreshold && !isNodeVisible(node)) return;
+      metricGraph.addNode(node);
     });
     graph.forEachEdge((edge, attrs, source, target) => {
-      if (!state.activeEdgeTypes.has(attrs.adjacencyType)
+      if ((!state.activeEdgeTypes.has(attrs.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge))
         || !metricGraph.hasNode(source)
         || !metricGraph.hasNode(target)) return;
       const metricEdge = { weight: 1 };
@@ -2205,9 +2460,8 @@ async function main() {
     return metricGraph;
   }
 
-  function centralityScores(mode) {
-    const metricGraph = buildMetricGraph();
-    if (metricGraph.order < 2) return {};
+  function centralityScores(mode, metricGraph = buildMetricGraph()) {
+    if (!metricGraph.order || (metricGraph.order < 2 && mode !== 'degree-centrality')) return {};
     try {
       if (mode === 'degree-centrality') {
         // Raw connection counts (not the normalized degreeCentrality score) so the
@@ -2231,17 +2485,51 @@ async function main() {
     return {};
   }
 
+  state.getActorMetricSummary = (nodeId) => {
+    const metricGraph = buildMetricGraph(true);
+    const mode = state.centralityFilterType;
+    const scores = centralityScores(mode, metricGraph);
+    const score = scores[nodeId];
+    const peerScores = metricGraph.nodes()
+      .filter((node) => node !== nodeId && Number.isFinite(scores[node]))
+      .map((node) => scores[node]);
+    const centralityPercentile = Number.isFinite(score) && peerScores.length
+      ? Math.round((peerScores.filter((peerScore) => peerScore < score).length / peerScores.length) * 100)
+      : null;
+    const summarizeMetric = (attribute) => {
+      const values = metricGraph.nodes()
+        .map((node) => graph.getNodeAttribute(node, attribute))
+        .filter(Number.isFinite);
+      return {
+        value: graph.hasNode(nodeId) ? graph.getNodeAttribute(nodeId, attribute) : null,
+        minimum: values.length ? Math.min(...values) : null,
+        maximum: values.length ? Math.max(...values) : null,
+      };
+    };
+    return {
+      mode,
+      score: Number.isFinite(score) ? score : null,
+      centralityPercentile,
+      visibleActorCount: metricGraph.order,
+      publicInterest: summarizeMetric('hits'),
+      publicSentiment: summarizeMetric('sentiment'),
+      includesActor: metricGraph.hasNode(nodeId),
+    };
+  };
+
   function updateNodeSizes() {
     const mode = sizeModeSelect.value;
     state.sizeMode = mode;
     const scores = mode.endsWith('-centrality') ? centralityScores(mode) : {};
-    const visibleScores = new Map(graph.nodes().filter(isNodeVisible).map((node) => {
+    const visibleScores = new Map(graph.nodes()
+      .filter((node) => isNodeVisible(node))
+      .map((node) => {
       if (mode === 'public-interest') {
         return [node, graph.getNodeAttribute(node, 'hits')];
       }
       if (mode === 'plain') return [node, 0];
       return [node, Number.isFinite(scores[node]) ? scores[node] : 0];
-    }));
+      }));
     const values = [...visibleScores.values()].filter(Number.isFinite);
     const minimum = values.length ? Math.min(...values) : 0;
     const maximum = values.length ? Math.max(...values) : 0;
@@ -3211,6 +3499,53 @@ async function main() {
     document.addEventListener('pointercancel', stopResizing);
   });
 
+  const detailsSectionResizeHandle = document.getElementById('details-section-resize-handle');
+  const detailsContent = document.getElementById('details-content');
+  let activeSelectionShare = 75;
+  const setActiveSelectionShare = (share) => {
+    activeSelectionShare = Math.max(20, Math.min(80, share));
+    detailsContent.style.setProperty('--active-selection-height', `${activeSelectionShare}%`);
+    detailsSectionResizeHandle.setAttribute('aria-valuenow', String(Math.round(activeSelectionShare)));
+  };
+  detailsSectionResizeHandle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || !state.pinnedSelections.length) return;
+    event.preventDefault();
+    const startY = event.clientY;
+    const startHeight = detailsContent.getBoundingClientRect().height;
+    const startShare = activeSelectionShare;
+    const originalUserSelect = document.body.style.userSelect;
+    const originalCursor = document.body.style.cursor;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'row-resize';
+    detailsSidebar.classList.add('resizing-sections');
+    detailsSectionResizeHandle.setPointerCapture(event.pointerId);
+
+    const stopResizing = () => {
+      document.removeEventListener('pointermove', resize);
+      document.removeEventListener('pointerup', stopResizing);
+      document.removeEventListener('pointercancel', stopResizing);
+      document.body.style.userSelect = originalUserSelect;
+      document.body.style.cursor = originalCursor;
+      detailsSidebar.classList.remove('resizing-sections');
+    };
+    const resize = (moveEvent) => {
+      const change = ((moveEvent.clientY - startY) / startHeight) * 100;
+      setActiveSelectionShare(startShare + change);
+    };
+
+    document.addEventListener('pointermove', resize);
+    document.addEventListener('pointerup', stopResizing);
+    document.addEventListener('pointercancel', stopResizing);
+  });
+  detailsSectionResizeHandle.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowUp') setActiveSelectionShare(activeSelectionShare - 2);
+    else if (event.key === 'ArrowDown') setActiveSelectionShare(activeSelectionShare + 2);
+    else if (event.key === 'Home') setActiveSelectionShare(20);
+    else if (event.key === 'End') setActiveSelectionShare(80);
+    else return;
+    event.preventDefault();
+  });
+
   // Search
   const searchInput = document.getElementById('search');
   const searchResults = document.getElementById('search-results');
@@ -3352,6 +3687,18 @@ async function main() {
   };
   const camera = renderer.getCamera();
   camera.on('updated', updateZoomLevel);
+  let centralityViewportUpdateTimer = null;
+  camera.on('updated', () => {
+    window.clearTimeout(centralityViewportUpdateTimer);
+    centralityViewportUpdateTimer = window.setTimeout(() => {
+      centralityFilterScoreCache = null;
+      updateNodeSizes();
+      updateCentralityThresholdRange();
+      updateLabelTiers();
+      renderer.refresh();
+      refreshVisibleNodeDetails();
+    }, 180);
+  });
   updateZoomLevel(camera.getState());
   makeSliderOutputEditable(zoomLevel, () => ({ min: 10, max: 2000 }), (zoomPercent) => {
     camera.animate({ ratio: camera.getBoundedRatio(100 / zoomPercent) }, { duration: 300 });
