@@ -215,6 +215,83 @@
   border-left-color: #2200ff;
 }
 
+.doc-figure {
+  margin: 1rem 0 0;
+  max-width: 100%;
+}
+
+.doc-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  background: #111;
+}
+
+.doc-figure a {
+  text-decoration: none;
+}
+
+.doc-figure figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.doc-figure-small {
+  max-width: 22rem;
+}
+
+.doc-figure-tall {
+  max-width: 16rem;
+}
+
+.figure-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.figure-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.figure-row > .doc-figure:first-child:not(.doc-figure-tall):not(.doc-figure-small) {
+  width: 34rem;
+  max-width: 100%;
+}
+
+.doc-section ol.figure-key {
+  list-style: none;
+  padding-left: 0;
+  counter-reset: figure-key;
+}
+
+.figure-key > li {
+  position: relative;
+  padding-left: 2rem;
+  counter-increment: figure-key;
+}
+
+.figure-key > li::before {
+  content: counter(figure-key);
+  position: absolute;
+  left: 0;
+  top: 0.05em;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 50%;
+  background: #afff2e;
+  color: #000;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.4rem;
+  text-align: center;
+}
+
 @media (max-width: 900px) {
   .doc-layout {
     display: block;
@@ -222,6 +299,11 @@
 
   .doc-toc {
     display: none;
+  }
+
+  .figure-grid,
+  .figure-row {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

@@ -1992,6 +1992,8 @@ async function main() {
     edgeProgramClasses: buildEdgeProgramClasses(),
   });
   state.renderer = renderer;
+  // Dev-only hook used by scripts/capture-tutorial-media.mjs to locate actors on screen.
+  if (import.meta.env.DEV) window.__rooseveltNetworks = { renderer, graph };
   // Starts the relationship diagram ~2x as zoomed in as Sigma's default full-extent fit.
   renderer.getCamera().setState({ ...renderer.getCamera().getState(), ratio: fromGoogleSheets ? 1 : 0.5 });
   relationshipsCameraState = renderer.getCamera().getState();

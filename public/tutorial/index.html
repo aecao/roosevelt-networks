@@ -59,6 +59,21 @@
           <section id="navigation" class="doc-subsection">
             <h2>1. Navigation</h2>
 
+            <h3>Interface overview</h3>
+            <figure class="doc-figure">
+              <a href="media/overview.jpeg"><img src="media/overview.jpeg" width="2800" height="1720" loading="lazy" alt="The full app window in Relationships mode with RIOC selected, annotated with numbered markers for the main interface areas." /></a>
+              <figcaption>The app with an actor selected and the Legend open.</figcaption>
+            </figure>
+            <ol class="figure-key">
+              <li><strong>Mode tabs</strong>: switch between Relationships, Map and Timeline.</li>
+              <li><strong>Header controls</strong>: theme, Export, Legend, Relink data and the <strong>i</strong> menu.</li>
+              <li><strong>Filters</strong> (left sidebar): search, appearance settings and filters. Collapse it with <strong>&minus;</strong> to give the view more room.</li>
+              <li><strong>View</strong>: the model itself. Hover, click and right-click actors and connections here.</li>
+              <li><strong>Zoom controls</strong>: zoom level, zoom in/out, reset and fullscreen.</li>
+              <li><strong>Details</strong> (right sidebar): information about the current selection and any pinned selections. Expand it with <strong>+</strong>, and drag its left edge to resize it.</li>
+              <li><strong>Legend</strong>: a floating panel explaining colours, line styles and scales.</li>
+            </ol>
+
             <h3>Modes</h3>
             <p>The <strong>Mode</strong> tabs in the header switch between three views of the same dataset:</p>
             <ul>
@@ -66,47 +81,118 @@
               <li><strong>Map</strong> places actors on the buildings and sites they are linked to on Roosevelt Island. Hover over an unlinked building footprint to see its name or BIN.</li>
               <li><strong>Timeline</strong> (beta) plots actors across their active years and links predecessors to their successors.</li>
             </ul>
+            <div class="figure-grid">
+              <figure class="doc-figure">
+                <a href="media/mode-relationships.jpeg"><img src="media/mode-relationships.jpeg" width="1800" height="1140" loading="lazy" alt="Relationships mode: a force-directed network of actors." /></a>
+                <figcaption>Relationships</figcaption>
+              </figure>
+              <figure class="doc-figure">
+                <a href="media/mode-map.jpeg"><img src="media/mode-map.jpeg" width="1800" height="1140" loading="lazy" alt="Map mode: actors placed on building footprints along Roosevelt Island." /></a>
+                <figcaption>Map</figcaption>
+              </figure>
+              <figure class="doc-figure">
+                <a href="media/mode-timeline.jpeg"><img src="media/mode-timeline.jpeg" width="1800" height="1140" loading="lazy" alt="Timeline mode: actors arranged along a horizontal axis of years." /></a>
+                <figcaption>Timeline (beta)</figcaption>
+              </figure>
+            </div>
 
             <h3>Panning, zooming and fullscreen</h3>
             <ul>
               <li><strong>Pan</strong> by clicking and dragging on empty space.</li>
               <li><strong>Zoom</strong> with the scroll wheel or trackpad, or with the <strong>+</strong> and <strong>&minus;</strong> buttons in the top-right corner of the view.</li>
-              <li>The percentage next to those buttons shows the current zoom level; click it to type an exact value.</li>
-              <li><strong>&#10530;</strong> resets the zoom to fit the whole model, and <strong>&#9974;</strong> toggles fullscreen (press Esc to exit).</li>
             </ul>
+            <div class="figure-row">
+              <figure class="doc-figure">
+                <img src="media/pan-zoom.gif" width="800" height="560" loading="lazy" alt="Animation: dragging to pan the network, scrolling to zoom in on an actor, then resetting the zoom." />
+                <figcaption>Drag to pan, scroll to zoom, then reset to fit.</figcaption>
+              </figure>
+              <div>
+                <figure class="doc-figure doc-figure-small" style="max-width: 10rem">
+                  <img src="media/zoom-controls.png" width="312" height="328" loading="lazy" alt="The zoom controls in the top-right corner of the view, annotated 1 to 5." />
+                  <figcaption>Zoom controls (top-right of the view).</figcaption>
+                </figure>
+                <ol class="figure-key">
+                  <li><strong>Zoom level</strong>: click to type an exact value.</li>
+                  <li><strong>Zoom in</strong></li>
+                  <li><strong>Zoom out</strong></li>
+                  <li><strong>&#10530; Reset</strong>: fit the whole model in the view.</li>
+                  <li><strong>&#9974; Fullscreen</strong>: press Esc to exit.</li>
+                </ol>
+              </div>
+            </div>
 
-            <h3>Interface overview</h3>
-            <ul>
-              <li><strong>Header</strong>: mode tabs, a light/dark theme switch, <strong>Export</strong>, <strong>Legend</strong>, <strong>Relink data</strong>, and the <strong>i</strong> menu with these documentation pages, credits and links to the code and dataset.</li>
-              <li><strong>Filters</strong> (left sidebar): search, appearance settings and filters. Collapse it with <strong>&minus;</strong> to give the view more room.</li>
-              <li><strong>Details</strong> (right sidebar): information about the current selection and any pinned selections. Expand it with <strong>+</strong>, and drag its left edge to resize it.</li>
-              <li><strong>Legend</strong>: a floating panel explaining colours, line styles and scales. Drag its header to move it and its edges to resize it; A&minus; / A+ change its text size and the fit button sizes it to its contents. Closing it collapses it back into the Legend button.</li>
-            </ul>
+            <h3>Header controls</h3>
+            <figure class="doc-figure doc-figure-small">
+              <img src="media/header-controls.png" width="620" height="128" loading="lazy" alt="The controls on the right of the header, annotated 1 to 5." />
+            </figure>
+            <ol class="figure-key">
+              <li><strong>Theme</strong>: switch between dark and light backgrounds.</li>
+              <li><strong>Export</strong>: save an image of the view (see <a href="#exporting">Exporting</a>).</li>
+              <li><strong>Legend</strong>: show or hide the legend panel.</li>
+              <li><strong>Relink data</strong>: reload the latest published dataset (see <a href="#advanced">Advanced</a>).</li>
+              <li><strong>i</strong>: these documentation pages, credits, and links to the code and dataset.</li>
+            </ol>
+            <figure class="doc-figure doc-figure-small">
+              <img src="media/info-menu.png" width="720" height="616" loading="lazy" alt="The open i menu listing Tutorial, Methodology, Importing custom datasets, credits, and links to the code and dataset." />
+              <figcaption>The <strong>i</strong> menu.</figcaption>
+            </figure>
+
+            <h3>Legend</h3>
+            <p>
+              Drag the Legend's header to move it and its edges to resize it. A&minus; / A+ change its text size and the
+              &#8597; button sizes it to its contents. Closing it collapses it back into the Legend button.
+            </p>
+            <figure class="doc-figure">
+              <img src="media/legend.gif" width="1100" height="560" loading="lazy" alt="Animation: opening the Legend, changing its text size, dragging it to a new position and closing it." />
+              <figcaption>Open, resize text, move and close the Legend.</figcaption>
+            </figure>
           </section>
 
           <section id="filtering" class="doc-subsection">
             <h2>2. Filtering</h2>
             <p>Filters in the left sidebar control which actors and connections are shown. Click a heading to expand or collapse its group.</p>
-            <ul>
-              <li><strong>Search</strong>: find an actor by full name or abbreviation.</li>
-              <li><strong>Centrality</strong>: choose a centrality measure (degree, closeness, betweenness or eigenvector) and hide actors below a minimum score.</li>
-              <li><strong>Sector</strong>, <strong>Category</strong> and <strong>Scale</strong>: tick or untick groups to show or hide their actors. <strong>All</strong> toggles every group at once.</li>
-              <li><strong>Relationships</strong>: show or hide each type of connection.</li>
-              <li><strong>Time range</strong>: turn on <em>Filter by active year</em> to show only the actors active in the chosen year. In Timeline mode, <strong>Year range</strong> sets the span of years shown.</li>
-            </ul>
+            <div class="figure-row">
+              <figure class="doc-figure doc-figure-tall">
+                <a href="media/filters-sidebar.png"><img src="media/filters-sidebar.png" width="628" height="2928" loading="lazy" alt="The Filters sidebar with every group shown, annotated 1 to 8." /></a>
+              </figure>
+              <ol class="figure-key">
+                <li><strong>Search</strong>: find an actor by full name or abbreviation.</li>
+                <li><strong>Appearance</strong>: labels, node size, colour and halo (see <a href="#appearance">Appearance</a>).</li>
+                <li><strong>Centrality</strong>: choose a centrality measure (degree, closeness, betweenness or eigenvector) and hide actors below a minimum score.</li>
+                <li><strong>Sector</strong>, <strong>Category</strong> and <strong>Scale</strong>: tick or untick groups to show or hide their actors. <strong>All</strong> toggles every group at once.</li>
+                <li><strong>Relationships</strong>: show or hide each type of connection.</li>
+                <li><strong>Connection curvature</strong> and layout <strong>gravity</strong> (how tightly the layout pulls together).</li>
+                <li><strong>Time range</strong>: turn on <em>Filter by active year</em> to show only the actors active in the chosen year. In Timeline mode, <strong>Year range</strong> sets the span of years shown.</li>
+                <li><strong>Freeze actor position</strong> and <strong>Zoom to selected</strong> (see <a href="#selecting-pinning">Selecting + Pinning</a>).</li>
+              </ol>
+            </div>
             <p>Sliders have &minus; and + buttons for stepping between values, and their value can be clicked to type an exact number.</p>
+            <figure class="doc-figure">
+              <img src="media/filtering.gif" width="1100" height="600" loading="lazy" alt="Animation: hiding two sectors, then raising the minimum degree centrality so only the most connected actors remain." />
+              <figcaption>Hiding sectors, then filtering by minimum degree centrality.</figcaption>
+            </figure>
           </section>
 
           <section id="appearance" class="doc-subsection">
             <h2>3. Appearance</h2>
             <p>The <strong>Appearance</strong> group at the top of the Filters sidebar controls how the model is drawn:</p>
-            <ul>
-              <li><strong>Labels</strong>: show or hide actor names, set their text size, and optionally set a threshold so only the most significant actors are labelled.</li>
-              <li><strong>Node size</strong>: scale every actor up or down. Under Scale, <em>Size nodes by scale</em> makes macro-scale actors larger than micro-scale ones.</li>
-              <li><strong>Color mode</strong>: colour actors by sector, category or public sentiment, or use a single plain colour.</li>
-              <li><strong>Halo</strong>: turn the halo around each actor on or off, and choose what its size represents: public interest or one of the centrality measures.</li>
-            </ul>
-            <p>The Relationships section also sets <strong>connection curvature</strong> and layout <strong>gravity</strong> (how tightly the layout pulls together). The theme switch in the header toggles light and dark backgrounds.</p>
+            <div class="figure-row">
+              <figure class="doc-figure doc-figure-tall">
+                <img src="media/appearance.png" width="590" height="826" loading="lazy" alt="The Appearance group, annotated 1 to 5." />
+              </figure>
+              <ol class="figure-key">
+                <li><strong>Labels</strong>: show or hide actor names and set their text size.</li>
+                <li><strong>Label threshold</strong>: label only the most significant actors.</li>
+                <li><strong>Node size</strong>: scale every actor up or down. Under Scale, <em>Size nodes by scale</em> makes macro-scale actors larger than micro-scale ones.</li>
+                <li><strong>Color mode</strong>: colour actors by sector, category or public sentiment, or use a single plain colour.</li>
+                <li><strong>Halo</strong>: turn the halo around each actor on or off, and choose what its size represents: public interest or one of the centrality measures.</li>
+              </ol>
+            </div>
+            <figure class="doc-figure">
+              <img src="media/appearance.gif" width="1100" height="600" loading="lazy" alt="Animation: changing the colour mode, resizing nodes and turning the halo off." />
+              <figcaption>Changing the colour mode, node size and halo.</figcaption>
+            </figure>
+            <p>The theme switch in the header toggles light and dark backgrounds.</p>
           </section>
 
           <section id="selecting-pinning" class="doc-subsection">
@@ -119,6 +205,31 @@
               <li>With <strong>Zoom to selected</strong> on (bottom of the Filters sidebar), the view moves to each new selection. <strong>Freeze actor position</strong> stops the layout from moving.</li>
               <li>When the Details panel is collapsed, a dot on its button signals a new selection or pin you haven't looked at yet.</li>
             </ul>
+            <figure class="doc-figure">
+              <img src="media/select.gif" width="1100" height="620" loading="lazy" alt="Animation: hovering over actors, clicking one to open its details, then clicking empty space to clear the selection." />
+              <figcaption>Hover to highlight, click to select, click empty space to deselect.</figcaption>
+            </figure>
+            <figure class="doc-figure">
+              <img src="media/pinning.gif" width="1100" height="620" loading="lazy" alt="Animation: right-clicking an actor and choosing Pin selection, then selecting another actor while the first stays highlighted." />
+              <figcaption>Pinning from the right-click menu keeps an actor highlighted while you explore.</figcaption>
+            </figure>
+            <div class="figure-row">
+              <figure class="doc-figure doc-figure-tall">
+                <a href="media/details-panel.png"><img src="media/details-panel.png" width="640" height="1640" loading="lazy" alt="The Details panel with an actor selected and two pinned selections, annotated 1 to 4." /></a>
+              </figure>
+              <div>
+                <ol class="figure-key">
+                  <li><strong>Current selection</strong>: click the title to zoom to it.</li>
+                  <li><strong>Pin / Unpin</strong> the current selection.</li>
+                  <li><strong>Details</strong>: category, sector, scale, years active, centrality, public interest and sentiment, relationships and linked buildings.</li>
+                  <li><strong>Pinned selections</strong>: expand with &#9656;, drag &#10303; to reorder, &times; to unpin. Drag the bar above this section to resize it.</li>
+                </ol>
+                <figure class="doc-figure doc-figure-small">
+                  <img src="media/context-menu.png" width="600" height="280" loading="lazy" alt="The right-click menu on an actor showing Pin selection." />
+                  <figcaption>Right-click an actor or connection to pin it.</figcaption>
+                </figure>
+              </div>
+            </div>
           </section>
 
           <section id="exporting" class="doc-subsection">
@@ -128,6 +239,16 @@
               <li><strong>Basic export</strong> saves an image of the view immediately.</li>
               <li><strong>Advanced...</strong> opens export settings: raster or vector output, resolution, background, whether to export the visible viewport or the whole model, how to include the legend, and whether to export only selected/pinned items or dim everything else.</li>
             </ul>
+            <div class="figure-row">
+              <figure class="doc-figure doc-figure-small">
+                <img src="media/export-menu.png" width="680" height="300" loading="lazy" alt="The Export menu open below the Export button, with Basic export and Advanced options." />
+                <figcaption>The Export menu.</figcaption>
+              </figure>
+              <figure class="doc-figure">
+                <a href="media/export-advanced.png"><img src="media/export-advanced.png" width="848" height="1018" loading="lazy" alt="The Advanced export window with format, resolution, background, extent, legend and selection options." /></a>
+                <figcaption>Advanced export settings.</figcaption>
+              </figure>
+            </div>
           </section>
 
           <section id="advanced" class="doc-subsection">

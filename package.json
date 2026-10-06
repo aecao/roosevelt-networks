@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "sync:buildings": "node scripts/build-map-overlay.mjs --sync"
+    "sync:buildings": "node scripts/build-map-overlay.mjs --sync",
+    "capture:tutorial": "node scripts/capture-tutorial-media.mjs"
   },
   "dependencies": {
     "@sigma/edge-curve": "^3.1.0",
@@ -23,6 +24,9 @@
     "svg2pdf.js": "^2.8.1"
   },
   "devDependencies": {
+    "gifenc": "^1.0.3",
+    "playwright": "^1.63.0",
+    "pngjs": "^7.0.0",
     "vite": "^5.4.0"
   }
 }

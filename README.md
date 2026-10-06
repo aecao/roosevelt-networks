@@ -57,6 +57,17 @@ npm run build
 npm run preview
 ```
 
+## Tutorial media
+
+The annotated screenshots and GIFs in `public/tutorial/media/` are generated from the running app. With `npm run dev` running, run:
+
+```bash
+npm run capture:tutorial
+npm run capture:tutorial -- --only=overview,selectGif   # regenerate specific captures
+```
+
+The script drives Microsoft Edge through Playwright (pass `--url=` to target another server). Re-run it after UI changes so the tutorial stays current.
+
 ## Deployment
 
 Pushing to `main` runs two workflows:
