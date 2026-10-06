@@ -47,9 +47,9 @@
           </button>
           <div id="header-info-menu" class="header-info-menu" role="region" aria-label="More information" hidden>
             <div class="header-info-options" role="group" aria-label="Resources">
-              <button type="button">Tutorial</button>
-              <button type="button">Documentation</button>
-              <button type="button">Importing custom datasets...</button>
+              <a href="tutorial/" target="_blank" rel="noopener">Tutorial</a>
+              <a href="methodology/" target="_blank" rel="noopener">Methodology</a>
+              <a href="custom/" target="_blank" rel="noopener">Importing custom datasets...</a>
             </div>
             <div class="header-info-credits">
               <p>Developed by Anna Cao.</p>
@@ -477,6 +477,13 @@
   </div>
   <div id="selection-context-menu" class="selection-context-menu" role="menu" hidden>
     <button id="context-pin-toggle" type="button" role="menuitem">Pin selection</button>
+  </div>
+  <div id="mobile-notice" class="mobile-notice" role="dialog" aria-modal="true" aria-labelledby="mobile-notice-text" hidden>
+    <div class="mobile-notice-card">
+      <button id="mobile-notice-close" class="mobile-notice-close" type="button" aria-label="Close">&times;</button>
+      <p id="mobile-notice-text"><strong>Note:</strong> This app is currently optimized for desktop.</p>
+      <button id="mobile-notice-ok" class="mobile-notice-ok" type="button">Continue anyway</button>
+    </div>
   </div>
   <script type="module" src="/src/main.js"></script>
 </body>

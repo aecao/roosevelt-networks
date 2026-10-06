@@ -4,6 +4,8 @@ Interactive network model of New Deal-era actors, built with [sigma.js](https://
 
 Live site: https://imadeitfor.you/app/roosevelt-networks/ (not yet linked from the portfolio's own pages)
 
+Documentation pages, each a static `index.html` in `public/` that reuses the portfolio's stylesheet (plus [public/docs.css](public/docs.css)) and deploys alongside the app: [tutorial](https://imadeitfor.you/app/roosevelt-networks/tutorial/) ([source](public/tutorial/index.html)), [methodology](https://imadeitfor.you/app/roosevelt-networks/methodology/) ([source](public/methodology/index.html)) and [custom datasets](https://imadeitfor.you/app/roosevelt-networks/custom/) ([source](public/custom/index.html)). The app's info menu links to them.
+
 ## Data format
 
 ### Nodes — `public/data/actors.csv`

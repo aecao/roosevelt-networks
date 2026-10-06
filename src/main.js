@@ -5539,6 +5539,35 @@ async function main() {
 
 }
 
+function setupMobileNotice() {
+  const notice = document.getElementById('mobile-notice');
+  if (!notice) return;
+  const storageKey = 'rn-mobile-notice-dismissed';
+  let dismissed = false;
+  try { dismissed = sessionStorage.getItem(storageKey) === '1'; } catch { /* storage unavailable */ }
+  const isMobile = window.matchMedia('(max-width: 700px), (hover: none) and (pointer: coarse)').matches;
+  if (dismissed || !isMobile) return;
+
+  const close = () => {
+    notice.hidden = true;
+    try { sessionStorage.setItem(storageKey, '1'); } catch { /* storage unavailable */ }
+    document.removeEventListener('keydown', onKeydown);
+  };
+  const onKeydown = (event) => {
+    if (event.key === 'Escape') close();
+  };
+  notice.addEventListener('click', (event) => {
+    if (event.target === notice) close();
+  });
+  document.getElementById('mobile-notice-close').addEventListener('click', close);
+  document.getElementById('mobile-notice-ok').addEventListener('click', close);
+  document.addEventListener('keydown', onKeydown);
+  notice.hidden = false;
+  document.getElementById('mobile-notice-ok').focus();
+}
+
+setupMobileNotice();
+
 main().catch((err) => {
   console.error(err);
   const refreshButton = document.getElementById('refresh-sheets');

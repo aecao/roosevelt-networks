@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roosevelt Networks: Tutorial | Anna Cao</title>
+  <link rel="canonical" href="https://imadeitfor.you/app/roosevelt-networks/tutorial/" />
+  <link rel="stylesheet" href="https://imadeitfor.you/assets/css/style.css" />
+  <link rel="stylesheet" href="../docs.css" />
+  <link rel="icon" type="image/svg+xml" href="https://imadeitfor.you/assets/favicon.svg" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-title">ANNA CAO</div>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="https://imadeitfor.you/gallery/">Gallery</a>
+      <a href="https://imadeitfor.you/about/">About</a>
+      <a href="https://imadeitfor.you/apps/" aria-current="page">Apps</a>
+      <a href="https://imadeitfor.you/cv/">CV</a>
+      <a href="https://imadeitfor.you/contact/">Contact</a>
+    </nav>
+  </header>
+
+  <main class="project-template">
+    <section class="project-text">
+      <h1>Roosevelt Networks</h1>
+      <p class="project-kind">Developed by Anna Cao. Dataset built and populated by Anna Cao, Victoria Li, and Audrey Lau.</p>
+      <p class="project-meta">ARCH 5115 / Designing the Urban Commons / Garine Boghossian and Kobi Ruthenberg</p>
+      <p class="project-meta">Cornell University, Fall 2026</p>
+      <p class="project-description">
+        Roosevelt Networks is an interactive model of the actors that shape Roosevelt Island (agencies, organizations,
+        institutions, buildings and people) and the relationships between them. This documentation explains how to use the app,
+        how the model is constructed, and how to load your own dataset.
+      </p>
+      <a class="back-link" href="../">Open the app &rarr;</a>
+
+      <nav aria-label="Documentation">
+        <ul class="doc-tabs">
+          <li><a href="../tutorial/" aria-current="page">Tutorial</a></li>
+          <li><a href="../methodology/">Methodology</a></li>
+          <li><a href="../custom/">Importing custom datasets</a></li>
+        </ul>
+      </nav>
+
+      <section class="doc-section" aria-label="Tutorial">
+        <h3>Modes</h3>
+        <p>Use the tabs at the top of the window to switch between three views of the same dataset:</p>
+        <ul>
+          <li><strong>Relationships</strong> lays the network out with a force-directed layout, so closely connected actors cluster together.</li>
+          <li><strong>Map</strong> places actors on the buildings and sites they are linked to on Roosevelt Island. Hover over an unlinked building footprint to see its name or BIN.</li>
+          <li><strong>Timeline</strong> (beta) plots actors across their active years and links predecessors to their successors.</li>
+        </ul>
+
+        <h3>Selecting, hovering and pinning</h3>
+        <ul>
+          <li>Hover over an actor or connection to highlight it and its direct neighbours; everything else fades back.</li>
+          <li>Click an actor or connection to open its details in the right-hand <strong>Details</strong> panel. Click empty space to clear the selection.</li>
+          <li><strong>Pin</strong> a selection to keep it in the Details panel while you explore other actors. Pinned items can be expanded, collapsed and reordered by dragging.</li>
+          <li>Use the search box to find an actor by full name or abbreviation; each result can be opened or pinned directly.</li>
+          <li>When the Details panel is collapsed, a dot on its button signals a new selection or pin you haven't looked at yet.</li>
+        </ul>
+
+        <h3>Filters and appearance</h3>
+        <p>The left-hand sidebar controls what is shown and how it is drawn:</p>
+        <ul>
+          <li><strong>Appearance</strong>: toggle labels, set text size and an optional label threshold, set node size, choose a colour mode (sector, category, public sentiment or plain), and turn the halo on or off and choose what its size represents.</li>
+          <li><strong>Centrality</strong>: hide actors below a minimum centrality score, using degree, closeness, betweenness or eigenvector centrality.</li>
+          <li><strong>Sector</strong>, <strong>Category</strong> and <strong>Scale</strong>: show or hide actors by group.</li>
+          <li><strong>Relationships</strong>: show or hide each kind of connection, and adjust connection curvature and layout gravity.</li>
+          <li><strong>Time range</strong>: show only the actors active in a given year.</li>
+          <li><strong>Freeze actor position</strong> stops the layout from moving; <strong>Zoom to selected</strong> moves the view to each new selection.</li>
+        </ul>
+        <p>Sliders have &minus; and + buttons for stepping through values, and their value can be clicked to type an exact number.</p>
+
+        <h3>Legend</h3>
+        <p>
+          The <strong>Legend</strong> button in the header opens a movable, resizable legend describing everything in the
+          current model: relationship types and their line styles, line-weight scales, node colours, scales and halos. Use
+          A&minus; / A+ to change its text size and the fit button to resize it to its contents. Closing the legend collapses it
+          back into the Legend button.
+        </p>
+
+        <h3>Export</h3>
+        <p>
+          <strong>Export</strong> saves the current view. <em>Basic export</em> saves an image immediately;
+          <em>Advanced</em> lets you choose raster or vector output, resolution, background, whether to export the viewport
+          or the whole model, how to include the legend, and whether to export only selected/pinned items or dim everything else.
+        </p>
+
+        <h3>Relinking data</h3>
+        <p>
+          The app starts from a bundled snapshot of the dataset. <strong>Relink data</strong> fetches the latest version of the
+          published spreadsheet and rebuilds the model. Edits to the spreadsheet can take up to five minutes to be published.
+        </p>
+      </section>
+    </section>
+  </main>
+</body>
+</html>

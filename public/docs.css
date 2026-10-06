@@ -1,0 +1,120 @@
+/* Shared styles for the documentation pages, layered on the portfolio stylesheet. */
+.doc-section a {
+  color: #2200ff;
+  text-decoration: none;
+}
+
+.doc-section a:hover {
+  text-decoration: underline;
+}
+
+.doc-section h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.doc-section h3 {
+  margin: 1.4rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.project-text .doc-section p,
+.doc-section li,
+.doc-section td,
+.doc-section th {
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.project-text .doc-section p {
+  margin: 0.6rem 0 0;
+  max-width: 75ch;
+}
+
+.doc-section ul,
+.doc-section ol {
+  margin: 0.6rem 0 0;
+  padding-left: 1.2rem;
+  max-width: 75ch;
+}
+
+.doc-section li + li {
+  margin-top: 0.3rem;
+}
+
+.doc-section strong {
+  font-weight: 700;
+}
+
+.doc-section code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.82rem;
+  padding: 0.05rem 0.25rem;
+  background: rgba(21, 18, 15, 0.06);
+}
+
+.doc-table-wrap {
+  margin: 0.8rem 0 0;
+  overflow-x: auto;
+}
+
+.doc-section table {
+  border-collapse: collapse;
+  min-width: min(100%, 640px);
+}
+
+.doc-section th,
+.doc-section td {
+  padding: 0.35rem 0.8rem 0.35rem 0;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc-section th {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.doc-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.6rem;
+  margin: 2rem 0 0;
+  padding: 0;
+  list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+
+.doc-tabs a {
+  display: block;
+  margin-bottom: -1px;
+  padding: 0.5rem 0 0.6rem;
+  border-bottom: 3px solid transparent;
+  color: var(--ink);
+  opacity: 0.4;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.doc-tabs a:hover {
+  opacity: 0.75;
+}
+
+.doc-tabs a[aria-current="page"] {
+  opacity: 1;
+  border-bottom-color: #2200ff;
+}
+
+.doc-section {
+  margin: 0;
+  padding-top: 0.4rem;
+}
+
+.doc-section > h3:first-child {
+  margin-top: 0.6rem;
+}

@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roosevelt Networks: Methodology | Anna Cao</title>
+  <link rel="canonical" href="https://imadeitfor.you/app/roosevelt-networks/methodology/" />
+  <link rel="stylesheet" href="https://imadeitfor.you/assets/css/style.css" />
+  <link rel="stylesheet" href="../docs.css" />
+  <link rel="icon" type="image/svg+xml" href="https://imadeitfor.you/assets/favicon.svg" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="site-title">ANNA CAO</div>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="https://imadeitfor.you/gallery/">Gallery</a>
+      <a href="https://imadeitfor.you/about/">About</a>
+      <a href="https://imadeitfor.you/apps/" aria-current="page">Apps</a>
+      <a href="https://imadeitfor.you/cv/">CV</a>
+      <a href="https://imadeitfor.you/contact/">Contact</a>
+    </nav>
+  </header>
+
+  <main class="project-template">
+    <section class="project-text">
+      <h1>Roosevelt Networks</h1>
+      <p class="project-kind">Developed by Anna Cao. Dataset built and populated by Anna Cao, Victoria Li, and Audrey Lau.</p>
+      <p class="project-meta">ARCH 5115 / Designing the Urban Commons / Garine Boghossian and Kobi Ruthenberg</p>
+      <p class="project-meta">Cornell University, Fall 2026</p>
+      <p class="project-description">
+        Roosevelt Networks is an interactive model of the actors that shape Roosevelt Island (agencies, organizations,
+        institutions, buildings and people) and the relationships between them. This documentation explains how to use the app,
+        how the model is constructed, and how to load your own dataset.
+      </p>
+      <a class="back-link" href="../">Open the app &rarr;</a>
+
+      <nav aria-label="Documentation">
+        <ul class="doc-tabs">
+          <li><a href="../tutorial/">Tutorial</a></li>
+          <li><a href="../methodology/" aria-current="page">Methodology</a></li>
+          <li><a href="../custom/">Importing custom datasets</a></li>
+        </ul>
+      </nav>
+
+      <section class="doc-section" aria-label="Methodology">
+        <h3>Actors</h3>
+        <p>
+          Each node in the model is an <em>actor</em>: any party with a stake in or influence on the island. Actors are recorded in
+          the <a href="https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pubhtml?gid=1300872278" target="_blank" rel="noopener noreferrer">project dataset</a>
+          with the following attributes:
+        </p>
+        <ul>
+          <li><strong>Sector</strong>: the kind of actor, used for the Sector filter and colour mode.</li>
+          <li><strong>Category</strong>: the topic(s) the actor deals with, such as governance, housing, transit or ecology.</li>
+          <li><strong>Scale</strong>: micro, meso or macro, describing the reach of the actor's influence.</li>
+          <li><strong>Active years</strong>: an optional start and end year, used by the Time range filter and Timeline mode. Missing years are treated as open-ended.</li>
+          <li><strong>Public sentiment</strong>: a rating of how the actor is perceived, shown in the Public sentiment colour mode.</li>
+          <li><strong>Public interest</strong>: the number of news results for the actor, used as a proxy for public visibility in the halo.</li>
+        </ul>
+
+        <h3>Relationships</h3>
+        <p>
+          Connections between actors are typed. Collaboration is treated as mutual (no direction); every other type is directional
+          and drawn with an arrow.
+        </p>
+        <div class="doc-table-wrap">
+          <table>
+            <thead>
+              <tr><th>Relationship</th><th>Parameters encoded in the line</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Administrator&ndash;Administrated</td><td>&mdash;</td></tr>
+              <tr><td>Collaboration</td><td>Ongoing (solid) or one-time (dashed); closeness as line weight</td></tr>
+              <tr><td>Creator&ndash;Creation</td><td>&mdash;</td></tr>
+              <tr><td>Financial (recipient&ndash;sender)</td><td>Yearly funds as line weight; upfront investment as a secondary line</td></tr>
+              <tr><td>Owner&ndash;Tenant</td><td>Parcel area as line weight</td></tr>
+              <tr><td>Parent&ndash;Child</td><td>&mdash;</td></tr>
+              <tr><td>Position&ndash;Incumbent</td><td>Elected (solid), succession (dotted) or appointment (double)</td></tr>
+              <tr><td>Predecessor&ndash;Successor</td><td>&mdash;</td></tr>
+              <tr><td>Representative&ndash;Elector</td><td>&mdash;</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Line weights are scaled between the smallest and largest values present in the model, and the legend reports those bounds.</p>
+
+        <h3>Centrality</h3>
+        <p>Halo size and the Centrality filter can use four standard network measures, calculated on the network currently shown:</p>
+        <ul>
+          <li><strong>Degree</strong>: how many direct connections an actor has.</li>
+          <li><strong>Closeness</strong>: how few steps, on average, it takes to reach every other actor.</li>
+          <li><strong>Betweenness</strong>: how often an actor lies on the shortest path between two others, i.e. how much it acts as a bridge.</li>
+          <li><strong>Eigenvector</strong>: how well connected an actor's connections are, a measure of prestige.</li>
+        </ul>
+
+        <h3>Map</h3>
+        <p>
+          Building footprints come from New York City open data and are identified by BIN (Building Identification Number), with
+          lot-level attributes from PLUTO. Each footprint can be linked to an actor in the dataset's buildings sheet. Sites
+          without a building footprint, such as parks and ferry landings, are placed as points traced over the island boundary.
+        </p>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
