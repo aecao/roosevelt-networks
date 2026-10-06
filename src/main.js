@@ -564,6 +564,8 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
       label: entry.label,
       weight: 1,
       size: MIN_EDGE_WIDTH,
+      parameters: [row['parameter 0'], row['parameter 1'], row['parameter 2']]
+        .map((value) => String(value ?? '').trim()),
       parcelArea: type === 'own' ? parseParcelArea(row['parameter 0']) : null,
       collaborationCloseness: type === 'col' ? parseCollaborationCloseness(row['parameter 1']) : null,
       upfrontInvestment: type === 'fin' ? parseFinancialAmount(row['parameter 0']) : null,
@@ -927,7 +929,7 @@ function renderSelectionDetails(selection, container) {
   container.replaceChildren();
   const isNodeSelection = selection.kind === 'node';
   const details = document.createElement(isNodeSelection ? 'div' : 'dl');
-  details.className = isNodeSelection ? 'details actor-details-layout' : 'details';
+  details.className = isNodeSelection ? 'details actor-details-layout' : 'details connection-details';
   if (selection.kind === 'node') {
     const networkDetails = document.createElement('dl');
     networkDetails.className = 'actor-detail-group actor-network-details';
@@ -1113,27 +1115,70 @@ function renderSelectionDetails(selection, container) {
     details.appendChild(actorFields);
     if (networkDetails.childElementCount) details.appendChild(networkDetails);
   } else {
-    const actorsTerm = document.createElement('dt');
-    actorsTerm.textContent = 'Connected actors';
-    details.appendChild(actorsTerm);
-    selection.actorNames.forEach((name) => {
-      const actor = document.createElement('dd');
-      actor.textContent = name;
-      details.appendChild(actor);
-    });
-
-    const typesTerm = document.createElement('dt');
-    typesTerm.textContent = 'Adjacency types';
-    const typesDescription = document.createElement('dd');
-    const types = document.createElement('ul');
-    types.className = 'detail-list';
-    selection.adjacencyTypes.forEach((type) => {
+    const graph = state.graph;
+    const relationshipList = document.createElement('ul');
+    relationshipList.className = 'connection-type-list';
+    const parameterNames = {
+      col: ['Duration', 'Closeness'],
+      fin: ['Upfront investment', 'Ongoing funds', 'Schedule'],
+      own: ['Parcel area', 'Lease term'],
+      pos: ['Selection method'],
+    };
+    selection.edgeIds.forEach((edgeId) => {
+      if (!graph.hasEdge(edgeId)) return;
+      const attributes = graph.getEdgeAttributes(edgeId);
+      const [rawSource, rawTarget] = graph.extremities(edgeId);
+      const isDirected = graph.isDirected(edgeId);
+      const source = attributes.adjacencyType === 'fin' ? rawTarget : rawSource;
+      const target = attributes.adjacencyType === 'fin' ? rawSource : rawTarget;
       const item = document.createElement('li');
-      item.textContent = type;
-      types.appendChild(item);
+      item.className = 'connection-type-item';
+
+      const heading = document.createElement('div');
+      heading.className = 'connection-type-heading';
+      const swatch = document.createElement('span');
+      swatch.className = `legend-swatch connection-type-swatch${isDirected ? ' directional' : ''}`;
+      const color = edgeColorForTheme(attributes.adjacencyType, attributes.color);
+      swatch.style.backgroundColor = color;
+      swatch.style.color = color;
+      const label = document.createElement('strong');
+      label.textContent = attributes.label || attributes.adjacencyType;
+      heading.append(swatch, label);
+      item.appendChild(heading);
+
+      const route = document.createElement('div');
+      route.className = 'connection-route';
+      const getActorName = (nodeId) => {
+        const nodeAttributes = graph.getNodeAttributes(nodeId);
+        return nodeAttributes.attributes?.[DATA.nodeLabelField] || nodeAttributes.label || nodeId;
+      };
+      const sourceName = document.createElement('span');
+      sourceName.textContent = getActorName(source);
+      const direction = document.createElement('span');
+      direction.className = 'connection-direction';
+      direction.textContent = isDirected ? '→' : '↔';
+      direction.setAttribute('aria-label', isDirected ? 'to' : 'connected with');
+      const targetName = document.createElement('span');
+      targetName.textContent = getActorName(target);
+      route.append(sourceName, direction, targetName);
+      item.appendChild(route);
+
+      const parameters = (attributes.parameters || [])
+        .map((value, index) => ({ label: parameterNames[attributes.adjacencyType]?.[index] || `Parameter ${index + 1}`, value }))
+        .filter(({ value }) => value);
+      if (parameters.length) {
+        const parameterList = document.createElement('dl');
+        parameterList.className = 'connection-parameters';
+        parameters.forEach(({ label: parameterLabel, value }) => {
+          parameterList.append(...createDetailField(parameterLabel, value));
+        });
+        item.appendChild(parameterList);
+      }
+      relationshipList.appendChild(item);
     });
-    typesDescription.appendChild(types);
-    details.append(typesTerm, typesDescription);
+    if (relationshipList.childElementCount) {
+      details.append(...createDetailField('Relationship types', relationshipList));
+    }
   }
   container.appendChild(details);
 }

@@ -1959,6 +1959,102 @@ button:hover {
   text-align: right;
 }
 
+.connection-details {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.connection-details > dt {
+  margin: 0 0 5px;
+  color: var(--detail-label-color);
+  font-family: var(--font-bold);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.connection-type-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.connection-type-item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.connection-type-item:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.connection-type-heading {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  color: var(--text);
+  font-family: var(--font-bold);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.connection-type-swatch {
+  flex-basis: 14px;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.connection-route {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding-left: 21px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.connection-direction {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-family: var(--font-bold);
+}
+
+.connection-parameters {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 2px 8px;
+  margin: 2px 0 0 21px;
+}
+
+.connection-parameters dt,
+.connection-parameters dd {
+  min-width: 0;
+  margin: 0;
+  font-size: 0.6rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.connection-parameters dt {
+  color: var(--detail-label-color);
+  font-family: var(--font-bold);
+  font-weight: 600;
+}
+
+.connection-parameters dd {
+  color: var(--text);
+}
+
 #details-sidebar {
   order: 2;
   position: absolute;
