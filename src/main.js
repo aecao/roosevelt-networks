@@ -284,6 +284,19 @@ function parseCollaborationCloseness(raw) {
   return Number.isSafeInteger(closeness) && closeness > 0 ? closeness : null;
 }
 
+function isOneTimeCollaboration(attributes) {
+  return attributes.adjacencyType === 'col'
+    && String(attributes.parameters?.[0] ?? '').trim().toLowerCase() === 'one-time';
+}
+
+function positionIncumbentLineStyle(attributes) {
+  if (attributes.adjacencyType !== 'pos') return 'solid';
+  const method = String(attributes.parameters?.[0] ?? '').trim().toLowerCase();
+  if (method === 'succession') return 'dotted';
+  if (method === 'appointment') return 'double';
+  return 'solid';
+}
+
 function applyCollaborationWidths(graph) {
   const edges = graph.edges().filter((edge) => graph.getEdgeAttribute(edge, 'adjacencyType') === 'col');
   const values = edges.map((edge) => graph.getEdgeAttribute(edge, 'collaborationCloseness')).filter(Number.isFinite);
@@ -435,6 +448,129 @@ function drawFinancialUpfront(context, renderer, graph) {
     context.moveTo(tipX, tipY);
     context.lineTo(baseX - unitY * halfWidth, baseY + unitX * halfWidth);
     context.lineTo(baseX + unitY * halfWidth, baseY - unitX * halfWidth);
+    context.closePath();
+    context.fill();
+    context.restore();
+  });
+}
+
+function drawOneTimeCollaborations(context, renderer, graph) {
+  const { width, height } = renderer.getDimensions();
+  context.clearRect(0, 0, width, height);
+  graph.forEachEdge((edge, attributes, source, target) => {
+    if (!isOneTimeCollaboration(attributes)) return;
+    const edgeData = renderer.getEdgeDisplayData(edge);
+    const sourceData = renderer.getNodeDisplayData(source);
+    const targetData = renderer.getNodeDisplayData(target);
+    if (!edgeData || edgeData.hidden || !sourceData || sourceData.hidden || !targetData || targetData.hidden) return;
+    const start = renderer.framedGraphToViewport(sourceData);
+    const end = renderer.framedGraphToViewport(targetData);
+    const lineWidth = Math.max(1, renderer.scaleSize(edgeData.size));
+    const curvature = Number.isFinite(edgeData.curvature) ? edgeData.curvature : 0;
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
+    const control = {
+      x: (start.x + end.x) / 2 - deltaY * curvature,
+      y: (start.y + end.y) / 2 + deltaX * curvature,
+    };
+    const color = edgeColorForTheme(attributes.adjacencyType, attributes.color);
+    const emphasized = state.selectedEdgeIds.has(edge) || state.hoveredEdgeIds.has(edge);
+    context.save();
+    context.globalAlpha = !emphasized && state.focusOpacityActive && !state.focusEdgeIds.has(edge)
+      ? FOCUS_DIM_OPACITY
+      : 1;
+    context.strokeStyle = color;
+    context.lineWidth = lineWidth;
+    context.lineCap = 'round';
+    context.setLineDash([lineWidth * 3, lineWidth * 2]);
+    context.beginPath();
+    context.moveTo(start.x, start.y);
+    if (curvature) context.quadraticCurveTo(control.x, control.y, end.x, end.y);
+    else context.lineTo(end.x, end.y);
+    context.stroke();
+    context.restore();
+  });
+}
+
+function drawPositionIncumbentOverrides(context, renderer, graph) {
+  const { width, height } = renderer.getDimensions();
+  context.clearRect(0, 0, width, height);
+  graph.forEachEdge((edge, attributes, source, target) => {
+    const style = positionIncumbentLineStyle(attributes);
+    if (style === 'solid') return;
+    const edgeData = renderer.getEdgeDisplayData(edge);
+    const sourceData = renderer.getNodeDisplayData(source);
+    const targetData = renderer.getNodeDisplayData(target);
+    if (!edgeData || edgeData.hidden || !sourceData || sourceData.hidden || !targetData || targetData.hidden) return;
+
+    const start = renderer.framedGraphToViewport(sourceData);
+    const end = renderer.framedGraphToViewport(targetData);
+    const deltaX = end.x - start.x;
+    const deltaY = end.y - start.y;
+    const length = Math.hypot(deltaX, deltaY);
+    if (!length) return;
+    const normalX = -deltaY / length;
+    const normalY = deltaX / length;
+    const curvature = Number.isFinite(edgeData.curvature) ? edgeData.curvature : 0;
+    const control = {
+      x: (start.x + end.x) / 2 - deltaY * curvature,
+      y: (start.y + end.y) / 2 + deltaX * curvature,
+    };
+    const sourceTangent = curvature ? { x: control.x - start.x, y: control.y - start.y } : { x: deltaX, y: deltaY };
+    const targetTangent = curvature ? { x: end.x - control.x, y: end.y - control.y } : { x: deltaX, y: deltaY };
+    const sourceLength = Math.hypot(sourceTangent.x, sourceTangent.y) || 1;
+    const targetLength = Math.hypot(targetTangent.x, targetTangent.y) || 1;
+    const sourceUnit = { x: sourceTangent.x / sourceLength, y: sourceTangent.y / sourceLength };
+    const targetUnit = { x: targetTangent.x / targetLength, y: targetTangent.y / targetLength };
+    const sourceRadius = renderer.scaleSize(sourceData.size);
+    const targetRadius = renderer.scaleSize(targetData.size);
+    const lineWidth = Math.max(1, renderer.scaleSize(edgeData.size));
+    const color = edgeColorForTheme(attributes.adjacencyType, attributes.color);
+    const emphasized = state.selectedEdgeIds.has(edge) || state.hoveredEdgeIds.has(edge);
+    const opacity = !emphasized && state.focusOpacityActive && !state.focusEdgeIds.has(edge)
+      ? FOCUS_DIM_OPACITY
+      : 1;
+    const strokePath = (offset, strokeWidth, dotted = false) => {
+      const startX = start.x + sourceUnit.x * sourceRadius + normalX * offset;
+      const startY = start.y + sourceUnit.y * sourceRadius + normalY * offset;
+      const tipX = end.x - targetUnit.x * targetRadius * 0.8 + normalX * offset;
+      const tipY = end.y - targetUnit.y * targetRadius * 0.8 + normalY * offset;
+      const headLength = Math.max(5, lineWidth * 2.8);
+      const baseX = tipX - targetUnit.x * headLength;
+      const baseY = tipY - targetUnit.y * headLength;
+      context.lineWidth = strokeWidth;
+      context.setLineDash(dotted ? [strokeWidth * 0.1, strokeWidth * 2.8] : []);
+      context.beginPath();
+      context.moveTo(startX, startY);
+      if (curvature) context.quadraticCurveTo(control.x + normalX * offset, control.y + normalY * offset, baseX, baseY);
+      else context.lineTo(baseX, baseY);
+      context.stroke();
+    };
+
+    context.save();
+    context.globalAlpha = opacity;
+    context.strokeStyle = color;
+    context.fillStyle = color;
+    context.lineCap = style === 'dotted' ? 'round' : 'butt';
+    if (style === 'dotted') {
+      strokePath(0, Math.max(1.5, lineWidth), true);
+    } else {
+      const offset = Math.max(1.5, lineWidth * 1.25);
+      const thinWidth = Math.max(0.75, lineWidth * 0.55);
+      strokePath(-offset, thinWidth);
+      strokePath(offset, thinWidth);
+    }
+    context.setLineDash([]);
+    const arrowLength = Math.max(5, lineWidth * 2.8);
+    const arrowHalfWidth = Math.max(3, lineWidth * 1.5);
+    const tipX = end.x - targetUnit.x * targetRadius * 0.8;
+    const tipY = end.y - targetUnit.y * targetRadius * 0.8;
+    const baseX = tipX - targetUnit.x * arrowLength;
+    const baseY = tipY - targetUnit.y * arrowLength;
+    context.beginPath();
+    context.moveTo(tipX, tipY);
+    context.lineTo(baseX - targetUnit.y * arrowHalfWidth, baseY + targetUnit.x * arrowHalfWidth);
+    context.lineTo(baseX + targetUnit.y * arrowHalfWidth, baseY - targetUnit.x * arrowHalfWidth);
     context.closePath();
     context.fill();
     context.restore();
@@ -2603,8 +2739,20 @@ async function main() {
     style: { pointerEvents: 'none' },
   });
   const financialUpfrontContext = renderer.getCanvases()['financial-upfront'].getContext('2d');
+  renderer.createCanvasContext('collaboration-one-time', {
+    beforeLayer: 'nodes',
+    style: { pointerEvents: 'none' },
+  });
+  const oneTimeCollaborationContext = renderer.getCanvases()['collaboration-one-time'].getContext('2d');
+  renderer.createCanvasContext('position-incumbent-overrides', {
+    beforeLayer: 'nodes',
+    style: { pointerEvents: 'none' },
+  });
+  const positionIncumbentContext = renderer.getCanvases()['position-incumbent-overrides'].getContext('2d');
   renderer.on('afterRender', () => {
     if (financialUpfrontContext) drawFinancialUpfront(financialUpfrontContext, renderer, graph);
+    if (oneTimeCollaborationContext) drawOneTimeCollaborations(oneTimeCollaborationContext, renderer, graph);
+    if (positionIncumbentContext) drawPositionIncumbentOverrides(positionIncumbentContext, renderer, graph);
   });
   renderer.createCanvasContext('size-halos', {
     beforeLayer: 'edges',
@@ -2858,19 +3006,43 @@ async function main() {
     renderer.resize(true);
   }
 
-  function createProjectedPath(rings) {
+  function projectMapRings(rings) {
+    return rings.map((ring) => ring.map((point) => renderer.graphToViewport(mapProjection(point.lng, point.lat))));
+  }
+
+  function createPathFromProjectedRings(projectedRings) {
     const path = new Path2D();
-    rings.forEach((ring) => {
+    projectedRings.forEach((ring) => {
       if (ring.length < 3) return;
       ring.forEach((point, index) => {
-        // graphToViewport normalizes raw graph-space coordinates before projecting to pixels.
-        const viewportPoint = renderer.graphToViewport(mapProjection(point.lng, point.lat));
-        if (index === 0) path.moveTo(viewportPoint.x, viewportPoint.y);
-        else path.lineTo(viewportPoint.x, viewportPoint.y);
+        if (index === 0) path.moveTo(point.x, point.y);
+        else path.lineTo(point.x, point.y);
       });
       path.closePath();
     });
     return path;
+  }
+
+  function createProjectedPath(rings) {
+    return createPathFromProjectedRings(projectMapRings(rings));
+  }
+
+  function isPointNearProjectedRings(rings, x, y, tolerance = 6) {
+    const toleranceSquared = tolerance * tolerance;
+    return rings.some((ring) => ring.some((start, index) => {
+      const end = ring[(index + 1) % ring.length];
+      const deltaX = end.x - start.x;
+      const deltaY = end.y - start.y;
+      const lengthSquared = deltaX * deltaX + deltaY * deltaY;
+      const projection = lengthSquared
+        ? Math.max(0, Math.min(1, ((x - start.x) * deltaX + (y - start.y) * deltaY) / lengthSquared))
+        : 0;
+      const nearestX = start.x + projection * deltaX;
+      const nearestY = start.y + projection * deltaY;
+      const distanceX = x - nearestX;
+      const distanceY = y - nearestY;
+      return distanceX * distanceX + distanceY * distanceY <= toleranceSquared;
+    }));
   }
 
   function drawRings(ctx, rings, fillStyle, strokeStyle, lineWidth = 1) {
@@ -2894,17 +3066,21 @@ async function main() {
     const bounds = graphContainer.getBoundingClientRect();
     const x = event.clientX - bounds.left;
     const y = event.clientY - bounds.top;
-    let actorId = null;
-    for (let index = mapFootprintHitTargets.length - 1; index >= 0; index -= 1) {
-      const target = mapFootprintHitTargets[index];
-      if (target.actorId && mapGeoContext.isPointInPath(target.path, x, y)) {
-        actorId = target.actorId;
-        break;
-      }
-    }
+    const actorId = buildingActorAt(x, y);
     if (actorId === hoveredBuildingActorId) return;
     hoveredBuildingActorId = actorId;
     refresh();
+  }
+
+  function buildingActorAt(x, y) {
+    for (let index = mapFootprintHitTargets.length - 1; index >= 0; index -= 1) {
+      const target = mapFootprintHitTargets[index];
+      if (x < target.minX - 6 || x > target.maxX + 6 || y < target.minY - 6 || y > target.maxY + 6) continue;
+      if (target.actorId
+        && (mapGeoContext?.isPointInPath(target.path, x, y)
+          || isPointNearProjectedRings(target.projectedRings, x, y))) return target.actorId;
+    }
+    return null;
   }
 
   function clearHoveredBuilding() {
@@ -2919,22 +3095,34 @@ async function main() {
     mapGeoContext.clearRect(0, 0, width, height);
     mapFootprintHitTargets = mapGeography.buildingFootprints.map((footprint) => {
       const actorId = footprint.actorId && graph.hasNode(footprint.actorId) ? footprint.actorId : null;
-      const path = createProjectedPath(footprint.rings);
+      const projectedRings = projectMapRings(footprint.rings);
+      const path = createPathFromProjectedRings(projectedRings);
+      const bounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
+      projectedRings.forEach((ring) => ring.forEach(({ x, y }) => {
+        bounds.minX = Math.min(bounds.minX, x);
+        bounds.maxX = Math.max(bounds.maxX, x);
+        bounds.minY = Math.min(bounds.minY, y);
+        bounds.maxY = Math.max(bounds.maxY, y);
+      }));
       if (state.advancedExportFocus?.mode === 'only' && actorId
-        && !state.advancedExportFocus.nodeIds.has(actorId)) return { actorId, path };
+        && !state.advancedExportFocus.nodeIds.has(actorId)) return { actorId, path, projectedRings, ...bounds };
       const attributes = actorId ? graph.getNodeAttributes(actorId) : null;
       const isEmphasized = actorId === hoveredBuildingActorId || state.emphasizedNodeIds.has(actorId);
-      const color = attributes ? nodeColorForMode(attributes, isEmphasized) : '#ffffff';
-      const opacity = actorId && state.focusOpacityActive && !state.focusNodeIds.has(actorId)
+      const color = attributes ? nodeColorForMode(attributes, isEmphasized) : 'rgba(255, 255, 255, 0.45)';
+      const actorOpacity = actorId ? 0.55 : 1;
+      const focusOpacity = actorId && state.focusOpacityActive && !state.focusNodeIds.has(actorId)
         ? FOCUS_DIM_OPACITY
         : 1;
+      const opacity = actorOpacity * focusOpacity;
       mapGeoContext.globalAlpha = opacity;
-      mapGeoContext.fillStyle = color;
-      mapGeoContext.fill(path);
+      if (actorId) {
+        mapGeoContext.fillStyle = color;
+        mapGeoContext.fill(path);
+      }
       mapGeoContext.strokeStyle = color;
       mapGeoContext.lineWidth = 1;
       mapGeoContext.stroke(path);
-      return { actorId, path };
+      return { actorId, path, projectedRings, ...bounds };
     });
     mapGeoContext.globalAlpha = 1;
 
@@ -3227,14 +3415,21 @@ async function main() {
       };
     };
     const edgeColor = edgeColorForTheme(data.adjacencyType, data.color);
-    const themedData = edgeColor === data.color ? data : { ...data, color: edgeColor };
+    const oneTimeCollaboration = isOneTimeCollaboration(data);
+    const customPositionStyle = positionIncumbentLineStyle(data) !== 'solid';
+    const hideSolidStroke = oneTimeCollaboration || customPositionStyle;
+    const themedData = hideSolidStroke
+      ? { ...data, color: colorWithOpacity(edgeColor, 0) }
+      : edgeColor === data.color ? data : { ...data, color: edgeColor };
     if (state.selectedEdgeIds.has(edge)) {
       return withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 3), themedData);
     }
     return state.hoveredEdgeIds.has(edge)
       ? withWidthOrder(Math.max(data.size || MIN_EDGE_WIDTH, 2.5), themedData)
       : state.focusOpacityActive && !state.focusEdgeIds.has(edge)
-        ? withWidthOrder(data.size || MIN_EDGE_WIDTH, { ...themedData, color: colorWithOpacity(edgeColor, FOCUS_DIM_OPACITY) })
+        ? withWidthOrder(data.size || MIN_EDGE_WIDTH, hideSolidStroke
+          ? themedData
+          : { ...themedData, color: colorWithOpacity(edgeColor, FOCUS_DIM_OPACITY) })
         : withWidthOrder(data.size || MIN_EDGE_WIDTH, themedData);
   });
 
@@ -3697,12 +3892,21 @@ async function main() {
   mouseCaptor.on('mousedown', () => setHoveredHalo(null));
   renderer.on('leaveStage', () => setHoveredHalo(null));
   renderer.on('clickStage', ({ event }) => {
+    if (workspace.dataset.mode === 'map') {
+      const buildingActor = buildingActorAt(event.x, event.y);
+      if (buildingActor) {
+        openNodeDetails(buildingActor);
+        return;
+      }
+    }
     const node = haloBoundaryNodeAt(event);
     if (node) openNodeDetails(node);
     else clearCurrentSelection();
   });
   renderer.on('rightClickStage', ({ event }) => {
-    const node = haloBoundaryNodeAt(event);
+    const node = workspace.dataset.mode === 'map'
+      ? buildingActorAt(event.x, event.y) || haloBoundaryNodeAt(event)
+      : haloBoundaryNodeAt(event);
     if (node) showPinContextMenu(createNodeSelection(graph, node), event);
   });
   renderer.on('rightClickNode', ({ node, event }) => showPinContextMenu(createNodeSelection(graph, node), event));
@@ -4312,10 +4516,27 @@ async function main() {
         ? Math.min(attributes.size || 1, collaborationEdgeWidthLimit(sourceNode.attributes.scale, targetNode.attributes.scale))
         : attributes.size || 1;
       const strokeWidth = wholeModel ? Math.max(1, edgeSize * 2) : Math.max(1, renderer.scaleSize(edgeSize) * 2);
+      const dashPattern = isOneTimeCollaboration(attributes) ? ` stroke-dasharray="${strokeWidth * 3} ${strokeWidth * 2}"` : '';
+      const positionStyle = positionIncumbentLineStyle(attributes);
       const opacity = state.focusOpacityActive && !state.focusEdgeIds.has(edge) ? FOCUS_DIM_OPACITY : 1;
       const groupLabel = `Relationships · ${attributes.label || attributes.adjacencyType}`;
-      addLayer(`relationship-${slug(attributes.adjacencyType)}`, groupLabel, 20,
-        `<path d="${path}" fill="none" stroke="${color}" stroke-width="${strokeWidth}" stroke-opacity="${opacity}" stroke-linecap="round"/>`);
+      if (positionStyle === 'double') {
+        const length = Math.hypot(deltaX, deltaY) || 1;
+        const offset = Math.max(1.5, strokeWidth * 1.25);
+        const thinWidth = Math.max(0.65, strokeWidth * 0.55);
+        const lineMarkup = [-1, 1].map((side) => {
+          const translateX = (-deltaY / length) * offset * side;
+          const translateY = (deltaX / length) * offset * side;
+          return `<path d="${path}" transform="translate(${translateX} ${translateY})" fill="none" stroke="${color}" stroke-width="${thinWidth}" stroke-opacity="${opacity}" stroke-linecap="round"/>`;
+        }).join('');
+        addLayer(`relationship-${slug(attributes.adjacencyType)}`, groupLabel, 20, lineMarkup);
+      } else {
+        const positionDash = positionStyle === 'dotted'
+          ? ` stroke-dasharray="${strokeWidth * 0.1} ${strokeWidth * 2.5}"`
+          : '';
+        addLayer(`relationship-${slug(attributes.adjacencyType)}`, groupLabel, 20,
+          `<path d="${path}" fill="none" stroke="${color}" stroke-width="${strokeWidth}"${dashPattern}${positionDash} stroke-opacity="${opacity}" stroke-linecap="round"/>`);
+      }
 
       if (DATA.undirectedEdgeTypes.includes(attributes.adjacencyType)) return;
       const reversed = attributes.adjacencyType === 'fin';
@@ -4681,7 +4902,7 @@ async function main() {
     heading.textContent = title;
     const list = document.createElement('ul');
     list.className = 'legend-list';
-    entries.forEach(({ label, color, kind = 'line', size, directional = false }) => {
+    entries.forEach(({ label, color, kind = 'line', size, directional = false, parameterSamples = [] }) => {
       const item = document.createElement('li');
       item.className = 'legend-item';
       const swatch = document.createElement('span');
@@ -4696,6 +4917,36 @@ async function main() {
       const text = document.createElement('span');
       text.textContent = label;
       item.append(swatch, text);
+      if (parameterSamples.length) {
+        const samples = document.createElement('div');
+        samples.className = 'legend-parameter-group';
+        parameterSamples.forEach(({ label: sampleLabel, style }) => {
+          const row = document.createElement('div');
+          row.className = 'legend-parameter-row';
+          if (style === 'weight') {
+            const range = document.createElement('span');
+            range.className = 'legend-parameter-weight-range';
+            [1, 2, 3].forEach((weight) => {
+              const line = document.createElement('i');
+              line.style.width = `${8 + weight * 4}px`;
+              line.style.height = `${weight}px`;
+              line.style.backgroundColor = color;
+              range.appendChild(line);
+            });
+            row.appendChild(range);
+          } else {
+            const mark = document.createElement('span');
+            mark.className = `legend-parameter-mark ${style}`;
+            mark.style.color = color;
+            row.appendChild(mark);
+          }
+          const sampleText = document.createElement('span');
+          sampleText.textContent = sampleLabel;
+          row.appendChild(sampleText);
+          samples.appendChild(row);
+        });
+        item.appendChild(samples);
+      }
       list.appendChild(item);
     });
     section.append(heading, list);
@@ -4787,13 +5038,34 @@ async function main() {
         visibleRelationshipTypes.add(attributes.adjacencyType);
       }
     });
+    const relationshipParameterSamples = {
+      col: [
+        { label: 'Ongoing', style: 'solid' },
+        { label: 'One-time', style: 'dashed' },
+        { label: 'Closeness', style: 'weight' },
+      ],
+      fin: [
+        { label: 'Ongoing funds', style: 'weight' },
+        { label: 'Upfront investment', style: 'overlay' },
+      ],
+      own: [{ label: 'Parcel area', style: 'weight' }],
+      pos: [
+        { label: 'Elected', style: 'solid' },
+        { label: 'Succession', style: 'dotted' },
+        { label: 'Appointment', style: 'double' },
+      ],
+    };
     renderLegendSection('Relationships', manifest
       .filter(({ type }) => visibleRelationshipTypes.has(type))
-      .map((entry) => ({
-        label: entry.label,
-        color: edgeColorForTheme(entry.type, state.edgeTypeColors.get(entry.type)),
-        directional: !DATA.undirectedEdgeTypes.includes(entry.type),
-      })));
+      .map((entry) => {
+        const color = edgeColorForTheme(entry.type, state.edgeTypeColors.get(entry.type));
+        return {
+          label: entry.label,
+          color,
+          directional: !DATA.undirectedEdgeTypes.includes(entry.type),
+          parameterSamples: relationshipParameterSamples[entry.type] || [],
+        };
+      }));
 
     const visibleNodeAttributes = visibleNodes.map((node) => graph.getNodeAttributes(node));
     if (state.colorMode === 'sector') {
@@ -4904,6 +5176,7 @@ async function main() {
   camera.on('updated', state.refreshLegend);
   legendToggle.addEventListener('click', () => setLegendOpen(legendPanel.hidden));
   legendClose.addEventListener('click', () => setLegendOpen(false));
+  setLegendOpen(true);
 
   let legendDrag = null;
   legendPanelHeader.addEventListener('pointerdown', (event) => {
