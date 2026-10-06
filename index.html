@@ -108,14 +108,40 @@
                   </label>
                   <div id="label-controls" class="appearance-label-controls">
                     <label for="text-size-slider">Text size <output id="text-size-value">100%</output></label>
-                    <input id="text-size-slider" type="range" min="50" max="450" step="1" value="100" />
+                    <div class="slider-with-steps">
+                      <button id="text-size-decrement" class="slider-step-button" type="button" aria-label="Decrease text size">−</button>
+                      <input id="text-size-slider" type="range" min="50" max="450" step="1" value="100" list="text-size-ticks" />
+                      <button id="text-size-increment" class="slider-step-button" type="button" aria-label="Increase text size">+</button>
+                    </div>
+                    <datalist id="text-size-ticks">
+                      <option value="50"></option>
+                      <option value="100"></option>
+                      <option value="150"></option>
+                      <option value="200"></option>
+                      <option value="250"></option>
+                      <option value="300"></option>
+                      <option value="350"></option>
+                      <option value="400"></option>
+                      <option value="450"></option>
+                    </datalist>
                     <label class="toggle-row">
                       <input id="label-threshold-toggle" type="checkbox" />
                       <span>Set label threshold</span>
                     </label>
                     <div id="label-threshold-controls" class="appearance-label-threshold-controls" hidden>
                       <label for="text-threshold-slider">Threshold <output id="text-threshold-value">0%</output></label>
-                      <input id="text-threshold-slider" type="range" min="0" max="100" step="1" value="0" disabled />
+                      <div class="slider-with-steps">
+                        <button id="text-threshold-decrement" class="slider-step-button" type="button" aria-label="Decrease label threshold">−</button>
+                        <input id="text-threshold-slider" type="range" min="0" max="100" step="1" value="0" list="text-threshold-ticks" disabled />
+                        <button id="text-threshold-increment" class="slider-step-button" type="button" aria-label="Increase label threshold">+</button>
+                      </div>
+                      <datalist id="text-threshold-ticks">
+                        <option value="0"></option>
+                        <option value="25"></option>
+                        <option value="50"></option>
+                        <option value="75"></option>
+                        <option value="100"></option>
+                      </datalist>
                     </div>
                   </div>
                   <label for="node-size-slider">Node size <output id="node-size-value">50</output></label>
@@ -138,8 +164,14 @@
                     <option value="public-sentiment">Public sentiment</option>
                     <option value="plain">Plain</option>
                   </select>
-                  <label for="size-mode">HALO TYPE</label>
-                  <select id="size-mode">
+                  <label id="halo-heading">HALO</label>
+                  <label class="toggle-row halo-toggle-row">
+                    <input id="halo-toggle" type="checkbox" checked />
+                    <span>Show halo</span>
+                  </label>
+                  <div id="halo-controls" class="appearance-label-controls">
+                    <label for="size-mode">Halo size</label>
+                    <select id="size-mode">
                     <option value="public-interest">Public interest</option>
                     <option value="degree-centrality">Number of connections (degree centrality)</option>
                     <option value="closeness-centrality">Average shortest-path (closeness centrality)</option>
@@ -147,6 +179,7 @@
                     <option value="eigenvector-centrality">Prestige (eigenvector centrality)</option>
                     <option value="plain">Plain</option>
                   </select>
+                  </div>
                 </div>
               </div>
             </div>
@@ -342,6 +375,7 @@
         </section>
         <div id="map-caption" class="map-caption" hidden aria-live="polite">
           <span>ROOSEVELT ISLAND</span>
+          <span id="map-footprint-label" class="map-footprint-label" hidden></span>
         </div>
       </main>
       <section id="legend-panel" class="legend-panel" aria-label="Legend" hidden>
@@ -350,7 +384,7 @@
           <div class="legend-panel-actions">
             <button id="legend-text-smaller" type="button" aria-label="Decrease legend size" title="Decrease legend size">A−</button>
             <button id="legend-text-larger" type="button" aria-label="Increase legend size" title="Increase legend size">A+</button>
-            <button type="button" aria-label="More legend options" title="More options">…</button>
+            <button id="legend-fit" type="button" aria-label="Fit legend height to contents" title="Fit height to contents"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4.5 8 1.5l3 3M5 11.5l3 3 3-3M8 1.5v13"/></svg></button>
             <button id="legend-close" type="button" aria-label="Close legend" title="Close">×</button>
           </div>
         </header>

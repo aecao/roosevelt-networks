@@ -1,12 +1,50 @@
 // Converts the island boundary + per-building GeoJSON footprints into a single
 // static SVG so the app can load one small file instead of ~70 GeoJSON requests.
+// Also writes map-points.json, linking point-*.svg files to actors via the
+// "point - "name"" rows of building_actors.csv.
 // Run with: node scripts/build-map-overlay.mjs
-import { readFile, writeFile } from 'node:fs/promises';
+// Add --sync to first download the "buildings" sheet into building_actors.csv.
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const buildingsDir = path.join(__dirname, '..', 'public', 'data', 'buildings');
+const BUILDINGS_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTWRxyJfkdgZ_KTQJ_gWNCHiWeIp5ciie9yx02upPZG489o8NYQER8R8tPiXK0Qz_pewTz8N2TqQAaJ/pub?gid=1593670637&single=true&output=csv';
+
+async function syncBuildingsSheet() {
+  const response = await fetch(BUILDINGS_SHEET_CSV_URL);
+  if (!response.ok) throw new Error(`Could not download buildings sheet: ${response.status}`);
+  const text = await response.text();
+  if (!/^\uFEFF?BIN,/.test(text)) throw new Error('Buildings sheet did not return the expected CSV (missing BIN header)');
+  await writeFile(path.join(buildingsDir, 'building_actors.csv'), text, 'utf8');
+  console.log('Downloaded buildings sheet to building_actors.csv');
+}
+
+const normalizePointName = (value) => value.toLowerCase().replace(/\s+/g, ' ').trim();
+
+// Matches each sheet row named `point - "<name>"` to point-<name>.svg. Falls
+// back to the longest filename contained in the sheet name (e.g. sheet
+// "fdr four freedoms state park" -> point-four freedoms state park.svg).
+async function buildMapPointManifest(actorRows) {
+  const files = (await readdir(buildingsDir)).filter((file) => /^point-.+\.svg$/i.test(file));
+  const fileNames = files.map((file) => ({ file, name: normalizePointName(file.slice(6, -4)) }));
+  const points = [];
+  actorRows.forEach((row) => {
+    const match = /^point\s*-\s*"?(.+?)"?\s*$/i.exec(row.Name?.trim() || '');
+    if (!match) return;
+    const actor = row.Actor?.trim();
+    const name = normalizePointName(match[1]);
+    const file = fileNames.find((entry) => entry.name === name)
+      || fileNames.filter((entry) => name.includes(entry.name)).sort((a, b) => b.name.length - a.name.length)[0];
+    if (!file) console.warn(`No point SVG found for sheet row "${row.Name}"`);
+    else if (!actor) console.warn(`Point ${file.file} has no actor in the sheet; skipping`);
+    else points.push({ file: file.file, actor });
+  });
+  files.filter((file) => !points.some((point) => point.file === file))
+    .forEach((file) => console.warn(`Point SVG ${file} has no matching sheet row; it will not be shown`));
+  return points;
+}
 
 function parseCsv(text) {
   const rows = [];
@@ -86,6 +124,7 @@ function escapeAttr(value) {
 }
 
 async function main() {
+  if (process.argv.includes('--sync')) await syncBuildingsSheet();
   const islandGeojson = JSON.parse(await readFile(path.join(buildingsDir, 'roosevelt_island_boundary.geojson'), 'utf8'));
   const islandRings = ringsFromGeometry(islandGeojson.features?.[0]?.geometry);
 
@@ -105,7 +144,12 @@ async function main() {
     }
     const rings = ringsFromGeometry(feature.geometry);
     if (!rings.length) continue;
-    buildings.push({ bin, actor: row.Actor?.trim() || '', rings });
+    buildings.push({
+      bin,
+      actor: row.Actor?.trim() || '',
+      name: row.Name?.trim() || String(feature.properties?.name ?? '').trim(),
+      rings,
+    });
   }
 
   const allPoints = [...islandRings.flat(), ...buildings.flatMap((b) => b.rings.flat())];
@@ -121,8 +165,8 @@ async function main() {
   const viewBox = `${bounds.minLng.toFixed(3)} ${(-bounds.maxLat).toFixed(3)} ${width.toFixed(3)} ${height.toFixed(3)}`;
 
   const islandPath = `  <path id="island" class="island" d="${ringsToPathD(islandRings)}" />`;
-  const buildingPaths = buildings.map(({ bin, actor, rings }) => (
-    `  <path class="building" data-bin="${escapeAttr(bin)}" data-actor="${escapeAttr(actor)}" d="${ringsToPathD(rings)}" />`
+  const buildingPaths = buildings.map(({ bin, actor, name, rings }) => (
+    `  <path class="building" data-bin="${escapeAttr(bin)}" data-actor="${escapeAttr(actor)}" data-name="${escapeAttr(name)}" d="${ringsToPathD(rings)}" />`
   ));
 
   const svg = [
@@ -136,6 +180,11 @@ async function main() {
   const outPath = path.join(buildingsDir, 'map-overlay.svg');
   await writeFile(outPath, svg, 'utf8');
   console.log(`Wrote ${outPath} (${buildings.length} buildings)`);
+
+  const mapPoints = await buildMapPointManifest(actorRows);
+  const pointsPath = path.join(buildingsDir, 'map-points.json');
+  await writeFile(pointsPath, `${JSON.stringify(mapPoints, null, 2)}\n`, 'utf8');
+  console.log(`Wrote ${pointsPath} (${mapPoints.length} points)`);
 }
 
 main().catch((error) => {

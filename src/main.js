@@ -344,6 +344,37 @@ function applyFinancialWidths(graph) {
   });
 }
 
+function compactLegendNumber(value) {
+  const units = [[1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+  for (const [threshold, suffix] of units) {
+    if (Math.abs(value) >= threshold) {
+      const scaled = value / threshold;
+      return `${Number(scaled.toPrecision(scaled >= 100 ? 3 : 2))}${suffix}`;
+    }
+  }
+  return String(Math.round(value));
+}
+
+const formatLegendDollars = (value) => `$${compactLegendNumber(value)}`;
+const formatLegendArea = (value) => `${compactLegendNumber(value)} sq ft`;
+
+// Lower and upper bounds of a weighted edge parameter with the widths they render at.
+function edgeWeightLegendScale(graph, type, field, format) {
+  const values = [];
+  graph.forEachEdge((edge, attributes) => {
+    if (attributes.adjacencyType === type && Number.isFinite(attributes[field])) values.push(attributes[field]);
+  });
+  if (!values.length) return null;
+  const minimum = Math.min(...values);
+  const maximum = Math.max(...values);
+  return {
+    minLabel: format(minimum),
+    maxLabel: format(maximum),
+    minWidth: MIN_EDGE_WIDTH,
+    maxWidth: maximum > minimum ? MAX_WEIGHTED_EDGE_WIDTH : MIN_EDGE_WIDTH,
+  };
+}
+
 function reverseFinancialProgram(Program) {
   return class extends Program {
     process(edgeIndex, offset, sourceData, targetData, data) {
@@ -1589,7 +1620,11 @@ async function main() {
       : LABEL_TIER_SIZES[FIRST_VISIBLE_LABEL_TIER];
   };
   const sizeModeSelect = document.getElementById('size-mode');
-  state.sizeMode = sizeModeSelect.value;
+  const haloToggle = document.getElementById('halo-toggle');
+  const haloControls = document.getElementById('halo-controls');
+  const effectiveHaloMode = () => (haloToggle.checked ? sizeModeSelect.value : 'plain');
+  state.sizeMode = effectiveHaloMode();
+  haloControls.hidden = !haloToggle.checked;
   const colorModeSelect = document.getElementById('color-mode');
   state.colorMode = colorModeSelect.value;
   const themeToggle = document.getElementById('theme-toggle');
@@ -1649,6 +1684,7 @@ async function main() {
   const timelineStartInput = document.getElementById('timeline-start');
   const timelineEndInput = document.getElementById('timeline-end');
   const mapCaption = document.getElementById('map-caption');
+  const mapFootprintLabel = document.getElementById('map-footprint-label');
   let timelineStart = 1920;
   let timelineEnd = 2026;
   let contextSelection = null;
@@ -1663,6 +1699,7 @@ async function main() {
   let mapProjection = null;
   let hoveredBuildingActorId = null;
   let mapFootprintHitTargets = [];
+  let mapPointHitTargets = [];
   let mapCenterX = 0;
   let mapCenterY = 0;
   let mapCancelAnimation = null;
@@ -1711,7 +1748,11 @@ async function main() {
     const isMap = mode === 'map';
     hoveredHaloNode = null;
     const leavingRelationships = workspace.dataset.mode === 'relationships' && mode !== 'relationships';
-    if (!isMap) hoveredBuildingActorId = null;
+    if (!isMap) {
+      hoveredBuildingActorId = null;
+      mapFootprintLabel.textContent = '';
+      mapFootprintLabel.hidden = true;
+    }
     if (leavingRelationships && state.renderer) {
       relationshipsCameraState = state.renderer.getCamera().getState();
     }
@@ -1967,6 +2008,7 @@ async function main() {
   let centralityThresholdTickIndices = [0];
   function relayout() {
     centralityFilterScoreCache = null;
+    state.refreshLegend?.();
     if (workspace.dataset.mode === 'timeline') {
       renderTimeline();
       return;
@@ -1995,6 +2037,10 @@ async function main() {
   }
 
   sizeModeSelect.addEventListener('change', relayout);
+  haloToggle.addEventListener('change', () => {
+    haloControls.hidden = !haloToggle.checked;
+    relayout();
+  });
 
   function applyNodeSizeDisplay(display) {
     const clamped = Math.max(1, Math.min(100, display));
@@ -2018,17 +2064,48 @@ async function main() {
 
   makeSliderOutputEditable(nodeSizeValue, () => ({ min: 1, max: 100 }), applyNodeSizeDisplay);
 
-  textSizeSlider.addEventListener('input', () => {
-    state.textSizeScale = Number(textSizeSlider.value) / 100;
-    textSizeValue.textContent = `${textSizeSlider.value}%`;
+  // Step buttons snap to the next/previous tick so off-grid values land back on ticks.
+  const stepToTick = (value, step, direction) => (direction > 0
+    ? Math.floor(value / step) * step + step
+    : Math.ceil(value / step) * step - step);
+
+  function applyTextSize(percent) {
+    const clamped = Math.round(Math.max(50, Math.min(450, percent)));
+    textSizeSlider.value = String(clamped);
+    state.textSizeScale = clamped / 100;
+    textSizeValue.textContent = `${clamped}%`;
     refresh();
+  }
+
+  textSizeSlider.addEventListener('input', () => {
+    applyTextSize(Number(textSizeSlider.value));
   });
+  document.getElementById('text-size-decrement').addEventListener('click', () => {
+    applyTextSize(stepToTick(Number(textSizeSlider.value), 50, -1));
+  });
+  document.getElementById('text-size-increment').addEventListener('click', () => {
+    applyTextSize(stepToTick(Number(textSizeSlider.value), 50, 1));
+  });
+  makeSliderOutputEditable(textSizeValue, () => ({ min: 50, max: 450 }), applyTextSize);
+
+  function applyTextThreshold(percent) {
+    const clamped = Math.round(Math.max(0, Math.min(100, percent)));
+    textThresholdSlider.value = String(clamped);
+    state.labelThresholdPercent = clamped;
+    textThresholdValue.textContent = `${clamped}%`;
+    refresh();
+  }
 
   textThresholdSlider.addEventListener('input', () => {
-    state.labelThresholdPercent = Number(textThresholdSlider.value);
-    textThresholdValue.textContent = `${textThresholdSlider.value}%`;
-    refresh();
+    applyTextThreshold(Number(textThresholdSlider.value));
   });
+  document.getElementById('text-threshold-decrement').addEventListener('click', () => {
+    applyTextThreshold(stepToTick(Number(textThresholdSlider.value), 25, -1));
+  });
+  document.getElementById('text-threshold-increment').addEventListener('click', () => {
+    applyTextThreshold(stepToTick(Number(textThresholdSlider.value), 25, 1));
+  });
+  makeSliderOutputEditable(textThresholdValue, () => ({ min: 0, max: 100 }), applyTextThreshold);
 
   labelThresholdToggle.addEventListener('change', () => {
     state.labelThresholdEnabled = labelThresholdToggle.checked;
@@ -2706,7 +2783,7 @@ async function main() {
   };
 
   function updateNodeSizes() {
-    const mode = sizeModeSelect.value;
+    const mode = effectiveHaloMode();
     state.sizeMode = mode;
     const scores = mode.endsWith('-centrality') ? centralityScores(mode) : {};
     const visibleScores = new Map(graph.nodes()
@@ -3073,27 +3150,44 @@ async function main() {
     const bounds = graphContainer.getBoundingClientRect();
     const x = event.clientX - bounds.left;
     const y = event.clientY - bounds.top;
-    const actorId = buildingActorAt(x, y);
-    if (actorId === hoveredBuildingActorId) return;
+    const building = buildingAt(x, y);
+    const actorId = building?.actorId || null;
+    const label = building && !actorId ? building.label : '';
+    const actorChanged = actorId !== hoveredBuildingActorId;
+    const labelChanged = label !== mapFootprintLabel.textContent;
+    if (!actorChanged && !labelChanged) return;
     hoveredBuildingActorId = actorId;
-    refresh();
+    mapFootprintLabel.textContent = label;
+    mapFootprintLabel.hidden = !label;
+    if (actorChanged) refresh();
   }
 
-  function buildingActorAt(x, y) {
+  function buildingAt(x, y) {
+    for (let index = mapPointHitTargets.length - 1; index >= 0; index -= 1) {
+      const target = mapPointHitTargets[index];
+      const distanceX = x - target.x;
+      const distanceY = y - target.y;
+      if (target.actorId && distanceX * distanceX + distanceY * distanceY <= target.radius * target.radius) {
+        return target;
+      }
+    }
     for (let index = mapFootprintHitTargets.length - 1; index >= 0; index -= 1) {
       const target = mapFootprintHitTargets[index];
       if (x < target.minX - 6 || x > target.maxX + 6 || y < target.minY - 6 || y > target.maxY + 6) continue;
-      if (target.actorId
-        && (mapGeoContext?.isPointInPath(target.path, x, y)
-          || isPointNearProjectedRings(target.projectedRings, x, y))) return target.actorId;
+      if (mapGeoContext?.isPointInPath(target.path, x, y)
+        || isPointNearProjectedRings(target.projectedRings, x, y)) return target;
     }
     return null;
   }
 
   function clearHoveredBuilding() {
-    if (!hoveredBuildingActorId) return;
+    const hadHoveredActor = Boolean(hoveredBuildingActorId);
+    const hadHoveredLabel = Boolean(mapFootprintLabel.textContent);
+    if (!hadHoveredActor && !hadHoveredLabel) return;
     hoveredBuildingActorId = null;
-    refresh();
+    mapFootprintLabel.textContent = '';
+    mapFootprintLabel.hidden = true;
+    if (hadHoveredActor) refresh();
   }
 
   function drawMapGeoLayer() {
@@ -3111,8 +3205,9 @@ async function main() {
         bounds.minY = Math.min(bounds.minY, y);
         bounds.maxY = Math.max(bounds.maxY, y);
       }));
+      const label = footprint.name || footprint.bin;
       if (state.advancedExportFocus?.mode === 'only' && actorId
-        && !state.advancedExportFocus.nodeIds.has(actorId)) return { actorId, path, projectedRings, ...bounds };
+        && !state.advancedExportFocus.nodeIds.has(actorId)) return { actorId, label, path, projectedRings, ...bounds };
       const attributes = actorId ? graph.getNodeAttributes(actorId) : null;
       const isEmphasized = actorId === hoveredBuildingActorId || state.emphasizedNodeIds.has(actorId);
       const color = attributes
@@ -3132,7 +3227,12 @@ async function main() {
       mapGeoContext.strokeStyle = color;
       mapGeoContext.lineWidth = 1;
       mapGeoContext.stroke(path);
-      return { actorId, path, projectedRings, ...bounds };
+      if (actorId && isEmphasized) {
+        mapGeoContext.strokeStyle = state.theme === 'light' ? '#1f2933' : '#ffffff';
+        mapGeoContext.lineWidth = 2;
+        mapGeoContext.stroke(path);
+      }
+      return { actorId, label, path, projectedRings, ...bounds };
     });
     mapGeoContext.globalAlpha = 1;
 
@@ -3140,13 +3240,34 @@ async function main() {
     mapGeoFrontContext.clearRect(0, 0, width, height);
     drawRings(mapGeoFrontContext, mapGeography.islandRings, null,
       state.theme === 'light' ? 'rgba(0, 53, 255, 0.62)' : 'rgba(160, 200, 255, 0.9)');
-    mapFootprintHitTargets.forEach(({ actorId, path }) => {
-      if (!actorId || (actorId !== hoveredBuildingActorId && !state.emphasizedNodeIds.has(actorId))) return;
+    mapPointHitTargets = mapGeography.mapPoints.map((point) => {
+      const projected = renderer.graphToViewport(mapProjection(point.lng, point.lat));
+      const actorId = graph.hasNode(point.actorId) ? point.actorId : null;
+      const radius = 5;
+      const hitTarget = { actorId, x: projected.x, y: projected.y, radius: radius + 4 };
+      if (state.advancedExportFocus?.mode === 'only' && actorId
+        && !state.advancedExportFocus.nodeIds.has(actorId)) return hitTarget;
+      const isEmphasized = actorId === hoveredBuildingActorId || state.emphasizedNodeIds.has(actorId);
+      const attributes = actorId ? graph.getNodeAttributes(actorId) : null;
+      const color = attributes
+        ? nodeColorForMode(attributes, isEmphasized)
+        : state.theme === 'light' ? '#374151' : '#f3f4f6';
+      mapGeoFrontContext.globalAlpha = state.focusOpacityActive
+        && (!actorId || !state.focusNodeIds.has(actorId))
+        ? FOCUS_DIM_OPACITY
+        : 1;
       mapGeoFrontContext.beginPath();
-      mapGeoFrontContext.strokeStyle = state.theme === 'light' ? '#1f2933' : '#ffffff';
-      mapGeoFrontContext.lineWidth = 2;
-      mapGeoFrontContext.stroke(path);
+      mapGeoFrontContext.arc(projected.x, projected.y, isEmphasized ? radius + 1 : radius, 0, Math.PI * 2);
+      mapGeoFrontContext.fillStyle = color;
+      mapGeoFrontContext.fill();
+      mapGeoFrontContext.strokeStyle = isEmphasized
+        ? state.theme === 'light' ? '#1f2933' : '#ffffff'
+        : state.theme === 'light' ? '#ffffff' : '#111827';
+      mapGeoFrontContext.lineWidth = isEmphasized ? 2 : 1.5;
+      mapGeoFrontContext.stroke();
+      return hitTarget;
     });
+    mapGeoFrontContext.globalAlpha = 1;
   }
 
   // Pins actors tied to a building at that building's projected location and
@@ -4942,9 +5063,40 @@ async function main() {
       if (parameterSamples.length) {
         const samples = document.createElement('div');
         samples.className = 'legend-parameter-group';
-        parameterSamples.forEach(({ label: sampleLabel, style }) => {
+        parameterSamples.forEach(({ label: sampleLabel, style, scale }) => {
           const row = document.createElement('div');
           row.className = 'legend-parameter-row';
+          if (style === 'weight' && scale) {
+            row.classList.add('legend-parameter-scale-row');
+            const sampleText = document.createElement('span');
+            sampleText.className = 'legend-parameter-scale-title';
+            sampleText.textContent = sampleLabel;
+            const ramp = document.createElement('div');
+            ramp.className = 'legend-parameter-scale';
+            const minValue = document.createElement('span');
+            minValue.className = 'legend-parameter-scale-value';
+            minValue.textContent = scale.minLabel;
+            const maxValue = document.createElement('span');
+            maxValue.className = 'legend-parameter-scale-value';
+            maxValue.textContent = scale.maxLabel;
+            const rampHeight = Math.max(scale.maxWidth, 1);
+            const wedge = createSvgElement('svg', {
+              class: 'legend-parameter-scale-wedge',
+              viewBox: `0 0 100 ${rampHeight}`,
+              preserveAspectRatio: 'none',
+              'aria-hidden': 'true',
+            });
+            const top = (rampHeight - scale.minWidth) / 2;
+            wedge.style.height = `${rampHeight}px`;
+            wedge.appendChild(createSvgElement('polygon', {
+              points: `0,${top} 100,0 100,${rampHeight} 0,${top + scale.minWidth}`,
+              fill: color,
+            }));
+            ramp.append(minValue, wedge, maxValue);
+            row.append(sampleText, ramp);
+            samples.appendChild(row);
+            return;
+          }
           if (style === 'weight') {
             const range = document.createElement('span');
             range.className = 'legend-parameter-weight-range';
@@ -5012,65 +5164,34 @@ async function main() {
 
   function renderLegend() {
     legendContent.replaceChildren();
-    const dimensions = renderer.getDimensions();
-    const nodePositions = new Map();
-    const visibleNodes = [];
-    graph.forEachNode((node) => {
-      if (!state.isNodeVisible(node)) return;
-      const data = renderer.getNodeDisplayData(node);
-      if (!data || data.hidden) return;
-      const point = renderer.framedGraphToViewport(data);
-      nodePositions.set(node, point);
-      const radius = renderer.scaleSize(data.size || 0);
-      if (point.x + radius >= 0 && point.x - radius <= dimensions.width
-        && point.y + radius >= 0 && point.y - radius <= dimensions.height) {
-        visibleNodes.push(node);
-      }
-    });
-
-    const segmentIntersectsViewport = (start, end) => {
-      const deltaX = end.x - start.x;
-      const deltaY = end.y - start.y;
-      let minimum = 0;
-      let maximum = 1;
-      const pValues = [-deltaX, deltaX, -deltaY, deltaY];
-      const qValues = [start.x, dimensions.width - start.x, start.y, dimensions.height - start.y];
-      for (let index = 0; index < pValues.length; index += 1) {
-        const p = pValues[index];
-        const q = qValues[index];
-        if (p === 0) {
-          if (q < 0) return false;
-          continue;
-        }
-        const ratio = q / p;
-        if (p < 0) minimum = Math.max(minimum, ratio);
-        else maximum = Math.min(maximum, ratio);
-        if (minimum > maximum) return false;
-      }
-      return true;
-    };
+    const visibleNodes = graph.filterNodes((node) => state.isNodeVisible(node));
 
     const visibleRelationshipTypes = new Set();
     graph.forEachEdge((edge, attributes, source, target) => {
       if (!state.activeEdgeTypes.has(attributes.adjacencyType) && !state.pinnedGraphEdgeIds.has(edge)) return;
       if (!state.isNodeVisible(source) || !state.isNodeVisible(target)) return;
-      const sourcePoint = nodePositions.get(source);
-      const targetPoint = nodePositions.get(target);
-      if (sourcePoint && targetPoint && segmentIntersectsViewport(sourcePoint, targetPoint)) {
-        visibleRelationshipTypes.add(attributes.adjacencyType);
-      }
+      visibleRelationshipTypes.add(attributes.adjacencyType);
     });
+    const fundsLegendScale = edgeWeightLegendScale(graph, 'fin', 'ongoingFunds', formatLegendDollars);
+    const parcelAreaLegendScale = edgeWeightLegendScale(graph, 'own', 'parcelArea', formatLegendArea);
+    const closenessLegendScale = {
+      minLabel: 'Less close',
+      maxLabel: 'More close',
+      minWidth: MIN_EDGE_WIDTH,
+      maxWidth: MAX_WEIGHTED_EDGE_WIDTH,
+    };
     const relationshipParameterSamples = {
       col: [
         { label: 'Ongoing', style: 'solid' },
         { label: 'One-time', style: 'dashed' },
-        { label: 'Closeness', style: 'weight' },
+        { label: 'Closeness', style: 'weight', scale: closenessLegendScale },
       ],
       fin: [
-        { label: 'Ongoing funds', style: 'weight' },
-        { label: 'Upfront investment', style: 'overlay' },
+        { label: 'Yearly', style: 'solid' },
+        { label: 'Upfront investment', style: 'dashed' },
+        { label: 'Funds', style: 'weight', scale: fundsLegendScale },
       ],
-      own: [{ label: 'Parcel area', style: 'weight' }],
+      own: [{ label: 'Parcel area', style: 'weight', scale: parcelAreaLegendScale }],
       pos: [
         { label: 'Elected', style: 'solid' },
         { label: 'Succession', style: 'dotted' },
@@ -5159,7 +5280,7 @@ async function main() {
       renderLegendSection('SCALE OF ACTOR', scaleEntries);
     }
 
-    if (visibleNodes.length) {
+    if (visibleNodes.length && haloToggle.checked) {
       const modeLabels = {
         'public-interest': 'Public interest (hits)',
         'degree-centrality': 'Degree centrality',
@@ -5199,6 +5320,28 @@ async function main() {
   legendToggle.addEventListener('click', () => setLegendOpen(legendPanel.hidden));
   legendClose.addEventListener('click', () => setLegendOpen(false));
   setLegendOpen(true);
+
+  document.getElementById('legend-fit').addEventListener('click', () => {
+    const panelBounds = legendPanel.getBoundingClientRect();
+    const workspaceBounds = workspace.getBoundingClientRect();
+    const previousHeight = legendPanel.style.height;
+    const previousMaxHeight = legendPanel.style.maxHeight;
+    legendPanel.style.height = 'auto';
+    legendPanel.style.maxHeight = 'none';
+    const contentHeight = legendPanel.getBoundingClientRect().height;
+    legendPanel.style.height = previousHeight;
+    legendPanel.style.maxHeight = previousMaxHeight;
+    const panelStyle = getComputedStyle(legendPanel);
+    const maximumHeight = parseFloat(panelStyle.maxHeight) || workspaceBounds.height;
+    const minimumHeight = parseFloat(panelStyle.minHeight) || 0;
+    const height = Math.max(minimumHeight, Math.min(maximumHeight, Math.ceil(contentHeight)));
+    const top = Math.max(0, Math.min(panelBounds.top - workspaceBounds.top, workspaceBounds.height - height));
+    legendPanel.style.height = `${height}px`;
+    legendPanel.style.top = `${top}px`;
+    legendPanel.style.left = `${panelBounds.left - workspaceBounds.left}px`;
+    legendPanel.style.right = 'auto';
+    legendPanel.style.bottom = 'auto';
+  });
 
   let legendDrag = null;
   legendPanelHeader.addEventListener('pointerdown', (event) => {

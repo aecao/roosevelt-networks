@@ -33,6 +33,12 @@ To add a relationship type, add its label and code to `manifest.json` and add th
 
 Use **Refresh from Google Sheets** in the sidebar to fetch the published `actor_working` and `adjacency` tabs, then rebuild the graph directly from those actors and edge rows. If a sheet request fails, its bundled CSV snapshot is used and the refresh is marked incomplete. The workbook must remain published to the web. Normal startup uses the bundled CSV snapshots; after refresh, the page stays in sheet mode on subsequent reloads. Published tab IDs are configured in `src/config.js`.
 
+### Map points — `public/data/buildings/point-*.svg`
+
+Map-mode point geometry is loaded from separate SVG files, each containing the island outline in a group with `id="boundary"` and exactly one point outside that group. The filename-to-actor mapping comes from the `point - "name"` rows of the "buildings" sheet (written to `map-points.json`); each point file uses the island boundary to align its location to the map. Points are drawn on the map and anchor their matching actors in map mode, taking precedence over building centroids. Hover over a building without an assigned actor to temporarily see its name or, if it has no name, its BIN.
+
+Building footprint parameters and actor links live in the "buildings" sheet of the linked Google Spreadsheet. Run `npm run sync:buildings` to download it into `public/data/buildings/building_actors.csv` and regenerate `map-overlay.svg` and `map-points.json`.
+
 ## Local development
 
 ```bash
