@@ -45,3 +45,12 @@ export const PALETTE = [
   '#4f9dff', '#ff6b6b', '#ffd166', '#06d6a0', '#c77dff',
   '#f4845f', '#5eead4', '#f472b6', '#a3e635', '#fbbf24',
 ];
+
+// Fixed colours for sector values (nodeCategoryField); unlisted sectors fall back to PALETTE.
+export const SECTOR_COLORS = {
+  PUBLIC: '#ffd23d',
+  PRIVATE: '#3d94ff',
+  COMMUNITY: '#ff3ba9',
+  VOLUNTARY: '#ff3ba9',
+  OTHER: '#dbdbdb',
+};

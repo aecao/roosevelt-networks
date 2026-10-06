@@ -8,7 +8,7 @@ import { drawDiscNodeHover, EdgeArrowProgram, EdgeLineProgram, EdgeRectangleProg
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
-import { DATA, PALETTE, SHEET_ADJACENCY_TYPES } from './config.js';
+import { DATA, PALETTE, SECTOR_COLORS, SHEET_ADJACENCY_TYPES } from './config.js';
 import { dataLoadState, loadActors, loadActorNewsMetrics, loadAdjacencyRows, loadEdgeManifest } from './data.js';
 
 const mapGeoModule = import('./map-mode.js');
@@ -74,6 +74,16 @@ function hitTestHaloBoundary(targets, x, y, tolerance = 2) {
     }
   });
   return closest;
+}
+
+const SCALE_DISPLAY_LABELS = {
+  MICRO: 'Micro - Individuals',
+  MESO: 'Meso - Organizations, communities',
+  MACRO: 'Macro - Systems, economies, nations',
+};
+
+function scaleDisplayLabel(scale) {
+  return SCALE_DISPLAY_LABELS[scale] ?? scale;
 }
 
 function coreNodeSize(scale) {
@@ -660,7 +670,10 @@ async function buildGraph(fromGoogleSheets = false, onProgress = () => {}) {
     .filter(Number.isFinite);
   state.sentimentMaxAbs = Math.max(0, ...sentimentValues.map(Math.abs)) || 1;
   const categories = [...new Set(actors.map((a) => a[DATA.nodeCategoryField] || 'Unknown'))].sort();
-  categories.forEach((cat, i) => state.categoryColors.set(cat, PALETTE[i % PALETTE.length]));
+  categories.forEach((cat, i) => state.categoryColors.set(
+    cat,
+    SECTOR_COLORS[String(cat).trim().toUpperCase()] || PALETTE[i % PALETTE.length],
+  ));
   const topics = [...new Set(actors.flatMap((actor) =>
     (actor[DATA.nodeTopicField] || '').split(',').map((topic) => topic.trim().toUpperCase()).filter(Boolean),
   ))].sort();
@@ -3719,7 +3732,7 @@ async function main() {
   // Scale filters
   buildFilterCheckboxes(
     document.getElementById('scale-filters'),
-    scales.map((s) => ({ value: s, label: s })),
+    scales.map((s) => ({ value: s, label: scaleDisplayLabel(s) })),
     state.activeScales,
     () => '#9a9a9a',
     () => {
@@ -5304,7 +5317,7 @@ async function main() {
       ];
       const maximumRadius = Math.max(...visibleScales.map(coreNodeSize));
       const scaleEntries = visibleScales.map((scale) => ({
-        label: scale,
+        label: scaleDisplayLabel(scale),
         color: '#8a8a8a',
         kind: 'scale-node',
         size: Math.max(5, Math.round(Math.pow(coreNodeSize(scale) / maximumRadius, 0.65) * 18)),

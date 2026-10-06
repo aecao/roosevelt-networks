@@ -27,7 +27,7 @@ ADMINISTRATOR-ADMINISTRATED,Lyft,Citibike,,,,
 ADMINISTRATOR-ADMINISTRATED,NYC Department of Transportation,Roosevelt Island Bridge ,,,,
 ADMINISTRATOR-ADMINISTRATED,Hornblower,Astoria Ferry,,,,
 ADMINISTRATOR-ADMINISTRATED,Wildlife freedom foundation ,Cat Sanctuary,,,,
-ADMINISTRATOR-ADMINISTRATED,Economic Development Committee,Coler Coastal Resiliency Program ,,,,
+ADMINISTRATOR-ADMINISTRATED,NYC Economic Development Corporation,Coler Coastal Resiliency Program ,,,,
 ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Roosevelt Island Green Spaces,,,,
 ADMINISTRATOR-ADMINISTRATED,Neil Weissman,Federal Emergency Management Agency,,,,
 ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Garden Club,Roosevelt Island Community Garden,,,,
@@ -161,7 +161,7 @@ OWNER-TENANT,Related Companies,Riverwalk Crossing,"30,000 sq ft",Short-term,,
 OWNER-TENANT,Related Companies,Riverwalk Heights,"30,000 sq ft",Short-term,,
 OWNER-TENANT,Related Companies,Riverwalk Park,"30,000 sq ft",Short-term,,
 OWNER-TENANT,Related Companies,Riverwalk Point,"30,000 sq ft",Short-term,,
-OWNER-TENANT,Economic Development Committee,Astoria Ferry,"2,000 sq ft",Long-term,,
+OWNER-TENANT,NYC Economic Development Corporation,Astoria Ferry,"2,000 sq ft",Long-term,,
 PARENT-CHILD,Cornell University,Cornell Tech,,,,
 PARENT-CHILD,Northtown,Rivercross,,,,
 PARENT-CHILD,Northtown,Island House,,,,
@@ -265,172 +265,149 @@ POSITION-INCUMBENT,Mayor of New York City,James J. Walker,Elected,,,
 POSITION-INCUMBENT,Mayor of New York City,John Francis Hylan,Elected,,,
 POSITION-INCUMBENT,President & CEO of the Urban Development Corporation,Edward Logue,Elected,,,
 PREDECESSOR-SUCCESSOR,Welfare Island Development Corporation,Welfare Island Operating Corporation,,,,Fire Department of New York
-PREDECESSOR-SUCCESSOR,Welfare Island Operating Corporation,Roosevelt Island Operating Corporation,,,,NYC Health + Hospitals/Coler
-PREDECESSOR-SUCCESSOR,Housing and Development Administration,NYC Department of Housing Preservation and Development,,,,The Octagon
-PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Department of Cultural Affairs,,,,Manhattan Park
-PREDECESSOR-SUCCESSOR,NYC Environmental Protection Administration,NYC Parks,,,,The Bloomberg Center
-PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Parks,,,,Graduate Hotel
-PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Department of Cultural Affairs,,,,Verizon Executive Education Center
-PREDECESSOR-SUCCESSOR,NYC Health Services Administration,NYC Department of Health and Mental Hygiene,,,,The House
-PREDECESSOR-SUCCESSOR,NYC Health Services Administration,NYC Health + Hospitals,,,,Sportspark
-PREDECESSOR-SUCCESSOR,NYC Finance Administration,NYC Department of Finance,,,,Roosevelt Island Racquet Club
-PREDECESSOR-SUCCESSOR,Urban Development Corporation,Empire State Development,,,,Roosevelt Island Tramway
-PREDECESSOR-SUCCESSOR,Island Cats,Wildlife freedom foundation ,,,,Roosevelt Island Steam Plant
-PREDECESSOR-SUCCESSOR,Welfare Island Bridge,Roosevelt Island Bridge ,,,,Riverwalk Crossing
-REPRESENTATIVE-ELECTOR,Governer of New York,New York State Residents,,,,Roosevelt Island Subway Station
-REPRESENTATIVE-ELECTOR,Mayor of New York City,NYC Residents,,,,Riverwalk Heights
-,Roosevelt Island Library,,,,,Riverwalk Park
-PARENT-CHILD,New York Public Library ,Roosevelt Island Library,,,,Riverwalk Point
-PARENT-CHILD,New York City Government,New York Public Library ,,,,Blackwell House
-PARENT-CHILD,New York City Government,NYC Department of Public Works,,,,Roosevelt Island Youth Center
-FINANCIAL (RECIPIENT-SENDER),Cornell University,Tata Group,,,,St. Frances Xavier Cabrini Church
-FINANCIAL (RECIPIENT-SENDER),Tata Innovation Center,Tata Group,,,,Rivercross
-COLLABORATION,Tata Group,Cornell University,,,,Island House
-,Foodtown,,,,,Westview
-,NYC Department of Public Works,,,,,Roosevelt Island Senior Center
-,Roosevelt Island Public Safety Department,,,,,The Landings
-,Urban Renewal Administration,,,,,The Child School / Legacy High School
-,Public Housing Administration,,,,,The Roosevelt Island School PS/IS 217
-,NYC Department of City Planning,,,,,Roosevelt Island Garden Club
-,Roosevelt Island Historical Society,,,,,Roosevelt Island Community Garden
-,New York Public Library ,,,,,Motorgate Parking
-,Archdiocese of New York,,,,,Astoria Ferry
-,Donald Trump 00,,,,,Episcopal Church of the Good Shepherd
-,Franklin D. Roosevelt 00,,,,,The Sanctuary
-,Alfred E. Smith 00,,,,,AVAC Station
-POSITION-INCUMBENT,Gensler Family Sesquicentennial Executive Director of AAP NYC,Bob Balder,,,,Double Take
-POSITION-INCUMBENT,Deputy Director of Gensler Family AAP NYC Center,Cathy Lang Ho,,,,Roosevelt Island Pool Building
-POSITION-INCUMBENT,Director of Government and Community Relations,Jane Swanson,,,,Public Restroom
-REPRESENTATIVE-ELECTOR,Gensler Family Sesquicentennial Executive Director of AAP NYC,Cornell Tech,,,,Smallpox Memorial Hospital
-REPRESENTATIVE-ELECTOR,Deputy Director of Gensler Family AAP NYC Center,Cornell Tech,,,,Northtown
-REPRESENTATIVE-ELECTOR,Director of Government and Community Relations,Cornell Tech,,,,Southtown
-PATH,,,,,,Federal Government
-PATH,,,,,,B.J. Jones
-PATH,,,,,,RIOC President & CEO
+PREDECESSOR-SUCCESSOR,Welfare Island Operating Corporation,Roosevelt Island Operating Corporation,,,,Manhattan Park
+PREDECESSOR-SUCCESSOR,Housing and Development Administration,NYC Department of Housing Preservation and Development,,,,The Bloomberg Center
+PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Department of Cultural Affairs,,,,Graduate Hotel
+PREDECESSOR-SUCCESSOR,NYC Environmental Protection Administration,NYC Parks,,,,Verizon Executive Education Center
+PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Parks,,,,The House
+PREDECESSOR-SUCCESSOR,"NYC Parks, Recreation, and Cultural Affairs Administration",NYC Department of Cultural Affairs,,,,Sportspark
+PREDECESSOR-SUCCESSOR,NYC Health Services Administration,NYC Department of Health and Mental Hygiene,,,,Roosevelt Island Racquet Club
+PREDECESSOR-SUCCESSOR,NYC Health Services Administration,NYC Health + Hospitals,,,,Roosevelt Island Tramway
+PREDECESSOR-SUCCESSOR,NYC Finance Administration,NYC Department of Finance,,,,Roosevelt Island Steam Plant
+PREDECESSOR-SUCCESSOR,Urban Development Corporation,Empire State Development,,,,Riverwalk Crossing
+PREDECESSOR-SUCCESSOR,Island Cats,Wildlife freedom foundation ,,,,Roosevelt Island Subway Station
+PREDECESSOR-SUCCESSOR,Welfare Island Bridge,Roosevelt Island Bridge ,,,,Riverwalk Heights
+REPRESENTATIVE-ELECTOR,Governer of New York,New York State Residents,,,,Riverwalk Park
+REPRESENTATIVE-ELECTOR,Mayor of New York City,NYC Residents,,,,Riverwalk Point
+,Roosevelt Island Library,,,,,Blackwell House
+PARENT-CHILD,New York Public Library ,Roosevelt Island Library,,,,Roosevelt Island Youth Center
+PARENT-CHILD,New York City Government,New York Public Library ,,,,St. Frances Xavier Cabrini Church
+PARENT-CHILD,New York City Government,NYC Department of Public Works,,,,Rivercross
+FINANCIAL (RECIPIENT-SENDER),Cornell University,Tata Group,,,,Island House
+FINANCIAL (RECIPIENT-SENDER),Tata Innovation Center,Tata Group,,,,Westview
+COLLABORATION,Tata Group,Cornell University,,,,Roosevelt Island Senior Center
+,Foodtown,,,,,The Child School / Legacy High School
+,NYC Department of Public Works,,,,,The Roosevelt Island School PS/IS 217
+,Roosevelt Island Public Safety Department,,,,,Roosevelt Island Garden Club
+,Urban Renewal Administration,,,,,Roosevelt Island Community Garden
+,Public Housing Administration,,,,,Motorgate Parking
+,NYC Department of City Planning,,,,,Astoria Ferry
+,Roosevelt Island Historical Society,,,,,Episcopal Church of the Good Shepherd
+,New York Public Library ,,,,,The Sanctuary
+,Archdiocese of New York,,,,,AVAC Station
+,Donald Trump 00,,,,,Double Take
+,Franklin D. Roosevelt 00,,,,,Roosevelt Island Pool Building
+,Alfred E. Smith 00,,,,,Public Restroom
+POSITION-INCUMBENT,Gensler Family Sesquicentennial Executive Director of AAP NYC,Bob Balder,,,,Smallpox Memorial Hospital
+POSITION-INCUMBENT,Deputy Director of Gensler Family AAP NYC Center,Cathy Lang Ho,,,,Northtown
+POSITION-INCUMBENT,Director of Government and Community Relations,Jane Swanson,,,,Southtown
+REPRESENTATIVE-ELECTOR,Gensler Family Sesquicentennial Executive Director of AAP NYC,Cornell Tech,,,,Federal Government
+REPRESENTATIVE-ELECTOR,Deputy Director of Gensler Family AAP NYC Center,Cornell Tech,,,,B.J. Jones
+REPRESENTATIVE-ELECTOR,Director of Government and Community Relations,Cornell Tech,,,,RIOC President & CEO
 PATH,,,,,,NYS Division of Budget Director
-FINANCIAL (RECIPIENT-SENDER),Tata Group,,,,,NYS Homes and Community Renewal Chair
-,,,,,,New York Police Department
-,,,,,,Economic Development Committee
-ADMINISTRATOR-ADMINISTRATED,Metropolitan Transit Authority,Strecker Memorial Laboratory,,,,The Atlantic Philantrophies
-PARENT-CHILD,FDR Four Freedoms State Park,The Room,,,,Jamsetji Tata
-ADMINISTRATOR-ADMINISTRATED,Cornell Tech,Central Utility Plant,,,,Roosevelt Island Associates
-PARENT-CHILD,New York State Government,NY State Parks,,,,Becker + Becker
-PARENT-CHILD,New York City Government,New York City Emergency Management Department,,,,The Hudson Company
-PARENT-CHILD,New York City Government,NYC Department of Transportation,,,,Edward Logue
-CREATOR-CREATION,Michael Bloomberg,Bloomberg Philanthropies,,,,New York State Housing Finance Agency
-FINANCIAL (RECIPIENT-SENDER),Cornell Tech,Michael Bloomberg,"100,000,000",,,New York City Housing Authority
-CREATOR-CREATION,Stephen M. Ross,Related Companies,,,,C&C Apartment Management
-COLLABORATION,Cornell Tech,Israel Institute of Technology,On-going,4,,Starrett Housing Corporation
-CREATOR-CREATION,Qualcomm,Dr. Irwin Jacobs,,,,Cohen Brothers Associates
-FINANCIAL (RECIPIENT-SENDER),Joan and Irwin Jacobs Technion-Cornell Institute,Dr. Irwin Jacobs,"$133,000,000",,,NYC Human Resources Administration
-PARENT-CHILD,Cornell Tech,Joan and Irwin Jacobs Technion-Cornell Institute,,,,NYC Transportation Administration
-PARENT-CHILD,Israel Institute of Technology,Joan and Irwin Jacobs Technion-Cornell Institute,,,,NYC Municipal Service Administration
-COLLABORATION,Cornell Tech,Joan and Irwin Jacobs Technion-Cornell Institute,On-going,4,,NYC Economic Development Administration
-COLLABORATION,Israel Institute of Technology,Joan and Irwin Jacobs Technion-Cornell Institute,On-going,4,,NYC Sanitation Department
-FINANCIAL (RECIPIENT-SENDER),Joan and Irwin Jacobs Technion-Cornell Institute,Charles Feeney,"$350,000,000",,,NYC Department of General Services
-PARENT-CHILD,Cornell University,Weill Cornell Medicine,,,,NYC Department of Environmental Protection
-POSITION-INCUMBENT,RIOC Vice President,Lance Polivy,,,,Job Development Authority
-POSITION-INCUMBENT,RIOC Chief Operating Officer,Mary C. Cunneen,,,,Leitner-Poma of America
-POSITION-INCUMBENT,RIOC Chief Financial Officer,Dhruvika Patel Amin,,,,"Skidmore, Owings & Merrill"
-POSITION-INCUMBENT,RIOC Chief of Staff,Aida Morales,,,,Morphosis
-POSITION-INCUMBENT,RIOC Assistant Vice President,Kevin Brown,,,,Weiss/Manfredi
-POSITION-INCUMBENT,RIOC Chief of Public Safety,Kevin Brown,,,,Handel Architects
-POSITION-INCUMBENT,RIOC Assistant Vice President of Communications & Government Affairs.,Bryant Daniels,,,,Snohetta
-POSITION-INCUMBENT,RIOC Board of Directors,Marc Jonas Block,,,,Cornell AAP
-POSITION-INCUMBENT,RIOC Board of Directors,Fay Christian,,,,Department of Housing and Urban Development
-POSITION-INCUMBENT,RIOC Board of Directors,Conway Ekpo,,,,Federal Housing Administration
-POSITION-INCUMBENT,RIOC Board of Directors,Dr. Michal L. Melamed,,,,Fannie Mae (Federal National Mortgage Association)
-POSITION-INCUMBENT,RIOC Board of Directors,Howard L. Polivy,,,,National Housing Agency
-POSITION-INCUMBENT,RIOC Board of Directors,Lydia Tang,,,,Federal Public Housing Authority
-POSITION-INCUMBENT,RIOC Board of Directors,RuthAnne Visnauskas,,,,Federal Works Agency
-POSITION-INCUMBENT,RIOC Board of Directors,Melissa A. Wade,,,,New Deal
-POSITION-INCUMBENT,RIOC Board of Directors,Blake G. Washington,,,,Lyft
-ADMINISTRATOR-ADMINISTRATED,RIOC Board of Directors,Roosevelt Island Operating Corporation,,,,Hornblower
-PARENT-CHILD,RIOC Board of Directors,RIOC Vice President,,,,Coler Coastal Resiliency Program
-PARENT-CHILD,RIOC Board of Directors,RIOC Chief Operating Officer,,,,Red Bus
-PARENT-CHILD,RIOC Board of Directors,RIOC Chief Financial Officer,,,,Citibike
-PARENT-CHILD,RIOC Board of Directors,RIOC Chief of Staff,,,,Cat Sanctuary
-PARENT-CHILD,RIOC Board of Directors,RIOC Assistant Vice President,,,,Roosevelt Island Green Spaces
-PARENT-CHILD,RIOC Board of Directors,RIOC Chief of Public Safety,,,,Four Freedoms Park Conservancy
-PARENT-CHILD,RIOC Board of Directors,RIOC Assistant Vice President of Communications & Government Affairs.,,,,Neil Weissman
-PARENT-CHILD,NYC City Council,City Council Speaker,,,,NYCEM Interim Flood Protection Measures
-PARENT-CHILD,NYC City Council,NYC Comptroller,,,,Federal Emergency Management Agency
-POSITION-INCUMBENT,City Council Speaker,Julie Menin,,,,President of the United States
-POSITION-INCUMBENT,NYC Comptroller,Mark Levine,,,,Woodrow Wilson
-REPRESENTATIVE-ELECTOR,Community Board 8,Community District 8,,,,Warren G. Harding
-PARENT-CHILD,Community District 8,Upper East Side,,,,Calvin Coolidge
-PARENT-CHILD,Community District 8,Roosevelt Island,,,,Herbert Hoover
-PARENT-CHILD,Upper East Side,Yorkville,,,,Franklin D. Roosevelt
-PARENT-CHILD,Upper East Side,Lenox Hill,,,,Harry S. Truman
-PARENT-CHILD,Upper East Side,Carnegie Hill,,,,Dwight D. Eisenhower
-ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Roosevelt Island,,,,John F. Kennedy
-PARENT-CHILD,New York City Council District 5,Roosevelt Island,,,,Lyndon B. Johnson
-REPRESENTATIVE-ELECTOR,Julie Menin,New York City Council District 5,,,,Richard Nixon
-PARENT-CHILD,New York City Council District 5,Upper East Side,,,,Gerald Ford
-PARENT-CHILD,New York City Council District 5,East Harlem,,,,Jimmy Carter
-,,,,,,Ronald Reagan
-,,,,,,George H. W. Bush
-,,,,,,Bill Clinton
-,,,,,,George W. Bush
-,,,,,,Barack Obama
-,,,,,,Donald Trump
-,,,,,,Joe Biden
-,,,,,,Kathy Hochul
-,,,,,,Andrew Cuomo
-,,,,,,David Paterson
-,,,,,,Eliot Spitzer
-,,,,,,George Pataki
-,,,,,,Mario Cuomo
-,,,,,,Hugh Carey
-,,,,,,Malcolm Wilson
-,,,,,,Nelson Rockefeller
-,,,,,,W. Averell Harriman
-,,,,,,Thomas E. Dewey
+PATH,,,,,,NYS Homes and Community Renewal Chair
+PATH,,,,,,New York Police Department
+PATH,,,,,,
+FINANCIAL (RECIPIENT-SENDER),Tata Group,,,,,The Atlantic Philantrophies
+,,,,,,Jamsetji Tata
+,,,,,,Roosevelt Island Associates
+ADMINISTRATOR-ADMINISTRATED,Metropolitan Transit Authority,Strecker Memorial Laboratory,,,,The Hudson Company
+PARENT-CHILD,FDR Four Freedoms State Park,The Room,,,,Edward Logue
+ADMINISTRATOR-ADMINISTRATED,Cornell Tech,Central Utility Plant,,,,New York State Housing Finance Agency
+PARENT-CHILD,New York State Government,NY State Parks,,,,New York City Housing Authority
+PARENT-CHILD,New York City Government,New York City Emergency Management Department,,,,C&C Apartment Management
+PARENT-CHILD,New York City Government,NYC Department of Transportation,,,,Starrett Housing Corporation
+CREATOR-CREATION,Michael Bloomberg,Bloomberg Philanthropies,,,,Cohen Brothers Associates
+FINANCIAL (RECIPIENT-SENDER),Cornell Tech,Michael Bloomberg,"100,000,000",,,NYC Human Resources Administration
+CREATOR-CREATION,Stephen M. Ross,Related Companies,,,,NYC Transportation Administration
+COLLABORATION,Cornell Tech,Israel Institute of Technology,On-going,4,,NYC Municipal Service Administration
+CREATOR-CREATION,Qualcomm,Dr. Irwin Jacobs,,,,NYC Economic Development Administration
+FINANCIAL (RECIPIENT-SENDER),Joan and Irwin Jacobs Technion-Cornell Institute,Dr. Irwin Jacobs,"$133,000,000",,,NYC Sanitation Department
+PARENT-CHILD,Cornell Tech,Joan and Irwin Jacobs Technion-Cornell Institute,,,,NYC Department of General Services
+PARENT-CHILD,Israel Institute of Technology,Joan and Irwin Jacobs Technion-Cornell Institute,,,,NYC Department of Environmental Protection
+COLLABORATION,Cornell Tech,Joan and Irwin Jacobs Technion-Cornell Institute,On-going,4,,Job Development Authority
+COLLABORATION,Israel Institute of Technology,Joan and Irwin Jacobs Technion-Cornell Institute,On-going,4,,Leitner-Poma of America
+FINANCIAL (RECIPIENT-SENDER),Joan and Irwin Jacobs Technion-Cornell Institute,Charles Feeney,"$350,000,000",,,"Skidmore, Owings & Merrill"
+PARENT-CHILD,Cornell University,Weill Cornell Medicine,,,,Morphosis
+POSITION-INCUMBENT,RIOC Vice President,Lance Polivy,,,,Weiss/Manfredi
+POSITION-INCUMBENT,RIOC Chief Operating Officer,Mary C. Cunneen,,,,Handel Architects
+POSITION-INCUMBENT,RIOC Chief Financial Officer,Dhruvika Patel Amin,,,,Snohetta
+POSITION-INCUMBENT,RIOC Chief of Staff,Aida Morales,,,,Cornell AAP
+POSITION-INCUMBENT,RIOC Assistant Vice President,Kevin Brown,,,,Department of Housing and Urban Development
+POSITION-INCUMBENT,RIOC Chief of Public Safety,Kevin Brown,,,,Federal Housing Administration
+POSITION-INCUMBENT,RIOC Assistant Vice President of Communications & Government Affairs.,Bryant Daniels,,,,Fannie Mae (Federal National Mortgage Association)
+POSITION-INCUMBENT,RIOC Board of Directors,Marc Jonas Block,,,,National Housing Agency
+POSITION-INCUMBENT,RIOC Board of Directors,Fay Christian,,,,Federal Public Housing Authority
+POSITION-INCUMBENT,RIOC Board of Directors,Conway Ekpo,,,,Federal Works Agency
+POSITION-INCUMBENT,RIOC Board of Directors,Dr. Michal L. Melamed,,,,New Deal
+POSITION-INCUMBENT,RIOC Board of Directors,Howard L. Polivy,,,,Lyft
+POSITION-INCUMBENT,RIOC Board of Directors,Lydia Tang,,,,Hornblower
+POSITION-INCUMBENT,RIOC Board of Directors,RuthAnne Visnauskas,,,,Red Bus
+POSITION-INCUMBENT,RIOC Board of Directors,Melissa A. Wade,,,,Citibike
+POSITION-INCUMBENT,RIOC Board of Directors,Blake G. Washington,,,,Cat Sanctuary
+ADMINISTRATOR-ADMINISTRATED,RIOC Board of Directors,Roosevelt Island Operating Corporation,,,,Roosevelt Island Green Spaces
+PARENT-CHILD,RIOC Board of Directors,RIOC Vice President,,,,Four Freedoms Park Conservancy 
+PARENT-CHILD,RIOC Board of Directors,RIOC Chief Operating Officer,,,,Neil Weissman
+PARENT-CHILD,RIOC Board of Directors,RIOC Chief Financial Officer,,,,Federal Emergency Management Agency
+PARENT-CHILD,RIOC Board of Directors,RIOC Chief of Staff,,,,President of the United States
+PARENT-CHILD,RIOC Board of Directors,RIOC Assistant Vice President,,,,Woodrow Wilson
+PARENT-CHILD,RIOC Board of Directors,RIOC Chief of Public Safety,,,,Warren G. Harding
+PARENT-CHILD,RIOC Board of Directors,RIOC Assistant Vice President of Communications & Government Affairs.,,,,Calvin Coolidge
+PARENT-CHILD,NYC City Council,City Council Speaker,,,,Herbert Hoover
+PARENT-CHILD,NYC City Council,NYC Comptroller,,,,Franklin D. Roosevelt
+POSITION-INCUMBENT,City Council Speaker,Julie Menin,,,,Harry S. Truman
+POSITION-INCUMBENT,NYC Comptroller,Mark Levine,,,,Dwight D. Eisenhower
+REPRESENTATIVE-ELECTOR,Community Board 8,Community District 8,,,,John F. Kennedy
+PARENT-CHILD,Community District 8,Upper East Side,,,,Lyndon B. Johnson
+PARENT-CHILD,Community District 8,Roosevelt Island,,,,Richard Nixon
+PARENT-CHILD,Upper East Side,Yorkville,,,,Gerald Ford
+PARENT-CHILD,Upper East Side,Lenox Hill,,,,Jimmy Carter
+PARENT-CHILD,Upper East Side,Carnegie Hill,,,,Ronald Reagan
+ADMINISTRATOR-ADMINISTRATED,Roosevelt Island Operating Corporation,Roosevelt Island,,,,George H. W. Bush
+PARENT-CHILD,New York City Council District 5,Roosevelt Island,,,,Bill Clinton
+REPRESENTATIVE-ELECTOR,Julie Menin,New York City Council District 5,,,,George W. Bush
+PARENT-CHILD,New York City Council District 5,Upper East Side,,,,Barack Obama
+PARENT-CHILD,New York City Council District 5,East Harlem,,,,Donald Trump
+PARENT-CHILD,New York City Government,NYC Economic Development Corporation,,,,Joe Biden
+COLLABORATION,NYC Economic Development Corporation,Cornell Tech,On-going,3,,Kathy Hochul
+COLLABORATION,NYC Economic Development Corporation,Roosevelt Island Operating Corporation,On-going,3,,Andrew Cuomo
+COLLABORATION,NYC Economic Development Corporation,NYC Health + Hospitals/Coler,On-going,3,,David Paterson
+COLLABORATION,Andrew Ross Sorkin,The New York Times,On-going,2,,Eliot Spitzer
+CREATOR-CREATION,Rick O'Conor,Roosevelt Islander Community News and Organization,,,,George Pataki
+CREATOR-CREATION,David Stone,Roosevelt Island Daily,,,,Mario Cuomo
+CREATOR-CREATION,Judith Berdy,Roosevelt Island Historical Society,,,,Hugh Carey
+PARENT-CHILD,NYC Health + Hospitals/Coler,Coler Coastal Resiliency Program ,,,,Malcolm Wilson
+COLLABORATION,Roosevelt Island Operating Corporation,Roosevelt Island Residents Association,On-going,2,,Nelson Rockefeller
+COLLABORATION,Cornell Tech,Roosevelt Island Residents Association,On-going,1,,W. Averell Harriman
+COLLABORATION,Cornell Tech,NYC Health + Hospitals/Coler,On-going,1,,Thomas E. Dewey
 ,,,,,,Charles Poletti
-,,,,,,Herbert H. Lehman
-,,,,,,Alfred E. Smith
-,,,,,,Nathan L. Miller
-,,,,,,Zohran Mamdani
-,,,,,,Eric Adams
-,,,,,,Bill de Blasio
-,,,,,,Rudy Giuliani
+COLLABORATION,Jane Swanson,Roosevelt Island Residents Association,On-going,1,,Herbert H. Lehman
+COLLABORATION,Jane Swanson,Roosevelt Island Operating Corporation,On-going,2,,Alfred E. Smith
+COLLABORATION,Theo Gobblevelt,Roosevelt Island Daily,On-going,2,,Nathan L. Miller
+POSITION-INCUMBENT,Vice President of the EDC,Kate Ascher,Appointment,,,Zohran Mamdani
+ADMINISTRATOR-ADMINISTRATED,Vice President of the EDC,NYC Economic Development Corporation,,,,Eric Adams
+POSITION-INCUMBENT,President of the EDC,Anthony Shorris,Appointment,,,Bill de Blasio
+ADMINISTRATOR-ADMINISTRATED,President of the EDC,NYC Economic Development Corporation,,,,Rudy Giuliani
 ,,,,,,David Dinkins
-,,,,,,Ed Koch
+PREDECESSOR-SUCCESSOR,NYCEM Interim Flood Protection Measures,Coler Coastal Resiliency Program ,,,,Ed Koch
 ,,,,,,Abraham Beame
 ,,,,,,John Lindsay
-,,,,,,Robert F. Wagner Jr.
-,,,,,,Vincent R. Impellitteri
-,,,,,,William O'Dwyer
-,,,,,,Fiorello La Guardia
-,,,,,,John P. O'Brien
-,,,,,,Joseph V. McKee
-,,,,,,James J. Walker
-,,,,,,John Francis Hylan
-,,,,,,President & CEO of the Urban Development Corporation
-,,,,,,"President, CEO & Commissioner of Empire State Development"
-,,,,,,Judith Berdy
+POSITION-INCUMBENT,President of RIRA,Frank Farance,Elected,,,Robert F. Wagner Jr.
+ADMINISTRATOR-ADMINISTRATED,President of RIRA,Roosevelt Island Residents Association,,,,Vincent R. Impellitteri
+COLLABORATION,Frank Farance,Roosevelt Island Daily,On-going,2,,William O'Dwyer
+OWNER-TENANT,Roosevelt Island Operating Corporation,Brookfield Properties,769000 sq ft,,,Fiorello La Guardia
+OWNER-TENANT,Roosevelt Island Operating Corporation,Forest City Ratner Companies,235000 sq ft,,,John P. O'Brien
+ADMINISTRATOR-ADMINISTRATED,Brookfield Properties,The Landings,,,,Joseph V. McKee
+ADMINISTRATOR-ADMINISTRATED,Forest City Ratner Companies,Tata Innovation Center,,,,James J. Walker
+CREATOR-CREATION,Forest City Ratner Companies,Tata Innovation Center,,,,John Francis Hylan
+ADMINISTRATOR-ADMINISTRATED,Cornell Tech Council,Cornell Tech,,,,President & CEO of the Urban Development Corporation
+PARENT-CHILD,Cornell Tech Council,Andrew Ross Sorkin,,,,"President, CEO & Commissioner of Empire State Development"
 ,,,,,,Carl Weisbrod
-,,,,,,Hope Knight
-,,,,,,Kate Ascher
-,,,,,,NYC Economic Development Corporation
-,,,,,,Roosevelt Islander Community News and Organization
-,,,,,,Rick O'Conor
-,,,,,,Roosevelt Island Daily
-,,,,,,Theo Gobblevelt
-,,,,,,Roosevelt Island Residents Association
-,,,,,,Frank Farance
-,,,,,,RIOC Assistant Vice President of Communications & Government Affairs
-,,,,,,Forest City Ratner Companies
-,,,,,,Brookfield Properties
-,,,,,,Cornell Tech Council
-,,,,,,Cornell Tech Council Chairman
-,,,,,,Howard Morgan
-,,,,,,David Siegel
-,,,,,,Greg Morrisett
-,,,,,,Cornell Tech Dean and Vice Provost
-,,,,,,Michael I. Kotlikoff
-,,,,,,Cornell University President
-,,,,,,Andrew Ross Sorkin
-,,,,,,The New York Times
-,,,,,,Philip Johnson
-,,,,,,Roosevelt Island Main Street
+ADMINISTRATOR-ADMINISTRATED,Cornell Tech Council Chairman,Cornell Tech,,,,Hope Knight
+ADMINISTRATOR-ADMINISTRATED,Cornell Tech Dean and Vice Provost,Cornell Tech,,,,RIOC Assistant Vice President of Communications & Government Affairs
+POSITION-INCUMBENT,Cornell Tech Council Chairman,Howard Morgan,,,,David Siegel
+POSITION-INCUMBENT,Cornell Tech Dean and Vice Provost,Greg Morrisett,,,,Philip Johnson
+ADMINISTRATOR-ADMINISTRATED,Cornell University President,Cornell University,,,,Roosevelt Island Main Street
+POSITION-INCUMBENT,Cornell University President,Michael I. Kotlikoff,,,,
+FINANCIAL (RECIPIENT-SENDER),Becker + Becker,The Octagon,"115,000,000",,,
+FINANCIAL (RECIPIENT-SENDER),The Octagon,Becker + Becker,,"$25,000,000",Yearly,
