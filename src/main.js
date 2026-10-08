@@ -1,15 +1,13 @@
 import Graph from 'graphology';
 import Sigma from 'sigma';
 import EdgeCurveProgram, { EdgeCurvedArrowProgram } from '@sigma/edge-curve';
-import betweennessCentrality from 'graphology-metrics/centrality/betweenness';
-import closenessCentrality from 'graphology-metrics/centrality/closeness';
-import eigenvectorCentrality from 'graphology-metrics/centrality/eigenvector';
 import { drawDiscNodeHover, EdgeArrowProgram, EdgeLineProgram, EdgeRectangleProgram } from 'sigma/rendering';
 import { animateNodes } from 'sigma/utils';
 import forceAtlas2 from 'graphology-layout-forceatlas2';
 import { circular } from 'graphology-layout';
 import { DATA, PALETTE, SECTOR_COLORS, SHEET_ADJACENCY_TYPES } from './config.js';
 import { dataLoadState, loadActors, loadActorNewsMetrics, loadAdjacencyRows, loadEdgeManifest } from './data.js';
+import { calculateCentralityScores, formatCentralityScore } from './centrality.js';
 
 const mapGeoModule = import('./map-mode.js');
 
@@ -869,7 +867,8 @@ function makeSliderOutputEditable(output, getBounds, onCommit) {
     input.className = 'slider-value-input';
     input.min = String(min);
     input.max = String(max);
-    input.value = (currentText.match(/-?\d+(\.\d+)?/) || [''])[0];
+    input.step = 'any';
+    input.value = (currentText.match(/-?\d+(\.\d+)?([eE][+-]?\d+)?/) || [''])[0];
     output.textContent = '';
     output.appendChild(input);
     input.focus();
@@ -1674,6 +1673,7 @@ async function main() {
   state.sizeNodesByScale = sizeNodesByScaleToggle.checked;
   const centralityTypeSelect = document.getElementById('centrality-type');
   const centralityThresholdSlider = document.getElementById('centrality-threshold-slider');
+  const centralityThresholdLabel = document.getElementById('centrality-threshold-label');
   const centralityThresholdValue = document.getElementById('centrality-threshold-value');
   const centralityThresholdTicks = document.getElementById('centrality-threshold-ticks');
   const centralityThresholdDecrement = document.getElementById('centrality-threshold-decrement');
@@ -2029,13 +2029,17 @@ async function main() {
 
   let cancelAnimation = null;
   let centralityFilterScoreCache = null;
-  // 1-based rank (ascending by connection count) per node, and the connection count
+  // 1-based rank (ascending by centrality score) per node, and the score
   // shown at each slider index; index 0 always means "no node filtered out".
   let centralityThresholdRanks = new Map();
   let centralityThresholdSteps = [0];
   let centralityThresholdTickIndices = [0];
   function relayout() {
     centralityFilterScoreCache = null;
+    updateCentralityThresholdRange();
+    updateNodeSizes();
+    updateLabelTiers();
+    refreshVisibleNodeDetails();
     state.refreshLegend?.();
     if (workspace.dataset.mode === 'timeline') {
       renderTimeline();
@@ -2046,11 +2050,6 @@ async function main() {
       return;
     }
     if (workspace.dataset.mode !== 'relationships') return;
-    updateNodeSizes();
-    updateCentralityThresholdRange();
-    updateLabelTiers();
-    state.refreshLegend?.();
-    refreshVisibleNodeDetails();
     if (state.freezePositions) {
       renderer.refresh();
       return;
@@ -2169,9 +2168,10 @@ async function main() {
   }
 
   function updateCentralityThresholdRange() {
-    if (state.centralityFilterType !== 'degree-centrality') return;
     const scores = getCentralityFilterScores();
-    const sortedEntries = Object.entries(scores).sort((first, second) => first[1] - second[1]);
+    const sortedEntries = Object.entries(scores)
+      .filter(([, score]) => Number.isFinite(score))
+      .sort((first, second) => first[1] - second[1]);
     centralityThresholdRanks = new Map(sortedEntries.map(([node], rank) => [node, rank + 1]));
     centralityThresholdSteps = [0, ...sortedEntries.map(([, value]) => value)];
     const maxIndex = sortedEntries.length;
@@ -2181,8 +2181,12 @@ async function main() {
     const index = Math.min(state.centralityThreshold, maxIndex);
     state.centralityThreshold = index;
     centralityThresholdSlider.value = String(index);
-    centralityThresholdValue.textContent = String(centralityThresholdSteps[index] ?? 0);
-    // Only mark indices where the connection-count value actually changes, so ticks
+    centralityThresholdValue.textContent = formatCentralityScore(state.centralityFilterType, centralityThresholdSteps[index] ?? 0);
+    const isDegree = state.centralityFilterType === 'degree-centrality';
+    centralityThresholdLabel.textContent = isDegree ? 'Minimum number of connections' : 'Minimum centrality score';
+    centralityThresholdDecrement.setAttribute('aria-label', isDegree ? 'Decrease minimum connections' : 'Decrease minimum centrality score');
+    centralityThresholdIncrement.setAttribute('aria-label', isDegree ? 'Increase minimum connections' : 'Increase minimum centrality score');
+    // Only mark indices where the score actually changes, so ticks
     // cluster where many nodes tie (usually the low end) and spread out where values
     // are mostly unique (usually the high end).
     const tickIndices = centralityThresholdSteps
@@ -2237,8 +2241,6 @@ async function main() {
 
   function passesCentralityThreshold(node) {
     if (state.centralityThreshold <= 0) return true;
-    // Only degree centrality filtering is implemented so far; other types pass through.
-    if (state.centralityFilterType !== 'degree-centrality') return true;
     const rank = centralityThresholdRanks.get(node) ?? 0;
     return rank > state.centralityThreshold;
   }
@@ -2754,24 +2756,8 @@ async function main() {
   }
 
   function centralityScores(mode, metricGraph = buildMetricGraph()) {
-    if (!metricGraph.order || (metricGraph.order < 2 && mode !== 'degree-centrality')) return {};
     try {
-      if (mode === 'degree-centrality') {
-        // Raw connection counts (not the normalized degreeCentrality score) so the
-        // threshold slider and its label can speak in whole connections.
-        const scores = {};
-        metricGraph.forEachNode((node) => { scores[node] = metricGraph.degree(node); });
-        return scores;
-      }
-      if (mode === 'closeness-centrality') {
-        return closenessCentrality(metricGraph, { wassermanFaust: true });
-      }
-      if (mode === 'betweenness-centrality') {
-        return betweennessCentrality(metricGraph, { getEdgeWeight: null });
-      }
-      if (mode === 'eigenvector-centrality') {
-        return eigenvectorCentrality(metricGraph, { getEdgeWeight: null, maxIterations: 500 });
-      }
+      return calculateCentralityScores(mode, metricGraph);
     } catch (error) {
       console.warn(`Unable to calculate ${mode}: ${error.message}`);
     }
@@ -2821,7 +2807,7 @@ async function main() {
         return [node, graph.getNodeAttribute(node, 'hits')];
       }
       if (mode === 'plain') return [node, 0];
-      return [node, Number.isFinite(scores[node]) ? scores[node] : 0];
+      return [node, scores[node]];
       }));
     const values = [...visibleScores.values()].filter(Number.isFinite);
     const minimum = values.length ? Math.min(...values) : 0;
@@ -2838,8 +2824,8 @@ async function main() {
     });
   }
 
-  updateNodeSizes();
   updateCentralityThresholdRange();
+  updateNodeSizes();
   updateLabelTiers();
 
   renderer.on('beforeRender', () => {
@@ -3800,7 +3786,7 @@ async function main() {
   function applyCentralityThresholdIndex(index) {
     centralityThresholdSlider.value = String(index);
     state.centralityThreshold = index;
-    centralityThresholdValue.textContent = String(centralityThresholdSteps[index] ?? 0);
+    centralityThresholdValue.textContent = formatCentralityScore(state.centralityFilterType, centralityThresholdSteps[index] ?? 0);
     refresh();
     relayout();
   }
@@ -3833,7 +3819,7 @@ async function main() {
       max: centralityThresholdSteps[centralityThresholdSteps.length - 1] ?? 0,
     }),
     (value) => {
-      // Snap the typed connection count to whichever achievable tick is closest.
+      // Snap the typed score to whichever achievable tick is closest.
       const closestIndex = centralityThresholdTickIndices.reduce((closest, candidate) => (
         Math.abs(centralityThresholdSteps[candidate] - value) < Math.abs(centralityThresholdSteps[closest] - value)
           ? candidate
@@ -4117,8 +4103,8 @@ async function main() {
     window.clearTimeout(centralityViewportUpdateTimer);
     centralityViewportUpdateTimer = window.setTimeout(() => {
       centralityFilterScoreCache = null;
-      updateNodeSizes();
       updateCentralityThresholdRange();
+      updateNodeSizes();
       updateLabelTiers();
       renderer.refresh();
       refreshVisibleNodeDetails();

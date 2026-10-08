@@ -295,6 +295,12 @@
               of the network on screen. Turning off Financial relationships, for example, recalculates every score without
               funding links.
             </p>
+            <p>
+              For closeness and betweenness, parallel relationships in the same direction are collapsed into one step,
+              and undirected relationships become steps in both directions. Degree and eigenvector retain each relationship
+              separately. Centrality filter scores are calculated before applying the centrality threshold, so raising
+              that threshold does not change the scores being filtered.
+            </p>
             <p>In the formulas below, <em>N</em> is the number of actors in the metric graph and <em>d</em>(u, v) is the number of steps on the shortest path from u to v.</p>
 
             <h3>Degree</h3>
@@ -354,7 +360,7 @@
             <ul>
               <li><strong>Halo:</strong> any of the four measures can set halo size (see <a href="#visual-encoding">Visual encoding</a>).</li>
               <li><strong>Labels:</strong> actors are ranked by the selected measure. The top 10 get the largest labels. The rest are split at the median into medium and small labels, and smaller tiers only appear as you zoom in. The Labels slider hides labels by percentile rank, with tied scores sharing the same rank.</li>
-              <li><strong>Centrality filter:</strong> steps through ranked degree values to hide less-connected actors. The filter currently applies to degree only; other measures leave every actor visible.</li>
+              <li><strong>Centrality filter:</strong> steps through ranked values of the selected measure to hide lower-ranked actors. Degree shows whole connection counts; closeness, betweenness and eigenvector show fractional scores. The slider, step buttons and editable score all use the selected measure.</li>
               <li><strong>Details panel:</strong> &ldquo;more central than X% of all other actors&rdquo; is the share of other visible actors with a strictly lower score than the selected actor.</li>
             </ul>
           </section>
